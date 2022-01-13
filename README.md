@@ -29,7 +29,7 @@ var net = new swag.Net([
 ]);
 
 
-forwarding:
+# forwarding:
 
 net.forward([0,0]); //outputs a copy of the activations in the last layer.... its a copy so its safe to change the contents.
 
@@ -39,7 +39,7 @@ net.save(true); //prompts user to save a file of the json
 net.load(json); turns "net" into whatever the json is
 netTwo.copy(net); // you can also use this to make copies of neural networks. Its safe.
 
-training:
+# training:
 
 net.train(input , expected output);
 
@@ -47,7 +47,7 @@ net.evolve(dataset, iterations);
 More examples coming soon.
 
 
-Population training:
+# Population training:
 
 this is a method of training where we make a bunch of models and test which one is the best. I made it easy for you
 
