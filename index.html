@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+		<meta content="utf-8" http-equiv="encoding" />
+
+		<title>gay lib</title>
+		<style>
+			* {
+				margin: 0px;
+				border: 0px;
+			}
+			ws {
+				white-space: break-spaces;
+			}
+			.wrapper {
+				margin-left: 15%;
+				width: 70%;
+				background-color: #f2f7f4;
+			}
+			h1 {
+				text-align: center;
+			}
+			.canvasWrapper {
+				display: flex;
+				justify-content: center;
+			}
+		</style>
+		<script src="Utils.js"></script>
+		<script src="Layer.js"></script>
+		<script src="Net.js"></script>
+		<script src="Population.js"></script>
+	</head>
+	<body onkeypress="doit()">
+		<div class="wrapper">
+			<h1 id="show">backprop</h1>
+			<div class="canvasWrapper" align="center">
+				<canvas
+					id="canvas"
+					width="900px"
+					height="480px"
+					style="border: 1px solid black"
+				></canvas>
+			</div>
+			<div id="out"></div>
+		</div>
+		<script src="script.js"></script>
+	</body>
+</html>
