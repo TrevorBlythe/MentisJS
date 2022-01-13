@@ -6,14 +6,16 @@ let clear = function () {
 	document.getElementById('out').innerHTML = '';
 };
 
+let ctx = document.getElementById('canvas').getContext('2d');
+
 var net = new swag.Net([
 	new swag.Layer('fc', 2),
-	new swag.Layer('fc', 10, 'sigmoid'),
+	new swag.Layer('fc', 5, 'sigmoid'),
 	new swag.Layer('fc', 1, 'sigmoid'),
 ]);
 
 net.batchSize = 4;
-net.learningRate = 0.01;
+net.learningRate = 0.1;
 
 let inputs = [
 	[0, 0],
@@ -26,6 +28,7 @@ let outputs = [[0], [1], [1], [0]];
 
 let doit = function () {
 	clear();
+	swag.render(net, ctx, 10, 10, 20);
 	for (var i = 0; i < 20000; i++) {
 		var loss = net.train(inputs[i % 4], outputs[i % 4]);
 		if (i % 5000 === 0) {
