@@ -298,6 +298,7 @@
 							2 *
 							layerNext.costs[h];
 
+						layer.costs[j] = 0;
 						layer.costs[j] +=
 							(layer.w[h + j * layerNext.size] *
 							layerNext.actFuncPrime(layerNext.z[h]) *
