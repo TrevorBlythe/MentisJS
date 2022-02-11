@@ -99,12 +99,12 @@
 
 			if (data.length == this.layers[0].size) {
 				//check if sizes are correct
-				this.layers[0].activations = [...data]; //does the dirty deed
+				this.layers[0].activations = data; //does the dirty deed
 				for (i = 0; i < this.layers.length; i++) {
 					var layer = this.layers[i];
 					for (var a = 0; a < layer.activations.length; a++) {
 						layer.activations[a] = layer.actFunc(
-							layer.activations[a] + layer.biases[a]
+							layer.activations[a] + layer.biases[a] //biases zero for first layer
 						);
 					}
 					if (i != this.layers.length - 1) {
@@ -119,7 +119,7 @@
 				}
 			}
 
-			return [...this.layers[this.layers.length - 1].activations]; //return activations of the last layer
+			return [...this.layers[this.layers.length - 1].activations]; //return activations of the last layer (copied btw so you can change it if you want)
 		}
 
 		mutate(severity, chance) {
@@ -305,7 +305,7 @@
 							2 *
 							layerNext.costs[h]);
 					}
-				 	layer.costs[j] = layer.activations[j] + layer.costs[j];
+				 	//layer.costs[j] = layer.activations[j] + layer.costs[j];
 
 				}
 				for (h = 0; h < layerNext.size; h++) {
