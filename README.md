@@ -1,70 +1,49 @@
 # swagNeuralNet
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
+I am about to be a college student so expect the next four years to be this projects prime.
 
+Go ahead and run index.html and try it out! You will not be dissapointed.
 
-# This project is unfinished!
-I probably will leave it here. 
+# This project is coming along!
+Im rewriting it to be as simple as possible, I made this as a middle finger to 
+pytorch and tensorflow.. they have needlessly complicated APIS that dont make
+sense. Machine learning is easy to do and doesnt need to be complicated.
 
-Just open index.html and i have A XOR example ready training for you. Can someone finish this for me?
-
-Things i might add:
+Things i will add:
 lstm layer
 conv layer
-things like adadelta and momentum 
+more layers
+optimizers like adadelta
 
 # Tutorial:
 
 How to make a network.
 
-var net = swag.Net(layers,minmax);
-
-minmax is just how big the weights are initialized as. you can leave it blank.
+var net = swag.Net(array of layers);
 
 example:
 
 var net = new swag.Net([
-	new swag.Layer('fc', 2),
-	new swag.Layer('fc', 10, 'sigmoid'),
-	new swag.Layer('fc', 1, 'sigmoid'),
+	new swag.FC(2,3),
+	new swag.Sig(3),
+	new swag.FC(3,1),
 ]);
 
 
 # forwarding:
 
-net.forward([0,0]); //outputs a copy of the activations in the last layer.... its a copy so its safe to change the contents.
+net.forward(array); this returns the output of a network with a given input ( array ) 
 
 saving/loading:
-net.save(); //returns json string of model
-net.save(true); //prompts user to save a file of the json
-net.load(json); turns "net" into whatever the json is
-netTwo.copy(net); // you can also use this to make copies of neural networks. Its safe.
+net.save(); //broken, will fix 
+net.save(true); //broken, will fix
+net.load(json); // broken will fix soon
+netTwo.copy(net); //broken, will fix soon
 
 # training:
-
 net.train(input , expected output);
 
-net.evolve(dataset, iterations);
-More examples coming soon.
-
+net.evolve(dataset, iterations); //broken, will fix
 
 # Population training:
-
-this is a method of training where we make a bunch of models and test which one is the best. I made it easy for you
-
-let pop = new swag.Population(popSize, elitism, mutationRate, netLayers);
-
-
-//* lets say the third network performed the best.... we set its score to be high
-
-pop.networks[2].score = 9999;
-
-//* now we mutate the population and breed the best ones! The VERY best networks just up and go on to the next pop without mutations
-
-pop.cullAndBreed();
-
-//* now your ready to score the networks again! all scores got automatically set to Zero!
-
-
-
-
-
+Im rewriting this.
