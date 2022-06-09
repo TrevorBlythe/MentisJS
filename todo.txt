@@ -1,0 +1,6 @@
+make library better
+add render function for layers.
+publish to github
+add conv add everything
+
+ADD GPU SUPPORT WITH GLMATRIX
