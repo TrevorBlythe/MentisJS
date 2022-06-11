@@ -5,15 +5,23 @@ I am about to be a college student so expect the next four years to be this proj
 Go ahead and run index.html and try it out! You will not be dissapointed.
 
 # This project is coming along!
-Im rewriting it to be as simple as possible, I made this as a middle finger to 
-pytorch and tensorflow.. they have needlessly complicated APIS that dont make
-sense. Machine learning is easy to do and doesnt need to be complicated.
+Im rewriting it to be as simple as possible, I made this as a tribute to 
+pytorch and tensorflows needlessly complicated api's. 
+Machine learning is so easy to do.
 
 Things i will add:
 lstm layer
-conv layer
+conv layer ----- 80 % DONE!!!-----------
 more layers
 optimizers like adadelta
+
+
+Things for the distant future:
+
+GAN tutorial.
+Diffusion model tutorial.
+WASM for speed?
+
 
 # Tutorial:
 
