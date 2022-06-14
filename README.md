@@ -11,7 +11,7 @@ Machine learning is so easy to do.
 
 Things i will add:
 lstm layer
-conv layer ----- 80 % DONE!!!-----------
+padding in conv layer
 more layers
 optimizers like adadelta
 
