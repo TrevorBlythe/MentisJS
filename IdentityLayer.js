@@ -1,21 +1,10 @@
 
 {
-
-	/*
-		Layer specification:
-
-		Each layer needs an inData and outData array
-
-		Each layer needs a "forward" and a "backward" function
-
-		updateParams() updates params from the saved grads from the backward function
-
-		inSize() and outSize() should be implemented
-	*/
+	//this layer does absolutly nothing to the input.
+	//this layer just outputs what you put in.
 
 	class IdentityLayer {
-		// this is a linear dummy layer
-
+		
 		constructor(size) {
 				this.nextLayer; //the connected layer
 				this.inData = new Float64Array(size); //the inData
@@ -65,11 +54,6 @@
 			return this.outData.length;
 		}
 
-		updateParams(lr,bs){
-			return;
-			//nothing to update, this layer doesnt have parameters
-			//Quandale dingle
-		}
 	}
 
 	swag.IdentityLayer = IdentityLayer;
