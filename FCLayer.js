@@ -4,16 +4,35 @@
 	/*
 		Layer specification:
 
-		Each layer needs an inData and outData array
+		Each layer needs an inData and outData array.
+		These arrays should never be replaced as they are shared objects.
+		Replacing the inData or outData array will break the net
 
 		Each layer needs a "forward" and a "backward" function
 
 		updateParams() updates params from the saved grads from the backward function
 
 		inSize() and outSize() should be implemented
+
+		OPTIONAL:
+			if you want your custom layer to work with mutation/genetic learning add
+			"mutate(rate,intensity)" function, mutate your layers parameters
+
+			if you want your layer to have gpu support, add an initGPU function.
+			Also add a param bool called 'gpuEnabled' which will turn on when gpu should
+			be enabled.
+			You can code the rest yourself, swagnet uses gpujs and swag.gpu is a 
+			global gpu object to use to prevent making multpile gpu objects.
+
 	*/
 
+
+
+
+
+
 	class FCLayer {
+
 		constructor(inSize, outSize) {
 
 				if(!inSize){
@@ -24,14 +43,16 @@
 					throw "Missing parameter in FC Constructor: (output size)";
 				}
 				
-				this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
-				this.bs = new Float64Array(outSize); //the bias sensitivities to error
+				this.gpuEnabled = false;
+				this.trainIterations = 0; //++'d whenever backwards is called;
+				this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
+				this.bs = new Float32Array(outSize); //the bias sensitivities to error
 				this.nextLayer; //the connected layer
-				this.inData = new Float64Array(inSize); //the inData
-				this.outData = new Float64Array(outSize); 
-				this.w = new Float64Array(inSize * outSize); //this will store the weights
-				this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
-				this.costs = new Float64Array(inSize); //costs for each neuron
+				this.inData = new Float32Array(inSize); //the inData
+				this.outData = new Float32Array(outSize); 
+				this.w = new Float32Array(inSize * outSize); //this will store the weights
+				this.b = new Float32Array(outSize); //this will store the biases (biases are for the outData (next layer))
+				this.costs = new Float32Array(inSize); //costs for each neuron
 
 				for (var j = 0; j < inSize; j++) {//----init random weights
 					for (var h = 0; h < outSize; h++) {
@@ -48,6 +69,7 @@
 					);
 					this.bs[j] = 0;
 				} ///---------adding random biases
+
 		}
 
 		forward(inData){
@@ -61,7 +83,7 @@
 						}
 					}
 
-
+	
 						for (var h = 0; h < this.outSize(); h++) {
 							this.outData[h] = 0; //reset outData activation
 							for (var j = 0; j < this.inSize(); j++) {
@@ -75,6 +97,7 @@
 		}
 
 		backward(expected){ 
+			this.trainIterations++;
 			for(var i = 0;i<this.inSize();i++){ //reset the costs
 				this.costs[i] = 0;
 			}
@@ -138,29 +161,64 @@
 			return this.outData.length;
 		}
 
-		updateParams(lr,bs){
+		updateParams(lr){
 			
-			//first average out the weights and such
-
 			for(var j = 0;j<this.outSize();j++){
 				for(var i = 0;i<this.inSize();i++){
-					this.ws[j + i * this.outSize()] /= bs;
+					this.ws[j + i * this.outSize()] /= this.trainIterations;
 					this.w[j + i * this.outSize()] += this.ws[j + i * this.outSize()] * lr;
 					this.ws[j + i * this.outSize()] = 0;
-					if(this.w[j + i * this.outSize()] == NaN){
-						console.log("Ruh roh");
-					}
 				}
 			}
 
 			for(var j = 0;j<this.outSize();j++){
-					this.bs[j] /= bs;
+					this.bs[j] /= this.trainIterations;
 					this.b[j] += this.bs[j] * lr;
 					this.bs[j] = 0;
 			}
 
+			this.trainIterations = 0;
+
 		}
+
+		mutate(mutationRate,mutationIntensity){
+			for(var i = 0;i<this.w.length;i++){
+				if(Math.random() < mutationRate){
+					this.w[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1:1);
+				}
+			}
+			for(var i = 0;i<this.b.length;i++){
+				if(Math.random() < mutationRate){
+					this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1:1);
+				}
+			}
+		}
+
+
+
+		//----------------
+		// GPU specific stuff below! Beware.
+		//----------------
+	
+		// initGPU(){
+		// 	this.forwardGPUKernel = swag.gpu.createKernel(function(inData, weights, biases, outDataLength, inDataLength) {
+		// 		var act = 0;
+		// 		for (var j = 0; j < inDataLength; j++) {
+		// 					act +=
+		// 						inData[j] *
+		// 						weights[this.thread.x + j *	outDataLength];// the dirty deed
+		// 		}
+		// 		act += biases[this.thread.x];
+		// 		return act
+		// 	}).setOutput([this.outData.length]);
+		// }
+	
+		//----------------
+		// End of GPU specific stuff. Take a breather.
+		//----------------
 	}
+
+
 
 	swag.FCLayer = FCLayer;
 	swag.FC = FCLayer;
