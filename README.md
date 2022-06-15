@@ -7,6 +7,8 @@ and intuitive machine learning library out there. Inspired by the complicated py
 
 ![image](https://github.com/TrevorBlythe/swagNeuralNet/blob/main/showcase/MnistDigits.png?raw=true)
 
+![image](https://github.com/TrevorBlythe/swagNeuralNet/blob/main/showcase/XORrender.png?raw=true)
+
 # This project is coming along!
 Im rewriting it to be as simple as possible. It is now extremely easy to write your own layers! Look in FCLayer.js for a specification on how to write 
 your first one.
