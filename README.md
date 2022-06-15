@@ -28,6 +28,7 @@ GAN tutorial.
 Diffusion model tutorial.
 WASM for speed?
 
+CURRENTLY WORKING ON: optimizers
 
 # Tutorial:
 
