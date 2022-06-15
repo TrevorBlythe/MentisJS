@@ -1,17 +1,18 @@
-# swagNeuralNet
+# swagnet JS machine learning/evoloution
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
-I am about to be a college student so expect the next four years to be this projects prime.
+I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
+and intuitive machine learning library out there. Inspired by the complicated python ML apis (to make a better one )! 
 
-Go ahead and run index.html and try it out! You will not be dissapointed.
 
 # This project is coming along!
-Im rewriting it to be as simple as possible, I made this as a tribute to 
-pytorch and tensorflows needlessly complicated api's. 
-Machine learning is so easy to do.
+Im rewriting it to be as simple as possible. It is now extremely easy to write your own layers! Look in FCLayer.js for a specification on how to write 
+your first one.
+
 
 Things i will add:
-lstm layer
-padding in conv layer
+deconvoloution, soon
+lstm layer, soon
+padding in conv layer, at 30 github stars
 more layers
 optimizers like adadelta
 
@@ -29,13 +30,21 @@ How to make a network.
 
 var net = swag.Net(array of layers);
 
-example:
-
 var net = new swag.Net([
 	new swag.FC(2,3),
 	new swag.Sig(3),
 	new swag.FC(3,1),
 ]);
+
+var net = new swag.Net([
+	new swag.Conv(28,28,1,4,4,3,1,0),
+	new swag.MaxPool(25,25,3,5,5,5),
+	new swag.FC(75,30),
+	new swag.Sig(30),
+	new swag.FC(30,10),
+	new swag.Sig(10)
+]);
+
 
 
 # forwarding:
