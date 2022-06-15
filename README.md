@@ -1,7 +1,7 @@
 # swagnet JS machine learning/evoloution
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
-and intuitive machine learning library out there. Inspired by the complicated python ML apis (to make a better one )! 
+and intuitive machine learning library out there. Inspired by the complicated python ML apis (to make a better one )! Also Inspired by convnetjs!
 
 
 # This project is coming along!
