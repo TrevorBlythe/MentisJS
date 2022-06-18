@@ -46,77 +46,119 @@
 		<script src="../../src/layers/SigmoidLayer.js"></script>
 		<script src="../../src/layers/TanhLayer.js"></script>
 		<script src="../../src/layers/SineLayer.js"></script>
+		<script src="../../src/layers/ReluLayer.js"></script>
+		<script src="../../src/layers/LeakyReluLayer.js"></script>
 		<script src="../../src/layers/IdentityLayer.js"></script>
 		<script src="../../src/layers/ConvLayer.js"></script>
 		<script src="../../src/layers/MaxPoolLayer.js"></script>
 		<script src="../../src/Population.js"></script>
 		<script src="../../src/Net.js"></script>
 	</head>
-	<body onkeypress="doit()">
+	<body>
 		<div class="wrapper">
 			<h1 id="show">Mnist digits</h1>
+
 			<div class="showcase">
 				<canvas id="canvas0" width="140px" height="140px"></canvas>
 				<h3 style="margin-right: 3%">Net Output:</h3>
 				<span id="zeroout" style="width: 50%; height: 100%"></span>
-				<h5 style="margin-left: 3%" id="errZ">Total Error:</h5>
+				<h5 style="margin-left: 3%" id="errzero">Total Error:</h5>
 			</div>
 			<div class="showcase">
 				<canvas id="canvas1" width="140px" height="140px"></canvas>
 				<h3 style="margin-right: 3%">Net Output:</h3>
 				<span id="oneout" style="width: 50%; height: 100%"></span>
-				<h5 style="margin-left: 3%" id="errO">Total Error:</h5>
+				<h5 style="margin-left: 3%" id="errone">Total Error:</h5>
 			</div>
 			<div class="showcase">
 				<canvas id="canvas2" width="140px" height="140px"></canvas>
 				<h3 style="margin-right: 3%">Net Output:</h3>
 				<span id="twoout" style="width: 50%; height: 100%"></span>
-				<h5 style="margin-left: 3%" id="errT">Total Error:</h5>
+				<h5 style="margin-left: 3%" id="errtwo">Total Error:</h5>
 			</div>
 			<div class="showcase">
 				<canvas id="canvas3" width="140px" height="140px"></canvas>
 				<h3 style="margin-right: 3%">Net Output:</h3>
 				<span id="threeout" style="width: 50%; height: 100%"></span>
-				<h5 style="margin-left: 3%" id="errTh">Total Error:</h5>
+				<h5 style="margin-left: 3%" id="errthree">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas4" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="fourout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="errfour">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas5" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="fiveout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="errfive">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas6" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="sixout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="errsix">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas7" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="sevenout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="errseven">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas8" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="eightout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="erreight">Total Error:</h5>
+			</div>
+			<div class="showcase">
+				<canvas id="canvas9" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<span id="nineout" style="width: 50%; height: 100%"></span>
+				<h5 style="margin-left: 3%" id="errnine">Total Error:</h5>
+			</div>
+
+			<div class="showcase" style="padding: 5px">
+				<h3>Filters:</h3>
+				<canvas id="filterCanvas" style="width: 10%" width="300px" height="60px"></canvas>
+				<h3>Filter Grads:</h3>
+				<canvas id="filterGCanvas" style="width: 10%" width="300px" height="60px"></canvas>
 			</div>
 			<br /><br />
 			<div style="float: right">
-				<textarea
-					id="textinput"
-					name="input"
-					rows="10"
-					cols="50"
-					style="border: 5px solid black"
-				>
-var net = new swag.Net([
-   new swag.Conv(28,28,1,4,4,3,1,0),
-   new swag.MaxPool(25,25,3,5,5,5),
-   new swag.FC(75,30),
-   new swag.Sig(30),
-   new swag.FC(30,4),
-   new swag.Sig(4)
-]);
-               
-net.batchSize = 1;
-net.learningRate = 0.1;
+				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
+				var net = new swag.Net([
+					new swag.Conv(28, 28, 1, 10, 10, 3, 3, 0),
+					new swag.MaxPool(7, 7, 3, 2, 2, 2),
+					new swag.FC(27, 15),
+					new swag.Sig(15),
+					new swag.FC(15, 10),
+					new swag.Relu(10),
+				]);
+				
+											
+			 net.batchSize = 20;
+			 net.learningRate = 0.01;
+			 
+			 examplesSeen = 0;
+											
                </textarea
 				>
 				<br />
-				<button
-					onclick="eval.call(window,document.getElementById('textinput').value);"
-				>
-					Reload Network
-				</button>
+				<button onclick="eval.call(window,document.getElementById('textinput').value);">Reload Network</button>
 			</div>
-			<p id="lr">learning rate: 1</p>
+			<p id="lr">learning rate: 0.1</p>
 			<input
 				type="range"
 				min="0"
-				max="1000"
-				value="500"
-				oninput="net.learningRate = this.value/500;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;"
+				max="5000"
+				value="250"
+				oninput="net.learningRate = this.value/2500;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;"
 			/>
-
+			<p id="es">examples seen: 0</p>
+			<button onclick="clearInterval(loop);">Stop</button>
+			<button onclick="go();">Go</button>
 			<br /><br />
 			<br /><br />
 			<br /><br />
@@ -125,11 +167,9 @@ net.learningRate = 0.1;
 			<br /><br />
 			<h1>Explanation</h1>
 			<p>
-				Here you can see a network train live on some mnist digits. Over time
-				the errors should be approaching 0%. It will take about 1 minute to get
-				pretty good at the numbers. This is because there is only four. Ill do
-				the rest of the digits at 15 github stars. I encourage you to tinker
-				with the code and see if you can make a better model for this problem.
+				Here you can see a network train live on some mnist digits. Over time the errors should be approaching 0%. It will take about 1 minute to get pretty
+				good at the numbers. This is because there is only four. Ill do the rest of the digits at 15 github stars. I encourage you to tinker with the code and
+				see if you can make a better model for this problem.
 			</p>
 		</div>
 		<script src="digits.js"></script>
