@@ -1,6 +1,21 @@
 var swag = swag || {};
 {
-
+	var return_v = false;
+	var v_val = 0.0;
+	var gaussRandom = function () {
+		if (return_v) {
+			return_v = false;
+			return v_val;
+		}
+		var u = 2 * Math.random() - 1;
+		var v = 2 * Math.random() - 1;
+		var r = u * u + v * v;
+		if (r == 0 || r > 1) return gaussRandom();
+		var c = Math.sqrt((-2 * Math.log(r)) / r);
+		v_val = v * c; // cache this
+		return_v = true;
+		return u * c;
+	};
 	var isBrowser = new Function(
 		'try {return this===window;}catch(e){ return false;}'
 	);
@@ -26,7 +41,6 @@ var swag = swag || {};
 		return num;
 	};
 
-
 	let getLoss = function (results, expected) {
 		var loss = 0;
 		for (var i = 0; i < results.length; i++) {
@@ -36,95 +50,92 @@ var swag = swag || {};
 		return loss;
 	};
 
-	
 	let render = function (net, ctx, x, y, scale) {
 		// a built in network renderer
 		const SPREAD = 10;
 		const DRAWBACKGROUND = true;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
-			if(net.layers[i].constructor.name != 'ConvLayer' && net.layers[i].constructor.name != 'MaxPoolLayer'){
-				
-			if (net.layers[i].inSize() > maxSize) {
-				maxSize = net.layers[i].inSize();
-			} //end of if
-			if (net.layers[i].outSize() > maxSize) {
-				maxSize = net.layers[i].outSize();
-			} //end of if
-		} //end of for
-		if (DRAWBACKGROUND) {
-			ctx.fillStyle = 'grey';
-			ctx.fillRect(
-				x,
-				y,
-				5 + (net.layers.length) * scale * SPREAD + scale,
-				5 + maxSize * scale * 2
-			);
-		}
+			if (
+				net.layers[i].constructor.name != 'ConvLayer' &&
+				net.layers[i].constructor.name != 'MaxPoolLayer'
+			) {
+				if (net.layers[i].inSize() > maxSize) {
+					maxSize = net.layers[i].inSize();
+				} //end of if
+				if (net.layers[i].outSize() > maxSize) {
+					maxSize = net.layers[i].outSize();
+				} //end of if
+			} //end of for
+			if (DRAWBACKGROUND) {
+				ctx.fillStyle = 'grey';
+				ctx.fillRect(
+					x,
+					y,
+					5 + net.layers.length * scale * SPREAD + scale,
+					5 + maxSize * scale * 2
+				);
+			}
 		}
 
-//render the neurons in each layer...
+		//render the neurons in each layer...
 		for (i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
-			if(layer.constructor.name != 'ConvLayer' && layer.constructor.name != 'MaxPoolLayer'){
+			if (
+				layer.constructor.name != 'ConvLayer' &&
+				layer.constructor.name != 'MaxPoolLayer'
+			) {
+				for (var h = 0; h < layer.outSize(); h++) {
+					ctx.fillStyle =
+						'rgb(' +
+						layer.outData[j] * 255 +
+						',' +
+						layer.outData[j] * 255 +
+						',' +
+						layer.outData[j] * 255 +
+						')';
+					ctx.fillRect(
+						x + 5 + (i + 1) * scale * SPREAD,
+						y +
+							5 +
+							h * scale * 2 +
+							((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
+				}
 
+				for (var j = 0; j < layer.inSize(); j++) {
+					ctx.fillStyle =
+						'rgb(' +
+						layer.inData[j] * 255 +
+						',' +
+						layer.inData[j] * 255 +
+						',' +
+						layer.inData[j] * 255 +
+						')';
+					ctx.fillRect(
+						x + 5 + i * scale * SPREAD,
+						y +
+							5 +
+							j * scale * 2 +
+							((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
+				}
+				//end of render neurons for each layer
+			}
+			if (layer.constructor.name == 'FCLayer') {
+				//render weights in the fc layer
 
-			for (var h = 0; h < layer.outSize(); h++) {
-				ctx.fillStyle =
-				'rgb(' +
-				layer.outData[j] * 255 +
-				',' +
-				layer.outData[j] * 255 +
-				',' +
-				layer.outData[j] * 255 +
-				')';
-			ctx.fillRect(
-				x + 5 + (i+1) * scale * SPREAD,
-				y +
-					5 +
-					h * scale * 2 +
-					((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
-				scale,
-				scale
-			);
-		}
-	
-	
-		for (var j = 0; j < layer.inSize(); j++) {
-			ctx.fillStyle =
-				'rgb(' +
-				layer.inData[j] * 255 +
-				',' +
-				layer.inData[j] * 255 +
-				',' +
-				layer.inData[j] * 255 +
-				')';
-			ctx.fillRect(
-				x + 5 + i * scale * SPREAD,
-				y +
-					5 +
-					j * scale * 2 +
-					((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
-				scale,
-				scale
-			);
-		}
-//end of render neurons for each layer
-
-	}
-			if(layer.constructor.name == "FCLayer"){ //render weights in the fc layer
-				
 				for (var j = 0; j < layer.inSize(); j++) {
 					for (var h = 0; h < layer.outSize(); h++) {
 						ctx.strokeStyle =
 							'rgb(' +
-							-(
-								layer.w[j * layer.outSize() + h] *
-								(255)
-							) +
+							-(layer.w[j * layer.outSize() + h] * 255) +
 							',' +
-							layer.w[j * layer.outSize() + h] *
-								(255) +
+							layer.w[j * layer.outSize() + h] * 255 +
 							',0)';
 						ctx.beginPath();
 						ctx.moveTo(
@@ -141,35 +152,36 @@ var swag = swag || {};
 								y +
 								5 +
 								h * scale * 2 +
-								((maxSize * scale * 2) / 2 -
-									(layer.outSize() * scale * 2) / 2)
+								((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2)
 						);
 						ctx.stroke();
-					}//end of foor loop each outSize
+					} //end of foor loop each outSize
 				} //end of for loop each inSize
-		}//end of if layer is fc 
-		if(layer.constructor.name == "SigmoidLayer" ||
-			 layer.constructor.name == "SineLayer" || 
-			 layer.constructor.name == "TanhLayer"){
-			//render the word sigmoid in between the nodes
-			ctx.fillStyle = "white";
-			ctx.font = scale  + 'px serif';
-			ctx.fillText(layer.constructor.name.slice(0,-5), 	x + 5 + (i + 0.4) * scale * SPREAD,
-			y +
-				5 +
-				(layer.inSize()/2) * scale * 2 +
-				((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2));
-		}
+			} //end of if layer is fc
+			if (
+				layer.constructor.name == 'SigmoidLayer' ||
+				layer.constructor.name == 'SineLayer' ||
+				layer.constructor.name == 'TanhLayer' ||
+				layer.constructor.name == 'ReluLayer'
+			) {
+				//render the word sigmoid in between the nodes
+				ctx.fillStyle = 'white';
+				ctx.font = scale + 'px serif';
+				ctx.fillText(
+					layer.constructor.name.slice(0, -5),
+					x + 5 + (i + 0.4) * scale * SPREAD,
+					y +
+						5 +
+						(layer.inSize() / 2) * scale * 2 +
+						((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2)
+				);
+			}
 
-		if(layer.constructor.name = "ConvLayer"){
-			
-		}
-
+			if ((layer.constructor.name = 'ConvLayer')) {
+			}
 		} //end of for loop each layer
 	};
-	
 
-	
 	swag.clamp = clamp;
 	swag.render = render;
 	swag.getLoss = getLoss;
@@ -177,11 +189,11 @@ var swag = swag || {};
 	swag.lin = lin;
 	swag.bounce = bounce;
 	swag.isBrowser = isBrowser;
-	if(window.GPU){
+	swag.gaussRandom = gaussRandom;
+	if (window.GPU) {
 		const gpu = new GPU();
-		swag.gpu = gpu; 
+		swag.gpu = gpu;
 	}
-  
 
 	if (!swag.isBrowser()) {
 		//test if we are in node
@@ -195,4 +207,3 @@ var swag = swag || {};
 		}
 	}
 }
-

@@ -1,13 +1,5 @@
 {
-	class TanhLayer {
-		tanh(z) {
-			return Math.tanh(z);
-		}
-
-		tanhPrime(z) {
-			return 1 - Math.pow(Math.tanh(z), 2);
-		}
-
+	class LeakyReluLayer {
 		constructor(size) {
 			this.nextLayer; //the connected layer
 			this.inData = new Float32Array(size);
@@ -17,22 +9,13 @@
 
 		forward(inData) {
 			if (inData) {
-				if (inData.length != this.inData.length) {
-					throw (
-						'INPUT SIZE WRONG ON Tanh LAYER:\nexpected size (' +
-						this.inSize +
-						'), got: (' +
-						inData.length +
-						')'
-					);
-				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.tanh(this.inData[h]);
+				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : 0;
 			}
 			//Oh the misery
 		}
@@ -51,10 +34,10 @@
 
 			for (var j = 0; j < this.outSize(); j++) {
 				let err = expected[j] - this.outData[j];
-				// this.costs[j] = err * this.tanhPrime(this.inData[j]);
-				//this is an optimized version of the last line ↓
-				this.costs[j] = err * (1 - Math.pow(this.outData[j], 2));
 				loss += Math.pow(err, 2);
+				if (this.outData[j] >= 0) {
+					this.costs[j] = err;
+				}
 			}
 			return loss / this.outSize();
 		}
@@ -68,6 +51,7 @@
 		}
 	}
 
-	swag.TanhLayer = TanhLayer;
-	swag.Tanh = TanhLayer;
+	swag.LeakyReluLayer = LeakyReluLayer;
+	swag.LeakyRelu = LeakyReluLayer;
+	swag.LRelu = LeakyReluLayer;
 }
