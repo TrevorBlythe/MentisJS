@@ -1,11 +1,11 @@
 {
-	class SineLayer {
-		sine(z) {
-			return Math.sin(z);
+	class SigmoidLayer {
+		sigmoid(z) {
+			return 1 / (1 + Math.exp(-z));
 		}
 
-		sinePrime(z) {
-			return Math.cos(z);
+		sigmoidPrime(z) {
+			return Math.exp(-z) / Math.pow(1 + Math.exp(-z), 2);
 		}
 
 		constructor(size) {
@@ -19,7 +19,7 @@
 			if (inData) {
 				if (inData.length != this.inData.length) {
 					throw (
-						'INPUT SIZE WRONG ON Sine LAYER:\nexpected size (' +
+						'INPUT SIZE WRONG ON SIG LAYER:\nexpected size (' +
 						this.inSize +
 						'), got: (' +
 						inData.length +
@@ -32,7 +32,7 @@
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.sine(this.inData[h]);
+				this.outData[h] = this.sigmoid(this.inData[h]);
 			}
 			//Oh the misery
 		}
@@ -51,8 +51,8 @@
 
 			for (var j = 0; j < this.outSize(); j++) {
 				let err = expected[j] - this.outData[j];
-				this.costs[j] = err * this.sinePrime(this.inData[j]);
 				loss += Math.pow(err, 2);
+				this.costs[j] = err * this.sigmoidPrime(this.inData[j]);
 			}
 			return loss / this.outSize();
 		}
@@ -66,7 +66,7 @@
 		}
 	}
 
-	swag.SineLayer = SineLayer;
-	swag.Sine = SineLayer;
-	swag.Sin = SineLayer;
+	swag.SigmoidLayer = SigmoidLayer;
+	swag.Sigmoid = SigmoidLayer;
+	swag.Sig = SigmoidLayer;
 }
