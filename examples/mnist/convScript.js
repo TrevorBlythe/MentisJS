@@ -77,11 +77,11 @@ let greenBox = function (p) {
 // ]);
 
 var net = new swag.Net([
-	new swag.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new swag.MaxPool(7, 7, 5, 2, 2, 2),
-	new swag.FC(45, 35),
-	new swag.Sig(35),
-	new swag.FC(35, 10),
+	new swag.Conv(28, 28, 1, 10, 10, 10, 3, 0),
+	new swag.MaxPool(7, 7, 10, 2, 2, 2),
+	new swag.FC(90, 50),
+	new swag.Sig(50),
+	new swag.FC(50, 10),
 	new swag.Relu(10),
 ]);
 
