@@ -98,8 +98,20 @@ var go = function () {
 			let err = net.train(getDigit(names[i]), c);
 			document.getElementById('err' + names[i]).innerHTML = 'Total Error: ' + parseInt(err * 100) + '%';
 			document.getElementById(names[i] + 'out').innerHTML = '';
+			let max = 0;
+			let ind = 0;
 			for (var j = 0; j < 10; j++) {
+				if (net.layers[net.layers.length - 1].outData[j] > max) {
+					// console.log(max);
+					max = net.layers[net.layers.length - 1].outData[j];
+					ind = j;
+				}
 				document.getElementById(names[i] + 'out').innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
+			}
+			if (ind == i) {
+				document.getElementById(names[i] + 'c').innerHTML = 'Correct';
+			} else {
+				document.getElementById(names[i] + 'c').innerHTML = 'WRONG YOU IDIOT!';
 			}
 			drawFromArr(getDigit(names[i]), ctx[i]);
 		}
@@ -133,7 +145,7 @@ var go = function () {
 		}
 		document.getElementById('es').innerHTML = 'examples seen:' + examplesSeen;
 		examplesSeen++;
-	}, 0);
+	}, 10);
 };
 
 go();
