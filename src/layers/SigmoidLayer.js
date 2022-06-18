@@ -18,13 +18,7 @@
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inData.length) {
-					throw (
-						'INPUT SIZE WRONG ON SIG LAYER:\nexpected size (' +
-						this.inSize +
-						'), got: (' +
-						inData.length +
-						')'
-					);
+					throw 'INPUT SIZE WRONG ON SIG LAYER:\nexpected size (' + this.inSize + '), got: (' + inData.length + ')';
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];

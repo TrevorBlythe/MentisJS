@@ -128,20 +128,20 @@
 			<br /><br />
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-				var net = new swag.Net([
-					new swag.Conv(28, 28, 1, 10, 10, 3, 3, 0),
-					new swag.MaxPool(7, 7, 3, 2, 2, 2),
-					new swag.FC(27, 15),
-					new swag.Sig(15),
-					new swag.FC(15, 10),
-					new swag.Relu(10),
-				]);
+var net = new swag.Net([
+	new swag.Conv(28, 28, 1, 10, 10, 3, 3, 0),
+	new swag.MaxPool(7, 7, 3, 2, 2, 2),
+	new swag.FC(27, 15),
+	new swag.Sig(15),
+	new swag.FC(15, 10),
+	new swag.Relu(10),
+]);
 				
 											
-			 net.batchSize = 20;
-			 net.learningRate = 0.01;
+net.batchSize = 20;
+net.learningRate = 0.01;
 			 
-			 examplesSeen = 0;
+examplesSeen = 0;
 											
                </textarea
 				>
