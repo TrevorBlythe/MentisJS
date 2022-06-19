@@ -30,43 +30,93 @@ WASM for speed?
 
 CURRENTLY WORKING ON: saving / loading
 
-# Tutorial:
+# Tutorial
 
-How to make a network.
+<h2>How to make a Neural Network</h2>
 
-var net = swag.Net(array of layers);
+<p>In this example we will make a neural network that will be a XOR gate.</p>
+<p>First lets define the Dataset.</p>
 
-var net = new swag.Net([
-new swag.FC(2,3),
-new swag.Sig(3),
-new swag.FC(3,1),
+```
+let inputs = [
+	[0, 0],
+	[0, 1],
+	[1, 0],
+	[1, 1],
+];
+
+let outputs = [[0], [1], [1], [0]];
+
+```
+
+<p>Next we must define the layers our Network will have!s</p>
+
+```
+let layerOne = new swag.FC(2,5); //input:2, output:5, fully connected layer
+let layerTwo = new swag.Sig(5); //size:5, sigmoid activation
+let layerThree = new swag.FC(5,5); //input:5, output:5, fully connected layer
+let layerFour = new swag.FC(5,1); //input:5, output:1, fully connected layer
+let layerFive = new swag.Sig(1); //size:1, sigmoid activation
+
+```
+
+<p>Notice how the first layer takes an input size of two? This is because our dataset input size is two!</p>
+<p>The last layer only has one neuron. That will be the output neuron and will tell us what the network predicts!</p>
+<p>This network is MASSIVE overkill for simple XOR but is good for a tutorial. Next we put these layers in a Net object</p>
+
+```
+let network = new swag.Net([
+  layerOne,
+  layerTwo,
+  layerThree,
+  layerFour,
+  layerFive
 ]);
 
-var net = new swag.Net([
-new swag.Conv(28,28,1,4,4,3,1,0),
-new swag.MaxPool(25,25,3,5,5,5),
-new swag.FC(75,30),
-new swag.Sig(30),
-new swag.FC(30,10),
-new swag.Sig(10)
-]);
+network.learningRate = 0.1;
+network.batchSize = 4;
 
-# forwarding:
+```
 
-net.forward(array); this returns the output of a network with a given input ( array )
+<p> Now that we have our network made we can use it to solve XOR! You can input data with the forward function.</p>
 
-saving/loading:
-net.save(); //broken, will fix
-net.save(true); //broken, will fix
-net.load(json); // broken will fix soon
-netTwo.copy(net); //broken, will fix soon
+```
+network.forward(inputs[0]); //returns the output
 
-# training:
+```
 
-net.train(input , expected output);
+<p>Since our network isnt trained yet, it returns gibberish... Lets train it</p>
 
-net.evolve(dataset, iterations); //broken, will fix
+```
+	for (var i = 0; i < 1000; i++) {
+		net.train(inputs[i % 4], outputs[i % 4]);
+	}
+```
 
-# Population training:
+<p>Now that it is trained lets test it</p>
 
-Im rewriting this.
+```
+network.forward([0,0]);
+```
+
+> [0.0001]
+
+```
+network.forward([1,0]);
+```
+
+> [0.9983]
+
+```
+network.forward([0,1]);
+```
+
+> [0.9923]
+
+```
+network.forward([1,1]);
+```
+
+> [0.0012]
+
+<p> yay it works more docs coming soon but im tired rn seeya! </p>
