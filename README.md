@@ -1,6 +1,4 @@
-![image](https://github.com/TrevorBlythe/swagNeuralNet/blob/main/logo.png?raw=true)
-
-# Swagnet JS machine learning/evoloution
+# Swagnet JS machine learning/evoloution <img src="https://github.com/TrevorBlythe/swagNeuralNet/blob/main/logo.png?raw=true" width = 50px>
 
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
