@@ -18,7 +18,7 @@
 			.wrapper {
 				margin-left: 15%;
 				width: 70%;
-				background-color: #f2f7f4;
+				background-color: rgb(220, 225, 222);
 			}
 			h1 {
 				text-align: center;
@@ -42,6 +42,12 @@
 			}
 			h5 {
 				width: 30%;
+			}
+			button {
+				width: 20%;
+				height: auto;
+				border: 1px solid black;
+				box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
 			}
 		</style>
 		<script src="../../src/Utils.js"></script>
@@ -171,7 +177,8 @@ examplesSeen = 0;
 			/>
 			<p id="es">examples seen: 0</p>
 			<button onclick="clearInterval(loop);">Stop</button>
-			<button onclick="go();">Go</button>
+			<button onclick="go();">Go</button><br />
+			<button onclick="net = swag.Net.load(model);">Load pre-trained model</button>
 			<br /><br />
 			<br /><br />
 			<br /><br />
@@ -186,6 +193,7 @@ examplesSeen = 0;
 			</p>
 		</div>
 		<script src="digits.js"></script>
+		<script src="model.js"></script>
 		<script src="convScript.js"></script>
 	</body>
 </html>

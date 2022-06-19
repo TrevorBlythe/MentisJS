@@ -1,13 +1,4 @@
 {
-	// [(W−K+2P)/S]+1.
-
-	// W is the input volume - in your case 128
-	// K is the Kernel size - in your case 5
-	// P is the padding - in your case 0 i believe
-	// S is the stride - which you have not provided.
-
-	//filters stored as such
-	//this.filters[] array of num
 	/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
 this.filterw = [0,1,2,3,4,5,6,7,8,
@@ -19,14 +10,10 @@ Each filter has depth equal to the InDepth, thats why there are three 3x3 in the
 this.filterw
 [filterNum * this.inDepth * filterWidth * filterHeight + x + (y * filterWidth) + (depth * filterWidth * filterHeight)]
 
-*/
-
-	/*
 if you wanna input an image do it like this.
 [r,r,r,r,g,g,g,g,b,b,b,b,b]
 NOT like this:
 [r,g,b,r,g,b,r,g,b,r,g,b]
-
 */
 
 	class ConvLayer {
@@ -54,6 +41,7 @@ NOT like this:
 				Math.ceil((inWidth - filterWidth + 2 * padding + 1) / stride) * Math.ceil((inHeight - filterHeight + 2 * padding + 1) / stride) * this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
 			// this.bs = new Float32Array(this.outData.length);
@@ -215,6 +203,51 @@ NOT like this:
 			// 	this.bs[i] = 0;
 			// }
 			this.trainIterations = 0;
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == 'filterws' ||
+					key == 'filterbs' ||
+					key == 'inData' ||
+					key == 'outData' ||
+					key == 'costs' ||
+					key == 'gpuEnabled' ||
+					key == 'trainIterations' ||
+					key == 'nextLayer' ||
+					key == 'previousLayer'
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0
+			let saveObject = JSON.parse(json);
+			let layer = new ConvLayer(
+				saveObject.inWidth,
+				saveObject.inHeight,
+				saveObject.inDepth,
+				saveObject.filterWidth,
+				saveObject.filterHeight,
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.padding
+			);
+			for (var i = 0; i < layer.filterw.length; i++) {
+				layer.filterw[i] = saveObject.filterw[i];
+			}
+			// for (var i = 0; i < layer.b.length; i++) {
+			// 	layer.b[i] = saveObject.b[i];
+			// }
+			layer.lr = saveObject.lr;
+			return layer;
 		}
 	}
 

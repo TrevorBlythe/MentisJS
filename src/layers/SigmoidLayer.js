@@ -58,6 +58,30 @@
 		outSize() {
 			return this.outData.length;
 		}
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+			delete this.savedOutSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new SigmoidLayer(saveObject.savedSize);
+			return layer;
+		}
 	}
 
 	swag.SigmoidLayer = SigmoidLayer;

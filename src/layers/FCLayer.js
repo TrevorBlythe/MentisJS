@@ -15,26 +15,35 @@
 		REQUIRED FUNCTIONS:
 			inSize()
 			outSize()
-			forward(inData::array) --returns outData
-			backward(inData::array) --returns loss of the layer
+			forward(inData::array)
+			backward(ExpectedOutput::array) -- returns loss of the layer (Expected - outData)^2
 			updateParams(optimizer::string) // optimizer examples: "SGD" "adam" "adagrad" "adadelta"
+			save() -- returns json string of layer
 
+		REQUIRED STATIC FUNCTIONS:
+			load(json) -- returns a layer  EX: FCLayer.load(layer.save()); //makes a copy of "layer"
+			
+		REQUIRED FEILDS:
+			inData:Float32Array
+			outData:Float32Array
+			costs:Float32Array
+			gpuEnabled:Boolean
+			
+			----Everything above is the bare minimum for your layer to work at all--------------
+			
 		NOT REQUIRED FUNCTIONS:
 			inSizeDimensions() -- returns array of dimensions i.e. [28,28,3]
 			outSizeDimensions()
-		
-		REQUIRED PARAMETERS:
-			inData
-			outData
-			lr -- aka learning rate
-			costs
-			nextLayer
-			gpuEnabled
+			
+		FEILDS SET BY NET OBJECT:
+			lr -- aka learning rate 
+			nextLayer -- a reference to the layer after
+			previousLayer -- a reference to preceding layer		
 
-		FUNCTIONS FOR EVOLOUTION BASED LEARNING:
+		FUNCTIONS FOR EVOLOUTION BASED LEARNING TO WORK:
 			mutate(mutationRate::float, mutationIntensity::float)
 
-		FUNCTIONS FOR GPU SUPPORT:
+		FUNCTIONS FOR GPU SUPPORT TO WORK:
 			initGPU() -- this should at least make "this.gpuEnabled" true.
 
 			You can code the rest yourself, swagnet uses gpujs and swag.gpu is a 
@@ -49,14 +58,6 @@
 
 	class FCLayer {
 		constructor(inSize, outSize) {
-			if (!inSize) {
-				throw 'Missing parameter in FC Constructor: (input size)';
-			}
-
-			if (!outSize) {
-				throw 'Missing parameter in FC Constructor: (output size)';
-			}
-
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 			//dont set it in the constructor unless you really want to
 
@@ -190,6 +191,52 @@
 					this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
 				}
 			}
+		}
+
+		save() {
+			// we cant see the length of arrays after saving them in JSON
+			// for some reason so we are adding temp variables so we know
+			// the sizes;
+			this.savedInSize = this.inSize();
+			this.savedOutSize = this.outSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == 'ws' ||
+					key == 'bs' ||
+					key == 'inData' ||
+					key == 'outData' ||
+					key == 'costs' ||
+					key == 'gpuEnabled' ||
+					key == 'trainIterations' ||
+					key == 'nextLayer' ||
+					key == 'previousLayer'
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+			delete this.savedOutSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize);
+			for (var i = 0; i < layer.w.length; i++) {
+				layer.w[i] = saveObject.w[i];
+			}
+			for (var i = 0; i < layer.b.length; i++) {
+				layer.b[i] = saveObject.b[i];
+			}
+			layer.lr = saveObject.lr;
+			return layer;
 		}
 
 		//----------------

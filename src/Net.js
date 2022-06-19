@@ -2,40 +2,13 @@ var swag = swag || {};
 {
 	class Net {
 		constructor(layers, optimizer) {
-			this.layers = [];
+			this.layers = layers || [];
 			this.batchSize = 19;
 			this.epoch = 0;
 			this.lr = 0.01;
 			this.optimizer = optimizer || 'SGD';
 
-			if (layers !== undefined) {
-				//CONNECTING THE LAYERS
-				for (var i = 0; i < layers.length - 1; i++) {
-					this.layers.push(layers[i]);
-					if (layers[i].outSize() != layers[i + 1].inSize()) {
-						throw (
-							'Failure connecting ' +
-							layers[i].constructor.name +
-							' layer with ' +
-							layers[i + 1].constructor.name +
-							',' +
-							layers[i].constructor.name +
-							' output size: ' +
-							layers[i].outSize() +
-							(layers[i].outSizeDimensions ? ' (' + layers[i].outSizeDimensions() + ')' : '') +
-							', ' +
-							layers[i + 1].constructor.name +
-							' input size: ' +
-							layers[i + 1].inSize() +
-							(layers[i + 1].outSizeDimensions ? ' (' + layers[i + 1].outSizeDimensions() + ')' : '')
-						);
-					}
-					layers[i + 1].inData = layers[i].outData;
-					layers[i].nextLayer = layers[i + 1];
-				}
-				this.layers.push(layers[layers.length - 1]);
-				//END OF CONNECTING THE LAYERS
-			}
+			this.connectLayers();
 		} //END OF CONSTRUCTOR
 
 		set learningRate(lr) {
@@ -47,6 +20,28 @@ var swag = swag || {};
 
 		get learningRate() {
 			return this.lr;
+		}
+
+		connectLayers() {
+			//by 'connect' we mean set the outData to the inData of adjacent layers.
+			//this is so we dont have to copy over the arrays
+			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
+			for (var i = 0; i < this.layers.length; i++) {
+				if (i < this.layers.length - 1) {
+					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
+							this.layers[i].constructor.name
+						} output size: ${this.layers[i].outSize()}${this.layers[i].outSizeDimensions ? ' (' + this.layers[i].outSizeDimensions() + ')' : ''}, ${
+							this.layers[i + 1].constructor.name
+						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].outSizeDimensions ? ' (' + this.layers[i + 1].outSizeDimensions() + ')' : ''}`;
+					}
+					this.layers[i + 1].inData = this.layers[i].outData;
+					this.layers[i].nextLayer = this.layers[i + 1];
+				}
+				if (i != 0) {
+					this.layers[i].previousLayer = this.layers[i - 1];
+				}
+			}
 		}
 
 		forward(data) {
@@ -94,20 +89,48 @@ var swag = swag || {};
 			if (saveToFile) {
 				if (swag.isBrowser()) {
 					var a = document.createElement('a');
-					var file = new Blob([JSON.stringify(this.layers)]);
+					var file = new Blob([this.save()]);
 					a.href = URL.createObjectURL(file);
 					a.download = 'model.json';
 					a.click();
 				} else {
 					var fs = require('fs');
-					// console.log(filename);
-					fs.writeFileSync(filename, JSON.stringify(this.layers));
+					fs.writeFileSync(filename, this.save());
 				}
 			}
-			return JSON.stringify(this.layers);
+
+			let saveObject = {};
+
+			saveObject.layerAmount = this.layers.length;
+			saveObject.optimizer = this.optimizer;
+			saveObject.lr = this.lr;
+			saveObject.batchSize = this.batchSize;
+			for (var i = 0; i < this.layers.length; i++) {
+				let layer = this.layers[i];
+				let layerSaveObject = {};
+				layerSaveObject.type = layer.constructor.name;
+				saveObject['layer' + i] = layerSaveObject;
+				if (!layer.save) {
+					throw `Layer ${i} (${layer.constructor.name}) in your network doesnt have a save() function so your model cant be saved`;
+				}
+				layerSaveObject.layerData = layer.save();
+			}
+
+			return JSON.stringify(saveObject);
 		} //end of save method
 
-		load(json) {} //end of load method
+		static load(json) {
+			let jsonObj = JSON.parse(json);
+			let layers = [];
+			for (var i = 0; i < jsonObj.layerAmount; i++) {
+				let layer = swag[jsonObj['layer' + i].type].load(jsonObj['layer' + i].layerData);
+				layers.push(layer);
+			}
+			let ret = new swag.Net(layers, jsonObj.optimizer);
+			ret.learningRate = jsonObj.lr;
+			ret.batchSize = jsonObj.batchSize;
+			return ret;
+		} //end of load method
 
 		copy(net) {
 			/* This method copies the weights and bes of one network into its own weights and bes  */

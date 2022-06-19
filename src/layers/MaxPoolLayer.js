@@ -8,13 +8,20 @@ NOT like this:
 */
 
 	class MaxPoolLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1) {
+		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0) {
+			if (padding != 0) {
+				throw (
+					'Dear user, I have not implemented padding yet.. set it to zero to avoid this message. ' +
+					'Star the project if you want me to complete it. or send me 5 bucks ill do it right now.'
+				);
+			}
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
+			this.padding = 0; //havent implemented padding yet
 			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
@@ -123,6 +130,41 @@ NOT like this:
 			// 	this.accessed[i] = 0;
 			// }
 			return loss / (this.hMFHPO * this.wMFWPO * this.inDepth);
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == 'inData' ||
+					key == 'outData' ||
+					key == 'costs' ||
+					key == 'gpuEnabled' ||
+					key == 'trainIterations' ||
+					key == 'nextLayer' ||
+					key == 'previousLayer'
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0
+			let saveObject = JSON.parse(json);
+			let layer = new MaxPoolLayer(
+				saveObject.inWidth,
+				saveObject.inHeight,
+				saveObject.inDepth,
+				saveObject.filterWidth,
+				saveObject.filterHeight,
+				saveObject.stride,
+				saveObject.padding
+			);
+			return layer;
 		}
 	}
 
