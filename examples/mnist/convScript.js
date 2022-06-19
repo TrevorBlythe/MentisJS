@@ -145,7 +145,7 @@ var go = function () {
 		}
 		document.getElementById('es').innerHTML = 'examples seen:' + examplesSeen;
 		examplesSeen++;
-	}, 1000);
+	}, 0);
 };
 
 go();
