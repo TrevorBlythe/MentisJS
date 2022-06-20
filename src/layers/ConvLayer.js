@@ -251,6 +251,6 @@ NOT like this:
 		}
 	}
 
-	swag.ConvLayer = ConvLayer;
-	swag.Conv = ConvLayer;
+	Ment.ConvLayer = ConvLayer;
+	Ment.Conv = ConvLayer;
 }

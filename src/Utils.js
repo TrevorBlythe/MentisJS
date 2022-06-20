@@ -1,4 +1,4 @@
-var swag = swag || {};
+var Ment = Ment || {};
 {
 	var return_v = false;
 	var v_val = 0.0;
@@ -48,10 +48,13 @@ var swag = swag || {};
 		return loss;
 	};
 
-	let render = function (net, ctx, x, y, scale) {
+	let render = function (net, ctx, x, y, scale, background, spread) {
 		// a built in network renderer
-		const SPREAD = 10;
-		const DRAWBACKGROUND = true;
+		if (background == undefined) {
+			background = true;
+		}
+		const SPREAD = spread || 10;
+		const DRAWBACKGROUND = background;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
 			if (net.layers[i].constructor.name != 'ConvLayer' && net.layers[i].constructor.name != 'MaxPoolLayer') {
@@ -123,25 +126,25 @@ var swag = swag || {};
 		} //end of for loop each layer
 	};
 
-	swag.clamp = clamp;
-	swag.render = render;
-	swag.getLoss = getLoss;
-	swag.tanh = Math.tanh;
-	swag.lin = lin;
-	swag.bounce = bounce;
-	swag.isBrowser = isBrowser;
-	swag.gaussRandom = gaussRandom;
+	Ment.clamp = clamp;
+	Ment.render = render;
+	Ment.getLoss = getLoss;
+	Ment.tanh = Math.tanh;
+	Ment.lin = lin;
+	Ment.bounce = bounce;
+	Ment.isBrowser = isBrowser;
+	Ment.gaussRandom = gaussRandom;
 	if (window.GPU) {
 		const gpu = new GPU();
-		swag.gpu = gpu;
+		Ment.gpu = gpu;
 	}
 
-	if (!swag.isBrowser()) {
+	if (!Ment.isBrowser()) {
 		//test if we are in node
 		if (typeof module === 'undefined' || typeof module.exports === 'undefined') {
-			window.swag = swag; // in ordinary browser attach library to window
+			window.Ment = Ment; // in ordinary browser attach library to window
 		} else {
-			module.exports = swag; // in nodejs
+			module.exports = Ment; // in nodejs
 		}
 	}
 }

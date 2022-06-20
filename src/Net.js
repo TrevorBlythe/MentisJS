@@ -1,4 +1,4 @@
-var swag = swag || {};
+var Ment = Ment || {};
 {
 	class Net {
 		constructor(layers, optimizer) {
@@ -87,7 +87,7 @@ var swag = swag || {};
 			//this method returns a string of json used to get the model back
 
 			if (saveToFile) {
-				if (swag.isBrowser()) {
+				if (Ment.isBrowser()) {
 					var a = document.createElement('a');
 					var file = new Blob([this.save()]);
 					a.href = URL.createObjectURL(file);
@@ -123,10 +123,10 @@ var swag = swag || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = swag[jsonObj['layer' + i].type].load(jsonObj['layer' + i].layerData);
+				let layer = Ment[jsonObj['layer' + i].type].load(jsonObj['layer' + i].layerData);
 				layers.push(layer);
 			}
-			let ret = new swag.Net(layers, jsonObj.optimizer);
+			let ret = new Ment.Net(layers, jsonObj.optimizer);
 			ret.learningRate = jsonObj.lr;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
@@ -155,5 +155,5 @@ var swag = swag || {};
 		}
 	} //END OF NET CLASS DECLARATION
 
-	swag.Net = Net;
+	Ment.Net = Net;
 }

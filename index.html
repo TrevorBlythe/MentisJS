@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="index.css" />
+		<script src="src/Utils.js"></script>
+		<script src="src/Net.js"></script>
+		<script src="src/layers/FCLayer.js"></script>
+		<script src="src/layers/SigmoidLayer.js"></script>
+		<script src="src/layers/TanhLayer.js"></script>
+		<script src="src/layers/SineLayer.js"></script>
+		<script src="src/layers/ReluLayer.js"></script>
+		<script src="src/layers/LeakyReluLayer.js"></script>
+		<script src="src/layers/IdentityLayer.js"></script>
+		<script src="src/layers/ConvLayer.js"></script>
+		<script src="src/layers/MaxPoolLayer.js"></script>
+		<script src="src/Population.js"></script>
+		<title>MentisJS</title>
+	</head>
+	<body>
+		<div class="topbar">
+			<img src="logo.png" />
+			<h1>MentisJS</h1>
+			<div class="right">
+				<button>Examples▼</button>
+				<button>Docs▼</button>
+				<button>Tutorial▼</button>
+			</div>
+		</div>
+		<!-- End of topbar -->
+
+		<div class="showcaseTitle">
+			<h1>Mentis JS: A Blazingly fast AI building tool!</h1>
+		</div>
+
+		<div class="showcase">
+			<canvas id="showcase"></canvas>
+			<canvas id="showcaseNet"></canvas>
+		</div>
+	</body>
+
+	<script>
+		var canvas = document.getElementById('showcase');
+		var canvasN = document.getElementById('showcaseNet');
+		var ctx = canvas.getContext('2d');
+		var ctxN = document.getElementById('showcaseNet').getContext('2d');
+
+		canvas.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / (10 / 4.5);
+		canvas.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / (10 / 5);
+		canvasN.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / (10 / 4.5);
+		canvasN.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / (10 / 5);
+
+		var player = { x: 50, y: 50, speed: 0, angle: 0 }; //angle in rads
+
+		let foods = [];
+		foods.push({ x: 80, y: 50 });
+
+		for (var i = 1; i < 30; i++) {
+			foods.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
+		}
+
+		let input = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+		var pop = new Ment.Population([new Ment.FC(13, 3), new Ment.FC(3, 5), new Ment.FC(5, 1), new Ment.Sig(1)], 10, 3);
+
+		pop.networks[0] = Ment.Net.load(
+			'{"layerAmount":4,"optimizer":"SGD","lr":0.01,"batchSize":19,"layer0":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":1.3579144477844238,\\"1\\":2.1038196086883545,\\"2\\":0.09565188735723495,\\"3\\":0.5557871460914612,\\"4\\":-1.8251713514328003,\\"5\\":-0.4552430212497711,\\"6\\":0.9252217411994934,\\"7\\":0.47878730297088623,\\"8\\":-0.13979826867580414,\\"9\\":0.38424792885780334,\\"10\\":1.566457748413086,\\"11\\":-0.20847515761852264,\\"12\\":-0.8188731074333191,\\"13\\":-0.42229366302490234,\\"14\\":-2.7473549842834473,\\"15\\":-2.148770809173584,\\"16\\":-0.48257189989089966,\\"17\\":-2.272961139678955,\\"18\\":-0.8089615106582642,\\"19\\":-0.10547905415296555,\\"20\\":-1.0213065147399902,\\"21\\":-0.08312980830669403,\\"22\\":0.5494184494018555,\\"23\\":2.1290090084075928,\\"24\\":1.683689832687378,\\"25\\":-0.009525150991976261,\\"26\\":0.03147411718964577,\\"27\\":0.899162769317627,\\"28\\":-0.9485362768173218,\\"29\\":-0.3622668385505676,\\"30\\":-0.5411669015884399,\\"31\\":-1.7387421131134033,\\"32\\":1.117361068725586,\\"33\\":1.5323102474212646,\\"34\\":1.6479995250701904,\\"35\\":-0.12272541224956512,\\"36\\":-1.5001739263534546,\\"37\\":0.0038289919029921293,\\"38\\":-0.6664083003997803},\\"b\\":{\\"0\\":1.0081433057785034,\\"1\\":-1.7039284706115723,\\"2\\":0.31995734572410583},\\"savedInSize\\":13,\\"savedOutSize\\":3}"},"layer1":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":-2.026461362838745,\\"1\\":1.1736749410629272,\\"2\\":1.4184373617172241,\\"3\\":0.07266010344028473,\\"4\\":1.803170084953308,\\"5\\":0.8910682201385498,\\"6\\":-0.9798486828804016,\\"7\\":0.5807678699493408,\\"8\\":-1.7120277881622314,\\"9\\":-1.4215755462646484,\\"10\\":-1.1680546998977661,\\"11\\":0.6397904753684998,\\"12\\":0.062001824378967285,\\"13\\":1.6012637615203857,\\"14\\":0.758464515209198},\\"b\\":{\\"0\\":1.790974497795105,\\"1\\":1.3759008646011353,\\"2\\":0.7312616109848022,\\"3\\":2.111952781677246,\\"4\\":2.0482852458953857},\\"savedInSize\\":3,\\"savedOutSize\\":5}"},"layer2":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":0.05907744914293289,\\"1\\":-0.07249512523412704,\\"2\\":0.18696604669094086,\\"3\\":-0.5934877395629883,\\"4\\":-1.2945374250411987},\\"b\\":{\\"0\\":-1.1763262748718262},\\"savedInSize\\":5,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"lr\\":0.01,\\"savedSize\\":1}"}}'
+		);
+		pop.networks[0].score = 100;
+		// pop.cullAndBreed();
+
+		var speed = 30;
+		var wallPunish = 0.001;
+		let hideFood = true;
+		let whosTurn = 0;
+		var loop = setInterval(() => {
+			ctx.clearRect(0, 0, canvas.width, canvas.height);
+			ctx.fillStyle = 'rgba(100,100,100,0.5)';
+
+			ctx.beginPath();
+			ctx.moveTo(player.x, player.y);
+			ctx.lineTo(150 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
+			ctx.lineTo(150 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
+			ctx.fill();
+
+			ctx.beginPath();
+			ctx.arc(player.x, player.y, 10, 0, 2 * Math.PI, false);
+			ctx.fillStyle = 'yellow';
+			ctx.fill();
+			ctx.lineWidth = 5;
+			ctx.strokeStyle = 'yellowgreen';
+			ctx.stroke();
+
+			for (var i = 0; i < foods.length; i++) {
+				ctx.beginPath();
+				ctx.arc(foods[i].x, foods[i].y, 5, 0, 2 * Math.PI, false);
+				ctx.fillStyle = 'green';
+				ctx.fill();
+				ctx.lineWidth = 1;
+				ctx.strokeStyle = '#003300';
+				ctx.stroke();
+			}
+			for (var b = 0; b < 200 / speed; b++) {
+				let toCheck = [];
+				let toCheckInds = [];
+				for (var h = 0; h < foods.length; h++) {
+					if (Math.sqrt(Math.pow(player.x - foods[h].x, 2) + Math.pow(player.y - foods[h].y, 2)) < 100) {
+						toCheck.push(foods[h]);
+						toCheckInds.push(h);
+					}
+				}
+
+				for (var i = 0; i < 10; i++) {
+					input[i] = 1;
+
+					for (var j = 0; j < 10; j++) {
+						let xCheck = j * 10 * Math.cos(player.angle + -1 + (2 / 9) * i) + player.x;
+
+						let yCheck = j * 10 * Math.sin(player.angle + -1 + (2 / 9) * i) + player.y;
+
+						if (xCheck < 0 || xCheck > canvas.width || xCheck < 0 || yCheck > canvas.height) {
+							input[i] = (j * 10 + 100) / 100;
+						}
+						for (var h = 0; h < toCheck.length; h++) {
+							if (Math.abs(toCheck[h].x - xCheck) < 10 && Math.abs(toCheck[h].y - yCheck) < 10) {
+								input[i] = Math.min(Math.sqrt(Math.pow(player.x - toCheck[h].x, 2) + Math.pow(player.y - toCheck[h].y, 2)) / 100, input[i]);
+							}
+						}
+					}
+				}
+
+				for (var i = 0; i < toCheck.length; i++) {
+					if (Math.sqrt(Math.pow(player.x - toCheck[i].x, 2) + Math.pow(player.y - toCheck[i].y, 2)) < 10) {
+						pop.networks[whosTurn].score++;
+						foods.splice(toCheckInds[i], 1);
+					}
+				}
+
+				if (player.x < 5 || player.x > canvas.width - 5 || player.y < 5 || player.y > canvas.height - 5) {
+					pop.networks[whosTurn].score -= wallPunish;
+				}
+
+				player.x += Math.cos(player.angle) * player.speed;
+				player.y += Math.sin(player.angle) * player.speed;
+				player.x = Math.min(Math.max(player.x, 0), canvas.width);
+				player.y = Math.min(Math.max(player.y, 0), canvas.height);
+				player.speed = 1;
+
+				input[10] = player.x / canvas.width;
+				input[11] = player.y / canvas.height;
+				input[12] = player.angle / (2 * Math.PI);
+				let brainOut = pop.networks[whosTurn].forward(input);
+				player.angle += brainOut[0] * 2;
+				if (player.angle > 2 * Math.PI) {
+					player.angle -= 2 * Math.PI;
+				}
+				if (player.angle < 0) {
+					player.angle += 2 * Math.PI;
+				}
+			}
+			Ment.render(pop.networks[whosTurn], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
+		}, speed);
+
+		setInterval(function () {
+			// whosTurn++;
+			// if (whosTurn > 9) {
+			// 	// pop.cullAndBreed();
+			// 	whosTurn = 0;
+			// }
+			// player.x = 50;
+			// player.y = 50;
+			foods = [];
+			foods.push({ x: 80, y: 50 });
+			for (var i = 1; i < 30; i++) {
+				foods.push({ x: Math.random() * (canvas.width - (hideFood ? 120 : 0)) + (hideFood ? 120 : 0), y: Math.random() * canvas.height });
+			}
+			// player.angle = 0;
+		}, speed * 400);
+
+		let lerp = function (e, t, r) {
+			// E is first number t is second r is how much
+			return r * (t - e) + e;
+		};
+	</script>
+</html>

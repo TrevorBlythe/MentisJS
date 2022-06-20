@@ -86,6 +86,6 @@
 		}
 	}
 
-	swag.TanhLayer = TanhLayer;
-	swag.Tanh = TanhLayer;
+	Ment.TanhLayer = TanhLayer;
+	Ment.Tanh = TanhLayer;
 }

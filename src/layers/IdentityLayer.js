@@ -78,11 +78,11 @@
 		}
 	}
 
-	swag.IdentityLayer = IdentityLayer;
-	swag.Identity = IdentityLayer;
-	swag.Input = IdentityLayer;
-	swag.DummyLayer = IdentityLayer;
-	swag.InputLayer = IdentityLayer;
-	swag.OutputLayer = IdentityLayer;
-	swag.Output = IdentityLayer;
+	Ment.IdentityLayer = IdentityLayer;
+	Ment.Identity = IdentityLayer;
+	Ment.Input = IdentityLayer;
+	Ment.DummyLayer = IdentityLayer;
+	Ment.InputLayer = IdentityLayer;
+	Ment.OutputLayer = IdentityLayer;
+	Ment.Output = IdentityLayer;
 }

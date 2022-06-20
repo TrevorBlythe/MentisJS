@@ -168,6 +168,6 @@ NOT like this:
 		}
 	}
 
-	swag.MaxPoolLayer = MaxPoolLayer;
-	swag.MaxPool = MaxPoolLayer;
+	Ment.MaxPoolLayer = MaxPoolLayer;
+	Ment.MaxPool = MaxPoolLayer;
 }

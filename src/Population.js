@@ -1,6 +1,5 @@
-var swag = swag || {};
+var Ment = Ment || {};
 {
-  
 	class Population {
 		constructor(netLayers, popSize, elitism, mutationRate, mutationIntensity) {
 			this.networks = [];
@@ -9,15 +8,14 @@ var swag = swag || {};
 			this.mutationRate = mutationRate || 0.3;
 			this.mutationIntensity = mutationIntensity || 0.6;
 			this.elitism = elitism;
-			let baseNet = new swag.Net(netLayers);
+			let baseNet = new Ment.Net(netLayers);
 			baseNet.score = 0;
-			for (let i = 0; i < popSize-1; i++) {
-				let net = new swag.Net();
-				net.copy(baseNet);
+			for (let i = 0; i < popSize - 1; i++) {
+				let net = Ment.Net.load(baseNet.save());
 				net.score = 0;
 				this.networks.push(net);
 			}
-			this.networks.push(baseNet)
+			this.networks.push(baseNet);
 		}
 
 		cullAndBreed() {
@@ -26,10 +24,7 @@ var swag = swag || {};
 
 			//but first we have to sort them. good to bad
 			this.networks.sort((a, b) => (a.score > b.score ? -1 : 1));
-			this.highScore =
-				this.networks[0].score < this.highScore
-					? this.highScore
-					: this.networks[0].score;
+			this.highScore = this.networks[0].score < this.highScore ? this.highScore : this.networks[0].score;
 			//next we put the best ones in an array for later
 			let newPopulation = [];
 			for (let i = 0; i < this.elitism; i++) {
@@ -46,9 +41,8 @@ var swag = swag || {};
 					if (Math.random() < 0.3) {
 						//doing this with a sorted population should randomly choose
 						//the best ones to breed
-						let t = new swag.Net();
+						let t = Ment.Net.load(this.networks[i].save());
 						t.score = 0; //init score
-						t.copy(this.networks[i]);
 						t.mutate(0.6, this.mutationRate);
 						newPopulation.push(t);
 						j = this.popSize + 5; //this is just to end the for loop
@@ -58,10 +52,13 @@ var swag = swag || {};
 					}
 				}
 			}
+
+			// for (var i = 0; i < newPopulation.length; i++) {
+			// 	newPopulation[i].score = 0;
+			// }
 			this.networks = newPopulation;
 		}
 	}
-	
-		swag.Population = Population;
 
+	Ment.Population = Population;
 }

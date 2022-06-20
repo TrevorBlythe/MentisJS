@@ -40,7 +40,7 @@
 				if (this.outData[j] >= 0) {
 					this.costs[j] = err;
 				} else {
-					this.costs[j] = err * swag.LeakyReluLayer.leakySlope;
+					this.costs[j] = err * Ment.LeakyReluLayer.leakySlope;
 				}
 			}
 			return loss / this.outSize();
@@ -79,6 +79,6 @@
 		}
 	}
 
-	swag.ReluLayer = ReluLayer;
-	swag.Relu = ReluLayer;
+	Ment.ReluLayer = ReluLayer;
+	Ment.Relu = ReluLayer;
 }

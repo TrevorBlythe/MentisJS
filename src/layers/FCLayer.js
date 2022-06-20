@@ -46,7 +46,7 @@
 		FUNCTIONS FOR GPU SUPPORT TO WORK:
 			initGPU() -- this should at least make "this.gpuEnabled" true.
 
-			You can code the rest yourself, swagnet uses gpujs and swag.gpu is a 
+			You can code the rest yourself, Mentnet uses gpujs and Ment.gpu is a 
 			global gpu object to use to prevent making multpile gpu objects. 
 			Make it work however you want.
 
@@ -244,7 +244,7 @@
 		//----------------
 
 		// initGPU(){
-		// 	this.forwardGPUKernel = swag.gpu.createKernel(function(inData, weights, biases, outDataLength, inDataLength) {
+		// 	this.forwardGPUKernel = Ment.gpu.createKernel(function(inData, weights, biases, outDataLength, inDataLength) {
 		// 		var act = 0;
 		// 		for (var j = 0; j < inDataLength; j++) {
 		// 					act +=
@@ -261,6 +261,6 @@
 		//----------------
 	}
 
-	swag.FCLayer = FCLayer;
-	swag.FC = FCLayer;
+	Ment.FCLayer = FCLayer;
+	Ment.FC = FCLayer;
 }

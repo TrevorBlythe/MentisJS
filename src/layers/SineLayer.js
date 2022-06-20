@@ -84,7 +84,7 @@
 		}
 	}
 
-	swag.SineLayer = SineLayer;
-	swag.Sine = SineLayer;
-	swag.Sin = SineLayer;
+	Ment.SineLayer = SineLayer;
+	Ment.Sine = SineLayer;
+	Ment.Sin = SineLayer;
 }

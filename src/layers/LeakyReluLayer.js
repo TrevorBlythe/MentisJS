@@ -75,7 +75,7 @@
 		}
 	}
 
-	swag.LeakyReluLayer = LeakyReluLayer;
-	swag.LeakyRelu = LeakyReluLayer;
-	swag.LRelu = LeakyReluLayer;
+	Ment.LeakyReluLayer = LeakyReluLayer;
+	Ment.LeakyRelu = LeakyReluLayer;
+	Ment.LRelu = LeakyReluLayer;
 }

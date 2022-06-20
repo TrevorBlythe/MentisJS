@@ -84,7 +84,7 @@
 		}
 	}
 
-	swag.SigmoidLayer = SigmoidLayer;
-	swag.Sigmoid = SigmoidLayer;
-	swag.Sig = SigmoidLayer;
+	Ment.SigmoidLayer = SigmoidLayer;
+	Ment.Sigmoid = SigmoidLayer;
+	Ment.Sig = SigmoidLayer;
 }

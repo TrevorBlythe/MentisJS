@@ -1,0 +1,82 @@
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+	text-decoration: none;
+	font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+	background-color: #eee;
+}
+
+.topbar {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	border-bottom: 0.5vh solid #bbb;
+	height: 6vh;
+	background-color: yellow;
+}
+
+.topbar img {
+	width: 6vh;
+}
+.topbar .right {
+	width: 75%;
+	margin-left: auto;
+}
+
+.topbar h1 {
+	color: rgb(58, 58, 58);
+	font-weight: 100;
+	font-size: 2vw;
+}
+
+.topbar button {
+	border: none;
+	/* border-left: 1px solid #555;
+	border-right: 1px solid #555; */
+	margin-left: 16%;
+	width: 10%;
+	padding-top: 1.5vh;
+	padding-bottom: 1.5vh;
+	background-color: yellow;
+	color: #333;
+}
+
+.topbar button:hover {
+	color: #555;
+}
+
+.topbar button:active {
+	color: #777;
+}
+
+.showcaseTitle {
+	width: 100%;
+	height: 10vh;
+	margin-top: 2vh;
+	text-align: center;
+}
+
+.showcase {
+	width: 100%;
+	background-color: grey;
+	height: 50vh;
+}
+
+.showcase canvas {
+	width: 45%;
+	height: 50vh;
+	/* border: 2px solid black; */
+}
+
+.showcase #showcase {
+	float: right;
+}
+
+.showcase #showcaseNet {
+	float: left;
+	background-color: grey;
+}

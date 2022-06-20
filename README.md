@@ -1,4 +1,4 @@
-# Swagnet JS machine learning/evoloution <img src="https://github.com/TrevorBlythe/swagNeuralNet/blob/main/logo.png?raw=true" width = 100px>
+# Mentis JS machine learning/evoloution <img src="https://github.com/TrevorBlythe/MentNeuralNet/blob/main/logo.png?raw=true" width = 100px>
 
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
@@ -6,9 +6,9 @@ and intuitive machine learning library out there. Inspired by the complicated py
 
 # Showcase
 
-![image](https://github.com/TrevorBlythe/swagNeuralNet/blob/main/showcase/MnistDigits.png?raw=true)
+![image](https://github.com/TrevorBlythe/SwagNeuralNet/blob/main/showcase/MnistDigits.png?raw=true)
 
-![image](https://github.com/TrevorBlythe/swagNeuralNet/blob/main/showcase/XORrender.png?raw=true)
+![image](https://github.com/TrevorBlythe/SwagNeuralNet/blob/main/showcase/XORrender.png?raw=true)
 
 # This project is coming along!
 
@@ -52,11 +52,11 @@ let outputs = [[0], [1], [1], [0]];
 <p>Next we must define the layers our Network will have!s</p>
 
 ```
-let layerOne = new swag.FC(2,5); //input:2, output:5, fully connected layer
-let layerTwo = new swag.Sig(5); //size:5, sigmoid activation
-let layerThree = new swag.FC(5,5); //input:5, output:5, fully connected layer
-let layerFour = new swag.FC(5,1); //input:5, output:1, fully connected layer
-let layerFive = new swag.Sig(1); //size:1, sigmoid activation
+let layerOne = new Ment.FC(2,5); //input:2, output:5, fully connected layer
+let layerTwo = new Ment.Sig(5); //size:5, sigmoid activation
+let layerThree = new Ment.FC(5,5); //input:5, output:5, fully connected layer
+let layerFour = new Ment.FC(5,1); //input:5, output:1, fully connected layer
+let layerFive = new Ment.Sig(1); //size:1, sigmoid activation
 
 ```
 
@@ -65,7 +65,7 @@ let layerFive = new swag.Sig(1); //size:1, sigmoid activation
 <p>This network is MASSIVE overkill for simple XOR but is good for a tutorial. Next we put these layers in a Net object</p>
 
 ```
-let network = new swag.Net([
+let network = new Ment.Net([
   layerOne,
   layerTwo,
   layerThree,
