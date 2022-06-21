@@ -1,10 +1,11 @@
+//Base layer for all activations to inherit from
+
 {
-	class IdentityLayer {
-		//this layer outputs the inputs with no changes
+	class ActivationBase {
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size); //will be init when "connect" is called.
+			this.inData = new Float32Array(size);
+			this.outData = new Float32Array(size);
 			this.costs = new Float32Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 		}
@@ -22,41 +23,6 @@
 			}
 			this.pl = layer;
 		}
-		forward(inData) {
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON (Input or output or linear) LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
-				}
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
-				}
-			}
-
-			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.inData[h];
-			}
-		}
-
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
-					loss += this.costs[i];
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					loss += Math.pow(err, 2);
-				}
-			}
-			return loss / this.inSize();
-		}
 
 		inSize() {
 			return this.inData.length;
@@ -64,6 +30,39 @@
 
 		outSize() {
 			return this.outData.length;
+		}
+
+		forward(inData, actFunction) {
+			if (inData) {
+				for (var i = 0; i < inData.length; i++) {
+					this.inData[i] = inData[i];
+				}
+			}
+
+			for (var h = 0; h < this.outSize(); h++) {
+				this.outData[h] = actFunction(this.inData[h]);
+			}
+			//Oh the misery
+		}
+
+		backward(expected, actFunctionPrime) {
+			let loss = 0;
+			if (!expected) {
+				if (this.nextLayer == undefined) {
+					throw 'nothing to backpropagate!';
+				}
+				expected = [];
+				for (var i = 0; i < this.outData.length; i++) {
+					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
+				}
+			}
+
+			for (var j = 0; j < this.outSize(); j++) {
+				let err = expected[j] - this.outData[j];
+				loss += Math.pow(err, 2);
+				this.costs[j] = err * actFunctionPrime(this.inData[j]);
+			}
+			return loss / this.outSize();
 		}
 
 		save() {
@@ -80,24 +79,10 @@
 
 			//This is how you delete object properties btw.
 			delete this.savedInSize;
-			delete this.savedOutSize;
 
 			return ret;
 		}
-
-		static load(json) {
-			let saveObject = JSON.parse(json);
-			let layer = new IdentityLayer(saveObject.savedSize);
-			return layer;
-		}
 	}
 
-	Ment.IdentityLayer = IdentityLayer;
-	Ment.Identity = IdentityLayer;
-	Ment.Input = IdentityLayer;
-	Ment.DummyLayer = IdentityLayer;
-	Ment.Dummy = IdentityLayer;
-	Ment.InputLayer = IdentityLayer;
-	Ment.OutputLayer = IdentityLayer;
-	Ment.Output = IdentityLayer;
+	Ment.ActivationBase = ActivationBase;
 }

@@ -18,7 +18,6 @@
 		}
 
 		set previousLayer(layer) {
-			console.log('test');
 			this.inData = new Float32Array(layer.outSize());
 			this.costs = new Float32Array(layer.outSize());
 			this.pl = layer;

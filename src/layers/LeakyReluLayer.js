@@ -1,10 +1,9 @@
 {
-	class LeakyReluLayer {
+	class LeakyReluLayer extends Ment.ActivationBase {
+		static leakySlope = 0.25;
+
 		constructor(size) {
-			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size);
-			this.outData = new Float32Array(size);
-			this.costs = new Float32Array(size); //costs for each neuron
+			super(size);
 		}
 
 		forward(inData) {
@@ -37,35 +36,11 @@
 				loss += Math.pow(err, 2);
 				if (this.outData[j] >= 0) {
 					this.costs[j] = err;
+				} else {
+					this.costs[j] = err * Ment.LeakyReluLayer.leakySlope;
 				}
 			}
 			return loss / this.outSize();
-		}
-
-		inSize() {
-			return this.inData.length;
-		}
-
-		outSize() {
-			return this.outData.length;
-		}
-		save() {
-			this.savedSize = this.inSize();
-
-			let ret = JSON.stringify(this, function (key, value) {
-				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
-					return undefined;
-				}
-
-				return value;
-			});
-
-			//This is how you delete object properties btw.
-			delete this.savedInSize;
-			delete this.savedOutSize;
-
-			return ret;
 		}
 
 		static load(json) {
@@ -74,7 +49,6 @@
 			return layer;
 		}
 	}
-
 	Ment.LeakyReluLayer = LeakyReluLayer;
 	Ment.LeakyRelu = LeakyReluLayer;
 	Ment.LRelu = LeakyReluLayer;

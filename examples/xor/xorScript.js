@@ -1,3 +1,4 @@
+Ment.polluteGlobal();
 let out = function (text) {
 	document.getElementById('out').innerHTML += '<br>' + text;
 };
@@ -8,7 +9,7 @@ let clear = function () {
 
 let ctx = document.getElementById('canvas').getContext('2d');
 
-var net = new swag.Net([new swag.FC(2, 5), new swag.Sig(5), new swag.FC(5, 5), new swag.FC(5, 1), new swag.Sig(1)]);
+var net = new Net([new FC(2, 5), new Sig(), new FC(5, 5), new FC(5, 1), new Sig()]);
 
 net.batchSize = 4;
 net.learningRate = 1;
@@ -29,26 +30,26 @@ let doit = function () {
 	}
 	let totalCost = 0;
 	let r = Math.random();
-	totalCost += swag.getLoss(net.forward(inputs[0]), outputs[0]);
+	totalCost += getLoss(net.forward(inputs[0]), outputs[0]);
 	if (r < 0.25) {
-		swag.render(net, ctx, 10, 10, 10);
+		render(net, ctx, 10, 10, 10);
 	}
 	r -= 0.25;
-	totalCost += swag.getLoss(net.forward(inputs[1]), outputs[1]);
+	totalCost += getLoss(net.forward(inputs[1]), outputs[1]);
 	if (r < 0.25) {
-		swag.render(net, ctx, 10, 10, 10);
+		render(net, ctx, 10, 10, 10);
 	}
 	r -= 0.25;
 
-	totalCost += swag.getLoss(net.forward(inputs[2]), outputs[2]);
+	totalCost += getLoss(net.forward(inputs[2]), outputs[2]);
 	if (r > 0.25) {
-		swag.render(net, ctx, 10, 10, 10);
+		render(net, ctx, 10, 10, 10);
 	}
 	r -= 0.25;
 
-	totalCost += swag.getLoss(net.forward(inputs[3]), outputs[3]);
+	totalCost += getLoss(net.forward(inputs[3]), outputs[3]);
 	if (r > 0.25) {
-		swag.render(net, ctx, 10, 10, 10);
+		render(net, ctx, 10, 10, 10);
 	}
 	r -= 0.25;
 

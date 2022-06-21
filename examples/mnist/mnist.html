@@ -51,6 +51,7 @@
 			}
 		</style>
 		<script src="../../src/Utils.js"></script>
+		<script src="../../src/layers/ActivationBase.js"></script>
 		<script src="../../src/layers/FCLayer.js"></script>
 		<script src="../../src/layers/SigmoidLayer.js"></script>
 		<script src="../../src/layers/TanhLayer.js"></script>
@@ -147,20 +148,14 @@
 			<br /><br />
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-var net = new swag.Net([
-	new swag.Conv(28, 28, 1, 10, 10, 3, 3, 0),
-	new swag.MaxPool(7, 7, 3, 2, 2, 2),
-	new swag.FC(27, 15),
-	new swag.Sig(15),
-	new swag.FC(15, 10),
-	new swag.Relu(10),
+var net = new Ment.Net([
+	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
+	new Ment.MaxPool(7, 7, 5, 2, 2, 2),
+	new Ment.FC(45, 35),
+	new Ment.Sig(35),
+	new Ment.FC(35, 10),
+	new Ment.Relu(10),
 ]);
-				
-											
-net.batchSize = 20;
-net.learningRate = 0.01;
-			 
-examplesSeen = 0;
 											
                </textarea
 				>
@@ -178,7 +173,7 @@ examplesSeen = 0;
 			<p id="es">examples seen: 0</p>
 			<button onclick="clearInterval(loop);">Stop</button>
 			<button onclick="go();">Go</button><br />
-			<button onclick="net = swag.Net.load(model);">Load pre-trained model</button>
+			<button onclick="net = Ment.Net.load(model);">Load pre-trained model</button>
 			<br /><br />
 			<br /><br />
 			<br /><br />

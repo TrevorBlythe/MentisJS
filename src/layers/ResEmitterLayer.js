@@ -77,7 +77,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResEmitterLayer(saveObject.savedSize);
+			let layer = new ResEmitterLayer(saveObject.savedSize, saveObject.id);
 			return layer;
 		}
 	}

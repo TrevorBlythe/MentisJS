@@ -65,24 +65,24 @@ let greenBox = function (p) {
 };
 //inWidth, inHeight, inDepth, filterWidth, filterHeight, filters=3, stride=1, padding=0
 
-// var net = new swag.Net([
-// 	new swag.Conv(28, 28, 1, 4, 4, 3, 1, 0),
-// 	new swag.MaxPool(25, 25, 3, 5, 5, 5),
-// 	new swag.Conv(5, 5, 3, 2, 2, 3, 1, 0),
-// 	new swag.MaxPool(4, 4, 3, 2, 2, 1),
-// 	new swag.FC(27, 13),
-// 	new swag.Sig(13),
-// 	new swag.FC(13, 10),
-// 	new swag.Relu(10),
+// var net = new Ment.Net([
+// 	new Ment.Conv(28, 28, 1, 4, 4, 3, 1, 0),
+// 	new Ment.MaxPool(25, 25, 3, 5, 5, 5),
+// 	new Ment.Conv(5, 5, 3, 2, 2, 3, 1, 0),
+// 	new Ment.MaxPool(4, 4, 3, 2, 2, 1),
+// 	new Ment.FC(27, 13),
+// 	new Ment.Sig(13),
+// 	new Ment.FC(13, 10),
+// 	new Ment.Relu(10),
 // ]);
 
-var net = new swag.Net([
-	new swag.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new swag.MaxPool(7, 7, 5, 2, 2, 2),
-	new swag.FC(45, 35),
-	new swag.Sig(35),
-	new swag.FC(35, 10),
-	new swag.Relu(10),
+var net = new Ment.Net([
+	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
+	new Ment.MaxPool(7, 7, 5, 2, 2, 2),
+	new Ment.FC(45, 35),
+	new Ment.Sig(),
+	new Ment.FC(35, 10),
+	new Ment.Relu(),
 ]);
 
 net.batchSize = 20;
