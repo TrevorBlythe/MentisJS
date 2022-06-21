@@ -33,10 +33,8 @@
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] += this.nextLayer.costs[i];
-					loss += this.costs[i];
-				}
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] += this.receiver.costs[i];
+					this.costs[i] += this.receiver.costsForEmitter[i];
+					this.costs[i] /= 2;
 					loss += this.costs[i];
 				}
 			} else {
@@ -46,9 +44,6 @@
 					this.costs[j] += err;
 					loss += Math.pow(err, 2);
 				}
-			}
-			for (var i = 0; i < this.costs.length; i++) {
-				this.costs[i] /= 2;
 			}
 			return loss / this.inSize();
 		}
