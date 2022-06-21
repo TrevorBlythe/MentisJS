@@ -28,6 +28,9 @@ var Ment = Ment || {};
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
+					this.layers[i + 1].previousLayer = this.layers[i];
+					this.layers[i].nextLayer = this.layers[i + 1];
+
 					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
 						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
 							this.layers[i].constructor.name
@@ -36,10 +39,11 @@ var Ment = Ment || {};
 						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].outSizeDimensions ? ' (' + this.layers[i + 1].outSizeDimensions() + ')' : ''}`;
 					}
 					this.layers[i + 1].inData = this.layers[i].outData;
-					this.layers[i].nextLayer = this.layers[i + 1];
 				}
-				if (i != 0) {
-					this.layers[i].previousLayer = this.layers[i - 1];
+			}
+			for (var i = 0; i < this.layers.length; i++) {
+				if (this.layers[i].onConnect) {
+					this.layers[i].onConnect(); //this is useful for layers like ResEmitter that need to init after being connected
 				}
 			}
 		}

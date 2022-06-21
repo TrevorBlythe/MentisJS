@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../../index.css" />
+		<script src="../../src/Utils.js"></script>
+		<script src="../../src/layers/FCLayer.js"></script>
+		<script src="../../src/layers/ResEmitterLayer.js"></script>
+		<script src="../../src/layers/ResReceiverLayer.js"></script>
+		<script src="../../src/layers/SigmoidLayer.js"></script>
+		<script src="../../src/layers/TanhLayer.js"></script>
+		<script src="../../src/layers/SineLayer.js"></script>
+		<script src="../../src/layers/ReluLayer.js"></script>
+		<script src="../../src/layers/LeakyReluLayer.js"></script>
+		<script src="../../src/layers/IdentityLayer.js"></script>
+		<script src="../../src/layers/ConvLayer.js"></script>
+		<script src="../../src/layers/MaxPoolLayer.js"></script>
+		<script src="../../src/Population.js"></script>
+		<script src="../../src/Net.js"></script>
+		<title>MentisJS</title>
+		<style>
+			/* custom styling for this page */
+			img {
+				width: 20vw;
+			}
+		</style>
+	</head>
+	<body>
+		<div class="topbar">
+			<img src="../../logo.png" />
+			<h1>MentisJS</h1>
+			<div class="right">
+				<button>Examples▼</button>
+				<button>Docs▼</button>
+				<button>Tutorial▼</button>
+			</div>
+		</div>
+		<!-- End of topbar -->
+		<div class="showcaseTitle">
+			<h1>Resnet implementation</h1>
+			<p>ResEmitterLayers with the same ID as ResReceiverLayers will transmit data across layers. The best way to show something though is by example.</p>
+		</div>
+
+		<div class="code">
+			let net = new Net([<br />&emsp;new Emitter(1, 3), <br />&emsp;new FC(1, 1), <br />&emsp;new Sig(1), <br />&emsp;new Receiver(3)<br />]);
+		</div>
+		<br />
+		<img src="resExam.png" />
+		<br /><br /><br /><br />
+		<div class="code">
+			let net = new Net([<br />&emsp;new Emitter(1, "anything can be an identifyer"), <br />&emsp;new FC(1, 3), <br />&emsp;new Receiver("anything can be an
+			identifyer")<br />]);
+		</div>
+		<br />
+		<img src="resExamTwo.png" />
+		<br /><br /><br /><br />
+		<div class="code">
+			let net = new Net([<br />&emsp;new Emitter(1, 'a'), <br />&emsp;new Emitter(1, 'b'), <br />&emsp;new Receiver('a'), <br />&emsp;new Receiver('b')<br />]);
+		</div>
+		<br />
+		<img src="resExamThree.png" />
+		<br /><br /><br /><br />
+	</body>
+	<script src="resnet.js"></script>
+</html>

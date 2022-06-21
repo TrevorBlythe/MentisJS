@@ -48,6 +48,12 @@ var Ment = Ment || {};
 		return loss;
 	};
 
+	let polluteGlobal = function () {
+		for (const [key, value] of Object.entries(Ment)) {
+			window[key] = value;
+		}
+	};
+
 	let render = function (net, ctx, x, y, scale, background, spread) {
 		// a built in network renderer
 		if (background == undefined) {
@@ -134,6 +140,8 @@ var Ment = Ment || {};
 	Ment.bounce = bounce;
 	Ment.isBrowser = isBrowser;
 	Ment.gaussRandom = gaussRandom;
+	Ment.polluteGlobal = polluteGlobal;
+
 	if (window.GPU) {
 		const gpu = new GPU();
 		Ment.gpu = gpu;

@@ -39,9 +39,20 @@
 			<canvas id="showcase"></canvas>
 			<canvas id="showcaseNet"></canvas>
 		</div>
+
+		<div class="examples">
+			<h1>Mentis can..</h1>
+			<div class="gridContainer">
+				<div class="item1">Recognize Handwritten Numbers</div>
+				<div class="item2">Solve XOR</div>
+				<div class="item3">to be added..</div>
+				<div class="item4">to be added..</div>
+			</div>
+		</div>
 	</body>
 
 	<script>
+		Ment.polluteGlobal();
 		var canvas = document.getElementById('showcase');
 		var canvasN = document.getElementById('showcaseNet');
 		var ctx = canvas.getContext('2d');
@@ -62,15 +73,15 @@
 		}
 
 		let input = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-		var pop = new Ment.Population([new Ment.FC(13, 3), new Ment.FC(3, 5), new Ment.FC(5, 1), new Ment.Sig(1)], 10, 3);
+		var pop = new Population([new FC(13, 3), new FC(3, 5), new FC(5, 1), new Sig(1)], 10, 3);
 
-		pop.networks[0] = Ment.Net.load(
+		pop.networks[0] = Net.load(
 			'{"layerAmount":4,"optimizer":"SGD","lr":0.01,"batchSize":19,"layer0":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":1.3579144477844238,\\"1\\":2.1038196086883545,\\"2\\":0.09565188735723495,\\"3\\":0.5557871460914612,\\"4\\":-1.8251713514328003,\\"5\\":-0.4552430212497711,\\"6\\":0.9252217411994934,\\"7\\":0.47878730297088623,\\"8\\":-0.13979826867580414,\\"9\\":0.38424792885780334,\\"10\\":1.566457748413086,\\"11\\":-0.20847515761852264,\\"12\\":-0.8188731074333191,\\"13\\":-0.42229366302490234,\\"14\\":-2.7473549842834473,\\"15\\":-2.148770809173584,\\"16\\":-0.48257189989089966,\\"17\\":-2.272961139678955,\\"18\\":-0.8089615106582642,\\"19\\":-0.10547905415296555,\\"20\\":-1.0213065147399902,\\"21\\":-0.08312980830669403,\\"22\\":0.5494184494018555,\\"23\\":2.1290090084075928,\\"24\\":1.683689832687378,\\"25\\":-0.009525150991976261,\\"26\\":0.03147411718964577,\\"27\\":0.899162769317627,\\"28\\":-0.9485362768173218,\\"29\\":-0.3622668385505676,\\"30\\":-0.5411669015884399,\\"31\\":-1.7387421131134033,\\"32\\":1.117361068725586,\\"33\\":1.5323102474212646,\\"34\\":1.6479995250701904,\\"35\\":-0.12272541224956512,\\"36\\":-1.5001739263534546,\\"37\\":0.0038289919029921293,\\"38\\":-0.6664083003997803},\\"b\\":{\\"0\\":1.0081433057785034,\\"1\\":-1.7039284706115723,\\"2\\":0.31995734572410583},\\"savedInSize\\":13,\\"savedOutSize\\":3}"},"layer1":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":-2.026461362838745,\\"1\\":1.1736749410629272,\\"2\\":1.4184373617172241,\\"3\\":0.07266010344028473,\\"4\\":1.803170084953308,\\"5\\":0.8910682201385498,\\"6\\":-0.9798486828804016,\\"7\\":0.5807678699493408,\\"8\\":-1.7120277881622314,\\"9\\":-1.4215755462646484,\\"10\\":-1.1680546998977661,\\"11\\":0.6397904753684998,\\"12\\":0.062001824378967285,\\"13\\":1.6012637615203857,\\"14\\":0.758464515209198},\\"b\\":{\\"0\\":1.790974497795105,\\"1\\":1.3759008646011353,\\"2\\":0.7312616109848022,\\"3\\":2.111952781677246,\\"4\\":2.0482852458953857},\\"savedInSize\\":3,\\"savedOutSize\\":5}"},"layer2":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":0.05907744914293289,\\"1\\":-0.07249512523412704,\\"2\\":0.18696604669094086,\\"3\\":-0.5934877395629883,\\"4\\":-1.2945374250411987},\\"b\\":{\\"0\\":-1.1763262748718262},\\"savedInSize\\":5,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"lr\\":0.01,\\"savedSize\\":1}"}}'
 		);
 		pop.networks[0].score = 100;
 		// pop.cullAndBreed();
 
-		var speed = 30;
+		var speed = 50;
 		var wallPunish = 0.001;
 		let hideFood = true;
 		let whosTurn = 0;
@@ -80,8 +91,8 @@
 
 			ctx.beginPath();
 			ctx.moveTo(player.x, player.y);
-			ctx.lineTo(150 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
-			ctx.lineTo(150 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
+			ctx.lineTo(100 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
+			ctx.lineTo(100 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
 			ctx.fill();
 
 			ctx.beginPath();
@@ -159,7 +170,7 @@
 					player.angle += 2 * Math.PI;
 				}
 			}
-			Ment.render(pop.networks[whosTurn], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
+			render(pop.networks[whosTurn], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
 		}, speed);
 
 		setInterval(function () {

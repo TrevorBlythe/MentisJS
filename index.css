@@ -80,3 +80,47 @@ body {
 	float: left;
 	background-color: grey;
 }
+
+.examples {
+	text-align: center;
+	margin-top: 10vh;
+	color: #555;
+}
+
+.item1 {
+	grid-area: tleft;
+}
+.item2 {
+	grid-area: tright;
+}
+.item3 {
+	grid-area: left;
+}
+.item4 {
+	grid-area: right;
+}
+
+.examples .gridContainer {
+	margin-top: 5vh;
+	display: grid;
+	grid-template-areas:
+		'tleft tleft tleft tright tright tright'
+		'left left left right right right'
+		'bleft bleft bleft bright bright bright';
+	gap: 1vh;
+	background-color: #2196f3;
+	padding: 2vh;
+}
+
+.examples .gridContainer > div {
+	background-color: rgba(255, 255, 255, 0.8);
+	text-align: center;
+	padding: 5vh 0;
+	font-size: 30px;
+}
+
+.code {
+	background-color: #212121;
+	color: white;
+	font-family: Consolas, 'Courier New', Courier, monospace;
+}
