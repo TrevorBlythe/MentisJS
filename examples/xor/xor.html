@@ -5,7 +5,7 @@
 		<meta content="utf-8" http-equiv="encoding" />
 		<!-- <script src="gpu.js"></script> -->
 
-		<title>SwagnetJS</title>
+		<title>MentnetJS</title>
 		<style>
 			* {
 				margin: 0px;
@@ -32,6 +32,7 @@
 		</style>
 		<script src="../../src/Utils.js"></script>
 		<script src="../../src/layers/FCLayer.js"></script>
+		<script src="../../src/layers/ActivationBase.js"></script>
 		<script src="../../src/layers/SigmoidLayer.js"></script>
 		<script src="../../src/layers/TanhLayer.js"></script>
 		<script src="../../src/layers/SineLayer.js"></script>
@@ -52,12 +53,12 @@
 			<div style="display: inline">
 				<div style="float: right">
 					<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-var net = new swag.Net([
-	new swag.FC(2,5),
-	new swag.Sig(5),	
-	new swag.FC(5,5),
-	new swag.FC(5,1),
-	new swag.Sig(1),
+var net = new Ment.Net([
+	new Ment.FC(2,5),
+	new Ment.Sig(5),	
+	new Ment.FC(5,5),
+	new Ment.FC(5,1),
+	new Ment.Sig(1),
 ]);
 
 //this clears the canvas

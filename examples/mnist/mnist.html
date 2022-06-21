@@ -1,9 +1,26 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 	<head>
-		<meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
-		<meta content="utf-8" http-equiv="encoding" />
-		<title>SwagnetJS</title>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../../index.css" />
+		<script src="../../src/Utils.js"></script>
+		<script src="../../src/layers/FCLayer.js"></script>
+		<script src="../../src/layers/ActivationBase.js"></script>
+		<script src="../../src/layers/ResEmitterLayer.js"></script>
+		<script src="../../src/layers/ResReceiverLayer.js"></script>
+		<script src="../../src/layers/SigmoidLayer.js"></script>
+		<script src="../../src/layers/TanhLayer.js"></script>
+		<script src="../../src/layers/SineLayer.js"></script>
+		<script src="../../src/layers/ReluLayer.js"></script>
+		<script src="../../src/layers/LeakyReluLayer.js"></script>
+		<script src="../../src/layers/IdentityLayer.js"></script>
+		<script src="../../src/layers/ConvLayer.js"></script>
+		<script src="../../src/layers/MaxPoolLayer.js"></script>
+		<script src="../../src/Population.js"></script>
+		<script src="../../src/Net.js"></script>
+		<title>MentisJS</title>
 		<style>
 			* {
 				margin: 0px;
@@ -20,11 +37,7 @@
 				width: 70%;
 				background-color: rgb(220, 225, 222);
 			}
-			h1 {
-				text-align: center;
-				width: 100%;
-				border-bottom: 1px solid black;
-			}
+
 			.canvasWrapper {
 				display: flex;
 				justify-content: center;
@@ -34,40 +47,70 @@
 				display: flex;
 				width: 100%;
 				border: 5px solid black;
+				height:10vh;
 			}
-			canvas {
+			.showcase canvas {
 				border: 1px solid black;
-				width: 5%;
+				width: 5vh;
+				height:5vh;
 				margin-right: 3%;
 			}
 			h5 {
 				width: 30%;
 			}
-			button {
+			.wrapper button {
 				width: 20%;
 				height: auto;
 				border: 1px solid black;
 				box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
 			}
+
+			.showcaseF {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:10vh;
+				background-color: grey;
+			}
+			.showcaseF canvas {
+				border: 1px solid black;
+				width: 25vh;
+				height:5vh;
+				margin-right: 3%;
+			}
 		</style>
-		<script src="../../src/Utils.js"></script>
-		<script src="../../src/layers/ActivationBase.js"></script>
-		<script src="../../src/layers/FCLayer.js"></script>
-		<script src="../../src/layers/SigmoidLayer.js"></script>
-		<script src="../../src/layers/TanhLayer.js"></script>
-		<script src="../../src/layers/SineLayer.js"></script>
-		<script src="../../src/layers/ReluLayer.js"></script>
-		<script src="../../src/layers/LeakyReluLayer.js"></script>
-		<script src="../../src/layers/IdentityLayer.js"></script>
-		<script src="../../src/layers/ConvLayer.js"></script>
-		<script src="../../src/layers/MaxPoolLayer.js"></script>
-		<script src="../../src/Population.js"></script>
-		<script src="../../src/Net.js"></script>
 	</head>
 	<body>
-		<div class="wrapper">
-			<h1 id="show">Mnist digits</h1>
+		<div class="topbar">
+			<img src="../../logo.png" />
+			<h1 onclick="window.location = '../../index.html'">MentisJS</h1>
+			<div class="right">
+				<button onclick="dropdown(0);">
+					Examples▼
+					<div class="dropdown" id="dropdown0" hidden>
+						<a href="">All Examples</a><br /><a href="../../examples/mnist/mnist.html">Mnist Digits</a><br /><a href="../../examples/xor/xor.html">XOR</a><br />
+					</div>
+				</button>
 
+				<button onclick="dropdown(1);">
+					Docs▼
+					<div class="dropdown" id="dropdown1" hidden><a href="">All Docs</a><br /><a>Ment.Net</a><br /><a>Ment.FCLayer</a><br /></div>
+				</button>
+				<button onclick="dropdown(2);">
+					Tutorial▼
+					<div class="dropdown" id="dropdown2" hidden>
+						<a href="">All Tutorial</a><br /><a href="../../tutorials/resnet/resnet.html">ResNet</a><br /><a>XOR</a><br />
+					</div>
+				</button>
+			</div>
+		</div>
+		<!-- End of topbar -->
+		<div class="showcaseTitle">
+			<h1>Mnist digits</h1>
+			<!-- <p>ResEmitterLayers with the same ID as ResReceiverLayers will transmit data across layers. The best way to show something though is by example.</p> -->
+		</div>
+		<div class="wrapper">
 			<div class="showcase">
 				<canvas id="canvas0" width="140px" height="140px"></canvas>
 				<h3 style="margin-right: 3%">Net Output:</h3>
@@ -139,11 +182,11 @@
 				<h5 style="margin-left: 3%" id="errnine">Total Error:</h5>
 			</div>
 
-			<div class="showcase" style="padding: 5px">
+			<div class="showcaseF" style="padding: 5px">
 				<h3>Filters:</h3>
-				<canvas id="filterCanvas" style="width: 10%" width="300px" height="60px"></canvas>
+				<canvas id="filterCanvas"  width="300px" height="60px"></canvas>
 				<h3>Filter Grads:</h3>
-				<canvas id="filterGCanvas" style="width: 10%" width="300px" height="60px"></canvas>
+				<canvas id="filterGCanvas"  width="300px" height="60px"></canvas>
 			</div>
 			<br /><br />
 			<div style="float: right">
@@ -190,5 +233,38 @@ var net = new Ment.Net([
 		<script src="digits.js"></script>
 		<script src="model.js"></script>
 		<script src="convScript.js"></script>
-	</body>
+	<script>
+		let dropDownsActive = [false, false, false];
+		let dropdown = function (id) {
+			let drop = document.getElementById('dropdown' + id);
+			if (!dropDownsActive[id]) {
+				drop.hidden = false;
+
+				dropDownsActive[id] = true;
+				window.addEventListener(
+					'resize',
+					(window.fn = function (event) {
+						drop.style.left = drop.parentElement.getClientRects()[0].x + 'px';
+						drop.style.top = drop.parentElement.getClientRects()[0].y + drop.parentElement.clientHeight + 'px';
+						let height = 0;
+						for (var i = 0; i < drop.children.length; i++) {
+							height += drop.children[i].clientHeight;
+						}
+						drop.style.height = height + 'px';
+					})
+				);
+				window.fn();
+			} else {
+				drop.hidden = true;
+				dropDownsActive[id] = false;
+				if (
+					dropDownsActive.every((elem, ind) => {
+						return !elem; //if all elems are false
+					})
+				) {
+					window.removeEventListener('resize', window.fn); //remove useless listener
+				}
+			}
+		};
+	</script>
 </html>

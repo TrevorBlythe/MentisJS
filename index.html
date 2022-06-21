@@ -8,6 +8,7 @@
 		<script src="src/Utils.js"></script>
 		<script src="src/Net.js"></script>
 		<script src="src/layers/FCLayer.js"></script>
+		<script src="src/layers/ActivationBase.js"></script>
 		<script src="src/layers/SigmoidLayer.js"></script>
 		<script src="src/layers/TanhLayer.js"></script>
 		<script src="src/layers/SineLayer.js"></script>
@@ -22,11 +23,25 @@
 	<body>
 		<div class="topbar">
 			<img src="logo.png" />
-			<h1>MentisJS</h1>
+			<h1 onclick="window.location = 'index.html'">MentisJS</h1>
 			<div class="right">
-				<button>Examples▼</button>
-				<button>Docs▼</button>
-				<button>Tutorial▼</button>
+				<button onclick="dropdown(0);">
+					Examples▼
+					<div class="dropdown" id="dropdown0" hidden>
+						<a href="">All Examples</a><br /><a href="examples/mnist/mnist.html">Mnist Digits</a><br /><a href="examples/xor/xor.html">XOR</a><br />
+					</div>
+				</button>
+
+				<button onclick="dropdown(1);">
+					Docs▼
+					<div class="dropdown" id="dropdown1" hidden><a href="">All Docs</a><br /><a>Ment.Net</a><br /><a>Ment.FCLayer</a><br /></div>
+				</button>
+				<button onclick="dropdown(2);">
+					Tutorial▼
+					<div class="dropdown" id="dropdown2" hidden>
+						<a href="">All Tutorial</a><br /><a href="tutorials/resnet/resnet.html">ResNet</a><br /><a>XOR</a><br />
+					</div>
+				</button>
 			</div>
 		</div>
 		<!-- End of topbar -->
@@ -52,6 +67,39 @@
 	</body>
 
 	<script>
+		let dropDownsActive = [false, false, false];
+		let dropdown = function (id) {
+			let drop = document.getElementById('dropdown' + id);
+			if (!dropDownsActive[id]) {
+				drop.hidden = false;
+
+				dropDownsActive[id] = true;
+				window.addEventListener(
+					'resize',
+					(window.fn = function (event) {
+						drop.style.left = drop.parentElement.getClientRects()[0].x + 'px';
+						drop.style.top = drop.parentElement.getClientRects()[0].y + drop.parentElement.clientHeight + 'px';
+						let height = 0;
+						for (var i = 0; i < drop.children.length; i++) {
+							height += drop.children[i].clientHeight;
+						}
+						drop.style.height = height + 'px';
+					})
+				);
+				window.fn();
+			} else {
+				drop.hidden = true;
+				dropDownsActive[id] = false;
+				if (
+					dropDownsActive.every((elem, ind) => {
+						return !elem; //if all elems are false
+					})
+				) {
+					window.removeEventListener('resize', window.fn); //remove useless listener
+				}
+			}
+		};
+		//Neural netowrk stuff below
 		Ment.polluteGlobal();
 		var canvas = document.getElementById('showcase');
 		var canvasN = document.getElementById('showcaseNet');

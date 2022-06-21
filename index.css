@@ -39,10 +39,11 @@ body {
 	border-right: 1px solid #555; */
 	margin-left: 16%;
 	width: 10%;
-	padding-top: 1.5vh;
-	padding-bottom: 1.5vh;
+	padding-top: 1vh;
+	padding-bottom: 1vh;
 	background-color: yellow;
 	color: #333;
+	/* height: 0%; */
 }
 
 .topbar button:hover {
@@ -123,4 +124,22 @@ body {
 	background-color: #212121;
 	color: white;
 	font-family: Consolas, 'Courier New', Courier, monospace;
+}
+
+.dropdown {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 20vw;
+	height: 15vh;
+	background-color: white;
+	/* padding: 1vw; */
+}
+
+.dropdown a {
+	display: block;
+	border-top: 1px solid black;
+	width: 100%;
+	/* margin-bottom: 0.001vh; */
+	height: 2vh;
 }
