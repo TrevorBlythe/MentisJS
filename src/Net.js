@@ -22,6 +22,30 @@ var Ment = Ment || {};
 			return this.lr;
 		}
 
+		get inData() {
+			return this.layers[0].inData;
+		}
+
+		set inData(arr) {
+			if (arr.length == this.layers[0].inSize()) {
+				this.layers[0].inData = arr;
+			} else {
+				throw 'cant set in data because its the wrong size';
+			}
+		}
+
+		get outData() {
+			return [...this.layers[this.layers.length - 1].outData];
+		}
+
+		set outData(arr) {
+			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
+				this.layers[0].outData = arr;
+			} else {
+				throw 'cant set out data because its the wrong size';
+			}
+		}
+
 		connectLayers() {
 			//by 'connect' we mean set the outData to the inData of adjacent layers.
 			//this is so we dont have to copy over the arrays
@@ -143,10 +167,7 @@ var Ment = Ment || {};
 		train(input, expectedOut) {
 			this.forward(input);
 
-			let loss = this.layers[this.layers.length - 1].backward(expectedOut);
-			for (var i = this.layers.length - 2; i >= 0; i--) {
-				this.layers[i].backward();
-			}
+			let loss = this.backward(expectedOut);
 			//done backpropping
 			this.epoch++;
 			if (this.epoch % this.batchSize == 0) {
@@ -155,6 +176,14 @@ var Ment = Ment || {};
 				}
 			}
 			//done updating params if epoch % batchsize is zero
+			return loss;
+		}
+
+		backward(expected) {
+			let loss = this.layers[this.layers.length - 1].backward(expected);
+			for (var i = this.layers.length - 2; i >= 0; i--) {
+				this.layers[i].backward();
+			}
 			return loss;
 		}
 	} //END OF NET CLASS DECLARATION

@@ -57,7 +57,8 @@
 	*/
 
 	class FCLayer {
-		constructor(inSize, outSize) {
+		constructor(inSize, outSize, useBias) {
+			this.useBias = useBias == undefined ? true : useBias;
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 			//dont set it in the constructor unless you really want to
 
@@ -81,7 +82,11 @@
 			} // ---- end init weights
 
 			for (var j = 0; j < outSize; j++) {
-				this.b[j] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				if (this.useBias == false) {
+					this.b[j] = 0;
+				} else {
+					this.b[j] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
 				this.bs[j] = 0;
 			} ///---------adding random biases
 		}
@@ -169,11 +174,12 @@
 					this.w[i] += this.ws[i] * this.lr;
 					this.ws[i] = 0;
 				}
-
-				for (var j = 0; j < this.outSize(); j++) {
-					this.bs[j] /= this.trainIterations;
-					this.b[j] += this.bs[j] * this.lr;
-					this.bs[j] = 0;
+				if (this.useBias) {
+					for (var j = 0; j < this.outSize(); j++) {
+						this.bs[j] /= this.trainIterations;
+						this.b[j] += this.bs[j] * this.lr;
+						this.bs[j] = 0;
+					}
 				}
 
 				this.trainIterations = 0;
@@ -186,9 +192,11 @@
 					this.w[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
 				}
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				if (Math.random() < mutationRate) {
-					this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					if (Math.random() < mutationRate) {
+						this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+					}
 				}
 			}
 		}
@@ -228,7 +236,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize);
+			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
 			for (var i = 0; i < layer.w.length; i++) {
 				layer.w[i] = saveObject.w[i];
 			}

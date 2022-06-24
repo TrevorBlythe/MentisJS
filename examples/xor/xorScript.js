@@ -9,7 +9,7 @@ let clear = function () {
 
 let ctx = document.getElementById('canvas').getContext('2d');
 
-var net = new Net([new FC(2, 5), new Sig(), new FC(5, 5), new FC(5, 1), new Sig()]);
+var net = new Net([new FC(2, 5, false), new Sig(), new FC(5, 5, false), new FC(5, 1, false), new Sig()]);
 
 net.batchSize = 4;
 net.learningRate = 1;

@@ -22,9 +22,62 @@
 		<script src="../../src/Net.js"></script>
 		<title>MentisJS</title>
 		<style>
-			/* custom styling for this page */
-			img {
-				width: 20vw;
+			* {
+				margin: 0px;
+				border: 0px;
+			}
+			body {
+				font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+			}
+			ws {
+				white-space: break-spaces;
+			}
+			.wrapper {
+				margin-left: 15%;
+				width: 70%;
+				background-color: rgb(220, 225, 222);
+			}
+
+			.canvasWrapper {
+				display: flex;
+				justify-content: center;
+			}
+			.showcase {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:10vh;
+			}
+			.showcase canvas {
+				border: 1px solid black;
+				width: 5vh;
+				height:5vh;
+				margin-right: 3%;
+			}
+			h5 {
+				width: 30%;
+			}
+			.wrapper button {
+				width: 20%;
+				height: auto;
+				border: 1px solid black;
+				box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+			}
+
+			.showcaseF {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:10vh;
+				background-color: grey;
+			}
+			.showcaseF canvas {
+				border: 1px solid black;
+				width: 25vh;
+				height:5vh;
+				margin-right: 3%;
 			}
 		</style>
 	</head>
@@ -54,31 +107,59 @@
 		</div>
 		<!-- End of topbar -->
 		<div class="showcaseTitle">
-			<h1>Resnet implementation</h1>
-			<p>ResEmitterLayers with the same ID as ResReceiverLayers will transmit data across layers. The best way to show something though is by example.</p>
+			<h1>Mnist digits Autoencoder</h1>
 		</div>
+		<div class="wrapper">
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Net Input:</h3>
+				<canvas id="canvas" width="140px" height="140px"></canvas>
+				<h3 style="margin-right: 3%">Net Output:</h3>
+				<canvas id="canvasOut" width="140px" height="140px"></canvas>
+				<h5 style="margin-left: 3%" id="err">Total Error:</h5>
+			</div>
+			<div class="showcaseF" style="padding: 5px">
+				<h3>Filters:</h3>
+				<canvas id="filterCanvas"  width="300px" height="60px"></canvas>
+				<h3>Filter Grads:</h3>
+				<canvas id="filterGCanvas"  width="300px" height="60px"></canvas>
+			</div>
+			<br /><br />
+			<div style="float: right">
+				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
 
-		<div class="code">
-			let net = new Net([<br />&emsp;new Emitter(1, 3), <br />&emsp;new FC(1, 1), <br />&emsp;new Sig(1), <br />&emsp;new Receiver(3)<br />]);
+											
+               </textarea
+				>
+				<br />
+				<button onclick="eval.call(window,document.getElementById('textinput').value);">Reload Network</button>
+			</div>
+			<p id="lr">learning rate: 0.01</p>
+			<input
+				type="range"
+				min="0"
+				max="1000"
+				value="10"
+				oninput="net.learningRate = this.value/1000;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;"
+			/>
+			<p id="es">examples seen: 0</p>
+			<button onclick="clearInterval(loop);">Stop</button>
+			<button onclick="go();">Go</button><br />
+			<button onclick="net = Ment.Net.load(model);">Load pre-trained model</button>
+			<br /><br />
+			<br /><br />
+			<br /><br />
+			<br /><br />
+			<br /><br />
+			<br /><br />
+			<h1>Explanation</h1>
+			<p>
+				Here you can see an Autoencoder of mnist digits. This network can be cut in half to make a mnist digit generator or a digit classifier.
+				The generator would be more useful.
+			</p>
 		</div>
-		<br />
-		<img src="resExam.png" />
-		<br /><br /><br /><br />
-		<div class="code">
-			let net = new Net([<br />&emsp;new Emitter(1, "anything can be an identifyer"), <br />&emsp;new FC(1, 3), <br />&emsp;new Receiver("anything can be an
-			identifyer")<br />]);
-		</div>
-		<br />
-		<img src="resExamTwo.png" />
-		<br /><br /><br /><br />
-		<div class="code">
-			let net = new Net([<br />&emsp;new Emitter(1, 'a'), <br />&emsp;new Emitter(1, 'b'), <br />&emsp;new Receiver('a'), <br />&emsp;new Receiver('b')<br />]);
-		</div>
-		<br />
-		<img src="resExamThree.png" />
-		<br /><br /><br /><br />
-	</body>
-	<script src="resnet.js"></script>
+		<script src="digits.js"></script>
+		<script src="model.js"></script>
+		<script src="convScript.js"></script>
 	<script>
 		let dropDownsActive = [false, false, false];
 		let dropdown = function (id) {

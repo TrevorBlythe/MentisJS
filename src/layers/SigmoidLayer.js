@@ -17,7 +17,7 @@
 		}
 
 		backward(expected) {
-			super.backward(expected, this.sigmoidPrime);
+			return super.backward(expected, this.sigmoidPrime);
 		}
 
 		inSize() {

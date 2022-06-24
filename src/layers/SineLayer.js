@@ -13,7 +13,7 @@
 		}
 
 		forward(inData) {
-			super.forward(inData, this.sine);
+			return super.forward(inData, this.sine);
 		}
 
 		backward(expected) {

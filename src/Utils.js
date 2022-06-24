@@ -50,7 +50,11 @@ var Ment = Ment || {};
 
 	let polluteGlobal = function () {
 		for (const [key, value] of Object.entries(Ment)) {
-			window[key] = value;
+			if (isBrowser()) {
+				window[key] = value;
+			} else {
+				global[key] = value; //node
+			}
 		}
 	};
 
@@ -141,8 +145,8 @@ var Ment = Ment || {};
 	Ment.isBrowser = isBrowser;
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
-
-	if (window.GPU) {
+	let globalObject = isBrowser() ? window : global;
+	if (globalObject.GPU) {
 		const gpu = new GPU();
 		Ment.gpu = gpu;
 	}

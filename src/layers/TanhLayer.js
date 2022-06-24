@@ -17,7 +17,7 @@
 		}
 
 		backward(expected) {
-			super.backward(expected, this.tanhPrime);
+			return super.backward(expected, this.tanhPrime);
 		}
 
 		inSize() {

@@ -7,7 +7,7 @@
 			this.inData; //the inData
 			this.outData; //will be init when "onConnect" is called.
 			this.costs; //costs for each neuron
-			this.receiver; // a reference to the receiver layer so we can skip layers
+			this.emitter;
 			this.inDataFromEmitter;
 			this.costsForEmitter;
 			this.pl; // holds a reference to previous layer
@@ -96,27 +96,20 @@
 		}
 
 		save() {
-			this.savedSize = this.inSize();
-
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (key == 'emitter' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
 					return undefined;
 				}
 
 				return value;
 			});
-
-			//This is how you delete object properties btw.
-			delete this.savedInSize;
-			delete this.savedOutSize;
-
 			return ret;
 		}
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResReceiverLayer(saveObject.savedSize);
+			let layer = new ResReceiverLayer(saveObject.id);
 			return layer;
 		}
 	}
