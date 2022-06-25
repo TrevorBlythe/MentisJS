@@ -16,7 +16,7 @@ NOT like this:
 [r,g,b,r,g,b,r,g,b,r,g,b]
 */
 
-	class ConvLayer {
+	class DeconvLayer {
 		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0) {
 			if (padding != 0) {
 				throw (
@@ -37,15 +37,16 @@ NOT like this:
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
-			this.outData = new Float32Array(
+			this.inData = new Float32Array(
 				Math.ceil((inWidth - filterWidth + 2 * padding + 1) / stride) * Math.ceil((inHeight - filterHeight + 2 * padding + 1) / stride) * this.filters
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
+			this.outData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
+			this.outData.fill(0); //to prevent mishap
+			this.costs = new Float32Array(this.inData.length);
 			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
 			// this.bs = new Float32Array(this.outData.length);
-			// this.accessed = new Float32Array(this.inData.length).fill(1);
+			this.accessed = new Float32Array(this.inData.length).fill(1);
 			if (this.filterWidth > inWidth + padding || this.filterHeight > inHeight + padding) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -78,11 +79,11 @@ NOT like this:
 			return this.outData.length;
 		}
 
-		inSizeDimensions() {
+		outSizeDimensions() {
 			return [this.inWidth, this.inHeight, this.inDepth];
 		}
 
-		outSizeDimensions() {
+		inSizeDimensions() {
 			return [
 				Math.ceil((this.inWidth - this.filterWidth + 2 * this.padding + 1) / this.stride),
 				Math.ceil((this.inHeight - this.filterHeight + 2 * this.padding + 1) / this.stride),
@@ -94,7 +95,7 @@ NOT like this:
 			if (inData) {
 				if (inData.length != this.inSize()) {
 					throw (
-						'INPUT SIZE WRONG ON CONV LAYER:\nexpected array size (' +
+						'INPUT SIZE WRONG ON deCONV LAYER:\nexpected array size (' +
 						this.inSize() +
 						', dimensions: [' +
 						this.inSizeDimensions() +
@@ -107,6 +108,7 @@ NOT like this:
 					this.inData[i] = inData[i];
 				}
 			}
+
 			this.outData.fill(0);
 
 			for (var i = 0; i < this.filters; i++) {
@@ -125,7 +127,7 @@ NOT like this:
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									this.outData[odi] += this.inData[k + jGAIWBA] * this.filterw[k + jFWHFWIH];
+									this.outData[k + jGAIWBA] += this.inData[odi] * this.filterw[k + jFWHFWIH];
 								}
 							}
 						}
@@ -159,8 +161,6 @@ NOT like this:
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * this.stride;
-						let err = !expected ? this.nextLayer.costs[odi] : expected[odi] - this.outData[odi];
-						loss += Math.pow(err, 2);
 						for (var h = 0; h < this.inDepth; h++) {
 							const hWIH = h * this.wIH;
 							const hFWIH = h * this.fWIH + iFWIHID;
@@ -168,9 +168,18 @@ NOT like this:
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
-									// this.accessed[k + jGAIWBA]++;
-									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
+									let err = !expected ? this.nextLayer.costs[k + jGAIWBA] : expected[k + jGAIWBA] - this.outData[k + jGAIWBA];
+									loss += Math.pow(err, 2);
+
+									let test = false;
+
+									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
+
+									this.accessed[k + jGAIWBA]++;
+									let testy = false;
+									let t = this.filterws[k + jFWHFWIH];
+
+									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
 							}
 						}
@@ -180,8 +189,7 @@ NOT like this:
 			}
 
 			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] =
-			// 		this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 0);
+			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
 			// 	this.accessed[i] = 0;
 			// }
 
@@ -189,11 +197,15 @@ NOT like this:
 		}
 
 		updateParams(optimizer) {
+			// console.log(this);
 			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterws[i] /= this.outSize() / this.filters;
+				let testy = false;
+
+				this.filterws[i] /= this.trainIterations;
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				// this.filterws[i] /= this.outSize() / this.filters;
-				// this.filterws[i] /= this.trainIterations;
-				this.filterw[i] += Math.min(Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr), this.lr);
+				this.filterw[i] += Math.max(-this.lr, Math.min(this.lr, this.filterws[i] * this.lr));
+
 				this.filterws[i] = 0;
 			}
 			//i forgor to update bias
@@ -204,6 +216,7 @@ NOT like this:
 			// 	this.bs[i] = 0;
 			// }
 			this.trainIterations = 0;
+			// console.log(this);
 		}
 
 		save() {
@@ -252,6 +265,10 @@ NOT like this:
 		}
 	}
 
-	Ment.ConvLayer = ConvLayer;
-	Ment.Conv = ConvLayer;
+	// Ment.DeconvLayer = DeconvLayer;
+	// Ment.DeConvLayer = DeconvLayer;
+	// Ment.Deconv = DeconvLayer;
+	// Ment.DeConv = DeconvLayer;
+
+	//only uncomment if you know what your doing
 }

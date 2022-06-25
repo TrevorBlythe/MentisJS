@@ -17,7 +17,7 @@
 		}
 
 		backward(expected) {
-			super.backward(expected, this.sinePrime);
+			return super.backward(expected, this.sinePrime);
 		}
 
 		inSize() {

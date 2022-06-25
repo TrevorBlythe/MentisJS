@@ -170,8 +170,10 @@
 			}
 			if (optimizer == 'SGD') {
 				for (var i = 0; i < this.ws.length; i++) {
-					this.ws[i] /= this.trainIterations;
-					this.w[i] += this.ws[i] * this.lr;
+					// this.ws[i] /= this.trainIterations;
+					this.ws[i] = Ment.protectNaN(this.ws[i]);
+					this.w[i] += Math.min(Math.max(this.ws[i] * this.lr, -this.lr), this.lr);
+
 					this.ws[i] = 0;
 				}
 				if (this.useBias) {

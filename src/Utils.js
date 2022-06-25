@@ -2,6 +2,18 @@ var Ment = Ment || {};
 {
 	var return_v = false;
 	var v_val = 0.0;
+
+	var protectNaN = function (num) {
+		if (num == Infinity) {
+			return 1;
+		} else if (num == -Infinity) {
+			return -1;
+		} else if (isNaN(num)) {
+			return 0;
+		} else {
+			return num;
+		}
+	};
 	var gaussRandom = function () {
 		if (return_v) {
 			return_v = false;
@@ -145,6 +157,7 @@ var Ment = Ment || {};
 	Ment.isBrowser = isBrowser;
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
+	Ment.protectNaN = protectNaN;
 	let globalObject = isBrowser() ? window : global;
 	if (globalObject.GPU) {
 		const gpu = new GPU();

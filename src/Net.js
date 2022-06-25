@@ -60,7 +60,7 @@ var Ment = Ment || {};
 							this.layers[i].constructor.name
 						} output size: ${this.layers[i].outSize()}${this.layers[i].outSizeDimensions ? ' (' + this.layers[i].outSizeDimensions() + ')' : ''}, ${
 							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].outSizeDimensions ? ' (' + this.layers[i + 1].outSizeDimensions() + ')' : ''}`;
+						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].inSizeDimensions ? ' (' + this.layers[i + 1].inSizeDimensions() + ')' : ''}`;
 					}
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}

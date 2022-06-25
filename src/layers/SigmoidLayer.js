@@ -5,7 +5,11 @@
 		}
 
 		sigmoidPrime(z) {
-			return Math.exp(-z) / Math.pow(1 + Math.exp(-z), 2);
+			let ret = Math.exp(-z) / Math.pow(1 + Math.exp(-z), 2);
+			if (isNaN(ret)) {
+				return 0;
+			}
+			return ret;
 		}
 
 		constructor(size) {
