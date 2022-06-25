@@ -1,3 +1,4 @@
+Ment.polluteGlobal();
 let examplesSeen = 0;
 
 let ctx = document.getElementById('canvas').getContext('2d');
@@ -38,7 +39,6 @@ let drawFromArrF = function (arr, ctx, xx, y, outOf) {
 };
 
 let getDigit = function (digit) {
-	// alert(digit);
 	let c = Math.floor(Math.random() * 49);
 	return digits[names[digit]].slice(c * 28 * 28, 28 * 28 + c * 28 * 28);
 };
@@ -46,34 +46,17 @@ let getDigit = function (digit) {
 let greenBox = function (p) {
 	return "<span style='display:inline-block;height:20px;width:20px;background-color:rgb(0," + p + ",0);border:1px solid black'></span>";
 };
-//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters=3, stride=1, padding=0
 
 let one = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 var net = new Ment.Net([
 	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new Ment.MaxPool(7, 7, 5, 2, 2, 2),
-	new Ment.FC(45, 35),
-	new Ment.Relu(),
-	new Ment.FC(35, 5, false),
-	new Ment.Relu(),
-	new Ment.FC(5, 27, false),
-	new Ment.Relu(),
-	new Ment.DeConv(9, 9, 3, 3, 3, 3, 3, 0),
-	new Ment.DeConv(12, 12, 3, 4, 4, 3, 1, 0),
-	new Ment.DeConv(28, 28, 1, 6, 6, 3, 2, 0),
-	new Ment.Relu(),
+	new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
+	new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
+	new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0),
 ]);
 
 net.batchSize = 10;
-net.learningRate = 0.0001;
-
-// net.layers[0].lr = 0;
-// net.layers[1].lr = 0;
-// net.layers[2].lr = 0;
-// net.layers[3].lr = 0;
-// net.layers[4].lr = 0;
-// net.layers[5].lr = 0;
-// net.layers[6].lr = 0;
+net.learningRate = 0.01;
 
 document.getElementById('lr').innerHTML = `learning rate: ${net.learningRate}`;
 let names = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
@@ -81,44 +64,13 @@ let names = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eig
 var go = function () {
 	window.loop = setInterval(function () {
 		let input = getDigit(Math.floor(Math.random() * 9));
-		// let input = getDigit(0);
 		let loss = net.train(input, input);
 		document.getElementById('err').innerHTML = `Total error: ${loss.toString().substring(0, 3)}`;
 		let output = net.outData;
 		drawFromArr(input, ctx);
 		drawFromArr(output, ctxO);
-		for (var i = 0; i < net.layers[0].filters; i++) {
-			ctxF.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
-			drawFromArrF(
-				net.layers[0].filterw.slice(
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight + net.layers[0].filterWidth + net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
-				),
-				ctxF,
-				5 + i * net.layers[0].filterWidth * 6,
-				5,
-				255
-			);
-		}
-
-		for (var i = 0; i < net.layers[0].filters; i++) {
-			ctxFG.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
-			drawFromArrF(
-				net.layers[0].filterws.slice(
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight + net.layers[0].filterWidth + net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
-				),
-				ctxFG,
-				5 + i * net.layers[0].filterWidth * 6,
-				5,
-				255
-			);
-		}
 		document.getElementById('es').innerHTML = 'examples seen:' + examplesSeen;
 		examplesSeen++;
-		net.layers[net.layers.length - 2].updateParams();
-		net.layers[net.layers.length - 3].updateParams();
-		net.layers[net.layers.length - 4].updateParams();
 	}, 0);
 };
 

@@ -146,10 +146,18 @@ NOT like this:
 			}
 
 			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw 'error backproping on an unconnected layer with no expected parameter input deconv layer';
 				}
+			}
+
+			let getCost = (ind) => {
+				return this.nextLayer.costs[ind];
+			};
+			if (expected) {
+				getCost = (ind) => {
+					return expected[ind] - this.outData[ind];
+				};
 			}
 
 			for (var i = 0; i < this.filters; i++) {
@@ -168,16 +176,12 @@ NOT like this:
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									let err = !expected ? this.nextLayer.costs[k + jGAIWBA] : expected[k + jGAIWBA] - this.outData[k + jGAIWBA];
+									let err = getCost(k + jGAIWBA);
 									loss += Math.pow(err, 2);
-
-									let test = false;
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									this.accessed[k + jGAIWBA]++;
-									let testy = false;
-									let t = this.filterws[k + jFWHFWIH];
+									// this.accessed[k + jGAIWBA]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -244,7 +248,7 @@ NOT like this:
 		static load(json) {
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0
 			let saveObject = JSON.parse(json);
-			let layer = new ConvLayer(
+			let layer = new DeconvLayer(
 				saveObject.inWidth,
 				saveObject.inHeight,
 				saveObject.inDepth,
@@ -265,10 +269,10 @@ NOT like this:
 		}
 	}
 
-	// Ment.DeconvLayer = DeconvLayer;
-	// Ment.DeConvLayer = DeconvLayer;
-	// Ment.Deconv = DeconvLayer;
-	// Ment.DeConv = DeconvLayer;
+	Ment.DeconvLayer = DeconvLayer;
+	Ment.DeConvLayer = DeconvLayer;
+	Ment.Deconv = DeconvLayer;
+	Ment.DeConv = DeconvLayer;
 
 	//only uncomment if you know what your doing
 }

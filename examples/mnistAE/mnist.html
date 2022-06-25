@@ -127,8 +127,16 @@
 			<br /><br />
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-
-											
+					var net = new Ment.Net(
+						[
+						new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
+						new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
+						new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
+						 new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0)
+						]);
+						
+						net.batchSize = 10;
+						net.learningRate = 0.01;
                </textarea
 				>
 				<br />
@@ -152,11 +160,19 @@
 			<br /><br />
 			<br /><br />
 			<br /><br />
+			<div class="showcaseTitle">
 			<h1>Explanation</h1>
+		</div>
 			<p>
-				Here you can see an Autoencoder of mnist digits. This network can be cut in half to make a mnist digit generator or a digit classifier.
-				The generator would be more useful.
+				Here you can see an Autoencoder being trained live. Press load pre-trained model to load a model that has a bottleneck
+				of only about 30 neurons! It uses DE-CONVOLOUTION layers that can reverse the effects of the convoloution layer. The goal 
+				of a model like this can be many reasons but you can use it to generate more images or classify them.
 			</p>
+			<br>
+			<br>
+			<br>
+			<br>
+			<br>
 		</div>
 		<script src="digits.js"></script>
 		<script src="model.js"></script>
