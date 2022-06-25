@@ -28,7 +28,7 @@ GAN tutorial.
 Diffusion model tutorial.
 WASM for speed?
 
-CURRENTLY WORKING ON: saving / loading
+CURRENTLY WORKING ON: DECONV LAYERS + SAFETY AGAINST NAN (very hard which is why its been a few days since my last commit)
 
 # Tutorial
 
