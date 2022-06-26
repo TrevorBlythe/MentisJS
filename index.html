@@ -113,8 +113,10 @@
 		canvasN.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / (10 / 4.5);
 		canvasN.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / (10 / 5);
 
-		var player = { x: 50, y: 50, speed: 0, angle: 0 }; //angle in rads
-
+		var players = [];
+		for (var i = 0; i < 10; i++) {
+			players.push({ x: 50, y: 50, speed: 0, angle: 0, input: Array(13) });
+		}
 		let foods = [];
 		foods.push({ x: 80, y: 50 });
 
@@ -122,37 +124,19 @@
 			foods.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
 		}
 
-		let input = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 		var pop = new Population([new FC(13, 3), new FC(3, 5), new FC(5, 1), new Sig(1)], 10, 3);
 
-		pop.networks[0] = Net.load(
-			'{"layerAmount":4,"optimizer":"SGD","lr":0.01,"batchSize":19,"layer0":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":1.3579144477844238,\\"1\\":2.1038196086883545,\\"2\\":0.09565188735723495,\\"3\\":0.5557871460914612,\\"4\\":-1.8251713514328003,\\"5\\":-0.4552430212497711,\\"6\\":0.9252217411994934,\\"7\\":0.47878730297088623,\\"8\\":-0.13979826867580414,\\"9\\":0.38424792885780334,\\"10\\":1.566457748413086,\\"11\\":-0.20847515761852264,\\"12\\":-0.8188731074333191,\\"13\\":-0.42229366302490234,\\"14\\":-2.7473549842834473,\\"15\\":-2.148770809173584,\\"16\\":-0.48257189989089966,\\"17\\":-2.272961139678955,\\"18\\":-0.8089615106582642,\\"19\\":-0.10547905415296555,\\"20\\":-1.0213065147399902,\\"21\\":-0.08312980830669403,\\"22\\":0.5494184494018555,\\"23\\":2.1290090084075928,\\"24\\":1.683689832687378,\\"25\\":-0.009525150991976261,\\"26\\":0.03147411718964577,\\"27\\":0.899162769317627,\\"28\\":-0.9485362768173218,\\"29\\":-0.3622668385505676,\\"30\\":-0.5411669015884399,\\"31\\":-1.7387421131134033,\\"32\\":1.117361068725586,\\"33\\":1.5323102474212646,\\"34\\":1.6479995250701904,\\"35\\":-0.12272541224956512,\\"36\\":-1.5001739263534546,\\"37\\":0.0038289919029921293,\\"38\\":-0.6664083003997803},\\"b\\":{\\"0\\":1.0081433057785034,\\"1\\":-1.7039284706115723,\\"2\\":0.31995734572410583},\\"savedInSize\\":13,\\"savedOutSize\\":3}"},"layer1":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":-2.026461362838745,\\"1\\":1.1736749410629272,\\"2\\":1.4184373617172241,\\"3\\":0.07266010344028473,\\"4\\":1.803170084953308,\\"5\\":0.8910682201385498,\\"6\\":-0.9798486828804016,\\"7\\":0.5807678699493408,\\"8\\":-1.7120277881622314,\\"9\\":-1.4215755462646484,\\"10\\":-1.1680546998977661,\\"11\\":0.6397904753684998,\\"12\\":0.062001824378967285,\\"13\\":1.6012637615203857,\\"14\\":0.758464515209198},\\"b\\":{\\"0\\":1.790974497795105,\\"1\\":1.3759008646011353,\\"2\\":0.7312616109848022,\\"3\\":2.111952781677246,\\"4\\":2.0482852458953857},\\"savedInSize\\":3,\\"savedOutSize\\":5}"},"layer2":{"type":"FCLayer","layerData":"{\\"lr\\":0.01,\\"w\\":{\\"0\\":0.05907744914293289,\\"1\\":-0.07249512523412704,\\"2\\":0.18696604669094086,\\"3\\":-0.5934877395629883,\\"4\\":-1.2945374250411987},\\"b\\":{\\"0\\":-1.1763262748718262},\\"savedInSize\\":5,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"lr\\":0.01,\\"savedSize\\":1}"}}'
-		);
-		pop.networks[0].score = 100;
-		// pop.cullAndBreed();
-
-		var speed = 50;
+		for (var i = 0; i < pop.networks.length; i++) {
+			pop.networks[i] = Net.load(
+				'{"layerAmount":4,"optimizer":"SGD","lr":0.01,"batchSize":19,"layer0":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"lr\\":0.01,\\"w\\":{\\"0\\":4.286779403686523,\\"1\\":7.236776351928711,\\"2\\":2.2694053649902344,\\"3\\":0.7590458989143372,\\"4\\":-1.6789147853851318,\\"5\\":-2.691486358642578,\\"6\\":-0.19527511298656464,\\"7\\":2.618952751159668,\\"8\\":-3.7375478744506836,\\"9\\":-0.4498644471168518,\\"10\\":0.2225273698568344,\\"11\\":-1.548097014427185,\\"12\\":-2.6500916481018066,\\"13\\":-2.195037841796875,\\"14\\":1.8821911811828613,\\"15\\":-6.15867805480957,\\"16\\":-5.6974687576293945,\\"17\\":-3.6527085304260254,\\"18\\":-0.724193274974823,\\"19\\":-0.3878256380558014,\\"20\\":-0.5834124088287354,\\"21\\":-3.2546029090881348,\\"22\\":-1.7380778789520264,\\"23\\":1.0211888551712036,\\"24\\":3.518221378326416,\\"25\\":-0.7197837829589844,\\"26\\":5.943839073181152,\\"27\\":-3.7757012844085693,\\"28\\":6.1366963386535645,\\"29\\":-1.0280234813690186,\\"30\\":2.5180115699768066,\\"31\\":2.0621938705444336,\\"32\\":-3.05973744392395,\\"33\\":4.450287818908691,\\"34\\":2.718562126159668,\\"35\\":2.590027093887329,\\"36\\":4.378471374511719,\\"37\\":-0.743872880935669,\\"38\\":2.8106768131256104},\\"b\\":{\\"0\\":-0.9517594575881958,\\"1\\":-1.1187503337860107,\\"2\\":0.30451202392578125},\\"savedInSize\\":13,\\"savedOutSize\\":3}"},"layer1":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"lr\\":0.01,\\"w\\":{\\"0\\":-1.8434385061264038,\\"1\\":3.8017513751983643,\\"2\\":2.455711841583252,\\"3\\":-3.7533774375915527,\\"4\\":0.05536479502916336,\\"5\\":5.760886192321777,\\"6\\":6.680792808532715,\\"7\\":3.9558119773864746,\\"8\\":-5.6325483322143555,\\"9\\":-1.453450083732605,\\"10\\":-6.411934852600098,\\"11\\":3.519181966781616,\\"12\\":-0.8108354210853577,\\"13\\":-0.9148237109184265,\\"14\\":2.4404234886169434},\\"b\\":{\\"0\\":-1.2964668273925781,\\"1\\":0.22748027741909027,\\"2\\":-2.3721542358398438,\\"3\\":3.829634189605713,\\"4\\":-0.09286583214998245},\\"savedInSize\\":3,\\"savedOutSize\\":5}"},"layer2":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"lr\\":0.01,\\"w\\":{\\"0\\":0.291939377784729,\\"1\\":-0.17205657064914703,\\"2\\":4.588305473327637,\\"3\\":4.384854793548584,\\"4\\":-2.1796207427978516},\\"b\\":{\\"0\\":-1.7919790744781494},\\"savedInSize\\":5,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"lr\\":0.01,\\"savedSize\\":1}"}}'
+			);
+		}
+		pop.cullAndBreed();
+		var speed = 50; //lower is faster
 		var wallPunish = 0.001;
-		let hideFood = true;
-		let whosTurn = 0;
+		let hideFood = false;
 		var loop = setInterval(() => {
 			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			ctx.fillStyle = 'rgba(100,100,100,0.5)';
-
-			ctx.beginPath();
-			ctx.moveTo(player.x, player.y);
-			ctx.lineTo(100 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
-			ctx.lineTo(100 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
-			ctx.fill();
-
-			ctx.beginPath();
-			ctx.arc(player.x, player.y, 10, 0, 2 * Math.PI, false);
-			ctx.fillStyle = 'yellow';
-			ctx.fill();
-			ctx.lineWidth = 5;
-			ctx.strokeStyle = 'yellowgreen';
-			ctx.stroke();
-
 			for (var i = 0; i < foods.length; i++) {
 				ctx.beginPath();
 				ctx.arc(foods[i].x, foods[i].y, 5, 0, 2 * Math.PI, false);
@@ -162,82 +146,100 @@
 				ctx.strokeStyle = '#003300';
 				ctx.stroke();
 			}
-			for (var b = 0; b < 200 / speed; b++) {
-				let toCheck = [];
-				let toCheckInds = [];
-				for (var h = 0; h < foods.length; h++) {
-					if (Math.sqrt(Math.pow(player.x - foods[h].x, 2) + Math.pow(player.y - foods[h].y, 2)) < 100) {
-						toCheck.push(foods[h]);
-						toCheckInds.push(h);
-					}
-				}
+			for (var z = 0; z < players.length; z++) {
+				let player = players[z];
+				let input = player.input;
+				ctx.fillStyle = 'rgba(100,100,100,0.1)';
 
-				for (var i = 0; i < 10; i++) {
-					input[i] = 1;
+				ctx.beginPath();
+				ctx.moveTo(player.x, player.y);
+				ctx.lineTo(100 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
+				ctx.lineTo(100 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
+				ctx.fill();
 
-					for (var j = 0; j < 10; j++) {
-						let xCheck = j * 10 * Math.cos(player.angle + -1 + (2 / 9) * i) + player.x;
+				ctx.beginPath();
+				ctx.arc(player.x, player.y, 10, 0, 2 * Math.PI, false);
+				ctx.fillStyle = 'yellow';
+				ctx.fill();
+				ctx.lineWidth = 5;
+				ctx.strokeStyle = 'yellowgreen';
+				ctx.stroke();
 
-						let yCheck = j * 10 * Math.sin(player.angle + -1 + (2 / 9) * i) + player.y;
-
-						if (xCheck < 0 || xCheck > canvas.width || xCheck < 0 || yCheck > canvas.height) {
-							input[i] = (j * 10 + 100) / 100;
+				for (var b = 0; b < 200 / speed; b++) {
+					let toCheck = [];
+					let toCheckInds = [];
+					for (var h = 0; h < foods.length; h++) {
+						if (Math.sqrt(Math.pow(player.x - foods[h].x, 2) + Math.pow(player.y - foods[h].y, 2)) < 100) {
+							toCheck.push(foods[h]);
+							toCheckInds.push(h);
 						}
-						for (var h = 0; h < toCheck.length; h++) {
-							if (Math.abs(toCheck[h].x - xCheck) < 10 && Math.abs(toCheck[h].y - yCheck) < 10) {
-								input[i] = Math.min(Math.sqrt(Math.pow(player.x - toCheck[h].x, 2) + Math.pow(player.y - toCheck[h].y, 2)) / 100, input[i]);
+					}
+
+					for (var i = 0; i < 10; i++) {
+						input[i] = 1;
+
+						for (var j = 0; j < 10; j++) {
+							let xCheck = j * 10 * Math.cos(player.angle + -1 + (2 / 9) * i) + player.x;
+
+							let yCheck = j * 10 * Math.sin(player.angle + -1 + (2 / 9) * i) + player.y;
+
+							if (xCheck < 0 || xCheck > canvas.width || xCheck < 0 || yCheck > canvas.height) {
+								input[i] = (j * 10 + 100) / 100;
+							}
+							for (var h = 0; h < toCheck.length; h++) {
+								if (Math.abs(toCheck[h].x - xCheck) < 10 && Math.abs(toCheck[h].y - yCheck) < 10) {
+									input[i] = Math.min(Math.sqrt(Math.pow(player.x - toCheck[h].x, 2) + Math.pow(player.y - toCheck[h].y, 2)) / 100, input[i]);
+								}
 							}
 						}
 					}
-				}
 
-				for (var i = 0; i < toCheck.length; i++) {
-					if (Math.sqrt(Math.pow(player.x - toCheck[i].x, 2) + Math.pow(player.y - toCheck[i].y, 2)) < 10) {
-						pop.networks[whosTurn].score++;
-						foods.splice(toCheckInds[i], 1);
+					for (var i = 0; i < toCheck.length; i++) {
+						if (Math.sqrt(Math.pow(player.x - toCheck[i].x, 2) + Math.pow(player.y - toCheck[i].y, 2)) < 10) {
+							pop.networks[z].score++;
+							foods.splice(toCheckInds[i], 1);
+						}
+					}
+
+					if (player.x < 5 || player.x > canvas.width - 5 || player.y < 5 || player.y > canvas.height - 5) {
+						pop.networks[z].score -= wallPunish;
+					}
+
+					player.x += Math.cos(player.angle) * player.speed;
+					player.y += Math.sin(player.angle) * player.speed;
+					player.x = Math.min(Math.max(player.x, 0), canvas.width);
+					player.y = Math.min(Math.max(player.y, 0), canvas.height);
+					player.speed = 1;
+
+					input[10] = player.x / canvas.width;
+					input[11] = player.y / canvas.height;
+					input[12] = player.angle / (2 * Math.PI);
+					let brainOut = pop.networks[z].forward(input);
+					player.angle += brainOut[0] * 2;
+					if (player.angle > 2 * Math.PI) {
+						player.angle -= 2 * Math.PI;
+					}
+					if (player.angle < 0) {
+						player.angle += 2 * Math.PI;
 					}
 				}
-
-				if (player.x < 5 || player.x > canvas.width - 5 || player.y < 5 || player.y > canvas.height - 5) {
-					pop.networks[whosTurn].score -= wallPunish;
-				}
-
-				player.x += Math.cos(player.angle) * player.speed;
-				player.y += Math.sin(player.angle) * player.speed;
-				player.x = Math.min(Math.max(player.x, 0), canvas.width);
-				player.y = Math.min(Math.max(player.y, 0), canvas.height);
-				player.speed = 1;
-
-				input[10] = player.x / canvas.width;
-				input[11] = player.y / canvas.height;
-				input[12] = player.angle / (2 * Math.PI);
-				let brainOut = pop.networks[whosTurn].forward(input);
-				player.angle += brainOut[0] * 2;
-				if (player.angle > 2 * Math.PI) {
-					player.angle -= 2 * Math.PI;
-				}
-				if (player.angle < 0) {
-					player.angle += 2 * Math.PI;
-				}
 			}
-			render(pop.networks[whosTurn], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
+			render(pop.networks[0], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
 		}, speed);
 
 		setInterval(function () {
-			// whosTurn++;
-			// if (whosTurn > 9) {
-			// 	// pop.cullAndBreed();
-			// 	whosTurn = 0;
-			// }
-			// player.x = 50;
-			// player.y = 50;
+			pop.cullAndBreed();
+			for (var i = 0; i < players.length; i++) {
+				let player = players[i];
+				player.x = canvas.width / 2;
+				player.y = canvas.height / 2;
+				player.angle = 0;
+			}
 			foods = [];
-			foods.push({ x: 80, y: 50 });
 			for (var i = 1; i < 30; i++) {
 				foods.push({ x: Math.random() * (canvas.width - (hideFood ? 120 : 0)) + (hideFood ? 120 : 0), y: Math.random() * canvas.height });
 			}
-			// player.angle = 0;
-		}, speed * 400);
+		}, speed * 100);
 
 		let lerp = function (e, t, r) {
 			// E is first number t is second r is how much
