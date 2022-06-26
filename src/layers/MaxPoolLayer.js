@@ -109,10 +109,6 @@
 				}
 			}
 
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-			// 	this.accessed[i] = 0;
-			// }
 			return loss / (this.hMFHPO * this.wMFWPO * this.inDepth);
 		}
 
@@ -125,7 +121,8 @@
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}

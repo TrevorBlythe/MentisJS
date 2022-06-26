@@ -80,6 +80,22 @@
 				height:5vh;
 				margin-right: 3%;
 			}
+
+			.showcasenet {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:30vh;
+				background: grey;
+			}
+			.showcasenet canvas {
+				margin-left: auto;
+				border: 1px solid black;
+				width: 80vh;
+				height:27vh;
+				margin-right: auto;
+			}
 		</style>
 	</head>
 	<body>
@@ -111,6 +127,9 @@
 			<h1>Mnist digits Autoencoder</h1>
 		</div>
 		<div class="wrapper">
+			<div class="showcasenet">
+				<canvas id="canvasNet" width="600px" height="200px"></canvas>
+			</div>
 			<div class="showcase">
 				<h3 style="margin-right: 3%">Net Input:</h3>
 				<canvas id="canvas" width="140px" height="140px"></canvas>
@@ -118,29 +137,23 @@
 				<canvas id="canvasOut" width="140px" height="140px"></canvas>
 				<h5 style="margin-left: 3%" id="err">Total Error:</h5>
 			</div>
-			<div class="showcaseF" style="padding: 5px">
-				<h3>Filters:</h3>
-				<canvas id="filterCanvas"  width="300px" height="60px"></canvas>
-				<h3>Filter Grads:</h3>
-				<canvas id="filterGCanvas"  width="300px" height="60px"></canvas>
-			</div>
+
 			<br /><br />
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-					var net = new Ment.Net(
-						[
-						new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-						new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
-						new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
-						 new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0)
-						]);
-						
-						net.batchSize = 10;
-						net.learningRate = 0.01;
-               </textarea
-				>
+var net = new Ment.Net(
+[
+	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
+	new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
+	new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
+	new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0)
+]);
+
+net.batchSize = 10;
+net.learningRate = 0.01;
+        </textarea>
 				<br />
-				<button onclick="eval.call(window,document.getElementById('textinput').value);">Reload Network</button>
+				<button onclick="eval.call(window,document.getElementById('textinput').value);render();">Reload Network</button>
 			</div>
 			<p id="lr">learning rate: 0.01</p>
 			<input
@@ -153,7 +166,7 @@
 			<p id="es">examples seen: 0</p>
 			<button onclick="clearInterval(loop);">Stop</button>
 			<button onclick="go();">Go</button><br />
-			<button onclick="net = Ment.Net.load(model);">Load pre-trained model</button>
+			<button onclick="net = Ment.Net.load(model);render();">Load pre-trained model</button>
 			<br /><br />
 			<br /><br />
 			<br /><br />

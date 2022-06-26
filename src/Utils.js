@@ -76,6 +76,52 @@ var Ment = Ment || {};
 		}
 	};
 
+	let renderBox = function (net, ctx, x, y, scale, spread, background) {
+		if (background == undefined) {
+			background = 'white';
+		}
+		if (background == false) {
+			background = 'rgba(0,0,0,0)';
+		}
+		const SPREAD = spread || 10;
+		let maxSize = 1;
+		for (var i = 0; i < net.layers.length; i++) {
+			if (net.layers[i].inSize() > maxSize) {
+				maxSize = net.layers[i].inSize();
+			} //end of if
+			if (net.layers[i].outSize() > maxSize) {
+				maxSize = net.layers[i].outSize();
+			} //end of if
+		}
+
+		ctx.fillStyle = background;
+
+		ctx.fillRect(x, y, scale + net.layers.length * scale * spread, scale + 6 * scale);
+		for (var i = 0; i < net.layers.length; i++) {
+			let layer = net.layers[i];
+			let layerSize = layer.inSize() > layer.outSize() ? layer.inSize() : layer.outSize();
+			layerSize += (maxSize - layerSize) / 3;
+			ctx.fillStyle = 'white';
+			ctx.fillRect(
+				(spread * scale) / 2 + scale + i * scale * spread - scale + x,
+				5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y,
+				scale,
+				(layerSize / maxSize) * scale * 6
+			);
+			ctx.font = `${(layerSize / maxSize) * scale * 0.6}px serif`;
+			ctx.fillStyle = 'black';
+			ctx.save();
+			ctx.translate(
+				(spread * scale) / 2 + scale + i * scale * spread - scale + x + scale / 1.5,
+				5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y + ((layerSize / maxSize) * scale * 6) / 2
+			);
+			ctx.rotate(-Math.PI / 2);
+			ctx.textAlign = 'center';
+			ctx.fillText(layer.constructor.name, 0, 0);
+			ctx.restore();
+		}
+	};
+
 	let render = function (net, ctx, x, y, scale, background, spread) {
 		// a built in network renderer
 		if (background == undefined) {
@@ -156,6 +202,7 @@ var Ment = Ment || {};
 
 	Ment.clamp = clamp;
 	Ment.render = render;
+	Ment.renderBox = renderBox;
 	Ment.getLoss = getLoss;
 	Ment.tanh = Math.tanh;
 	Ment.lin = lin;
