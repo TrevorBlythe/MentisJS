@@ -1,5 +1,3 @@
-const { inputSizeError } = require('../Utils');
-
 {
 	class DeconvLayer {
 		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0) {
