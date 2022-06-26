@@ -94,8 +94,9 @@
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON FC LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
+					throw inputError(this, inData);
 				}
+				//Fun fact: the fastest way to copy an array in javascript is to use a For Loop
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
@@ -113,40 +114,31 @@
 		backward(expected) {
 			this.trainIterations++;
 			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
-			}
+			this.costs.fill(0);
 
+			let geterr = (ind) => {
+				expected[ind] - this.outData[ind];
+			};
 			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
+				geterr = (ind) => {
+					return this.nextLayer.costs[ind];
+				};
 				if (this.nextLayer == undefined) {
 					throw 'error backproping on an unconnected layer with no expected parameter input';
 				}
-				for (var j = 0; j < this.outSize(); j++) {
-					let err = this.nextLayer.costs[j];
-					loss += Math.pow(err, 2);
-					for (var i = 0; i < this.inSize(); i++) {
-						//activation times error = change to the weight.
-						this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-						this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-					}
-					//bias grad is real simple :)
-					this.bs[j] += err;
+			}
+
+			for (var j = 0; j < this.outSize(); j++) {
+				let err = geterr(j);
+				loss += Math.pow(err, 2);
+				for (var i = 0; i < this.inSize(); i++) {
+					//activation times error = change to the weight.
+					this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
+					this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
 				}
-			} else {
-				for (var j = 0; j < this.outSize(); j++) {
-					let err = expected[j] - this.outData[j];
-					loss += Math.pow(err, 2);
-					for (var i = 0; i < this.inSize(); i++) {
-						//activation times error = change to the weight.
-						this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-						this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-					}
-					//bias grad is real simple :)
-					this.bs[j] += err;
-				}
-			} // end of 'sometimes the most effeciant is the least elagant' ----
+				//bias grad is real simple :)
+				this.bs[j] += err;
+			}
 
 			//finish averaging the costs
 			for (var i = 0; i < this.inSize(); i++) {
@@ -170,7 +162,7 @@
 			}
 			if (optimizer == 'SGD') {
 				for (var i = 0; i < this.ws.length; i++) {
-					// this.ws[i] /= this.trainIterations;
+					this.ws[i] /= this.trainIterations;
 					this.ws[i] = Ment.protectNaN(this.ws[i]);
 					this.w[i] += Math.min(Math.max(this.ws[i] * this.lr, -this.lr), this.lr);
 
@@ -209,7 +201,6 @@
 			// the sizes;
 			this.savedInSize = this.inSize();
 			this.savedOutSize = this.outSize();
-
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
@@ -221,7 +212,8 @@
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}
@@ -235,6 +227,7 @@
 
 			return ret;
 		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
 
 		static load(json) {
 			let saveObject = JSON.parse(json);

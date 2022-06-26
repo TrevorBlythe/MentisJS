@@ -6,11 +6,13 @@
 
 		forward(inData) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
 			}
-
 			for (var h = 0; h < this.outSize(); h++) {
 				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : 0;
 			}

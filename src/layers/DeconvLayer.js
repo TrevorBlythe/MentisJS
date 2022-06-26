@@ -1,21 +1,6 @@
+const { inputSizeError } = require('../Utils');
+
 {
-	/*
-if filter is 3x3 with indepth of 3 the first filter stored as such:
-this.filterw = [0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8]
-
-Each filter has depth equal to the InDepth, thats why there are three 3x3 in the array.
-
-this.filterw
-[filterNum * this.inDepth * filterWidth * filterHeight + x + (y * filterWidth) + (depth * filterWidth * filterHeight)]
-
-if you wanna input an image do it like this.
-[r,r,r,r,g,g,g,g,b,b,b,b,b]
-NOT like this:
-[r,g,b,r,g,b,r,g,b,r,g,b]
-*/
-
 	class DeconvLayer {
 		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0) {
 			if (padding != 0) {
@@ -94,15 +79,7 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw (
-						'INPUT SIZE WRONG ON deCONV LAYER:\nexpected array size (' +
-						this.inSize() +
-						', dimensions: [' +
-						this.inSizeDimensions() +
-						']), got: (' +
-						inData.length +
-						')'
-					);
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -111,6 +88,7 @@ NOT like this:
 
 			this.outData.fill(0);
 
+			//-------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
@@ -135,6 +113,7 @@ NOT like this:
 					}
 				}
 			}
+			//-------------End of monstrosity-----------------
 		}
 
 		backward(expected) {
@@ -234,7 +213,8 @@ NOT like this:
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}

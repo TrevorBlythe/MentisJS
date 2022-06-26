@@ -13,12 +13,16 @@
 
 		forward(inData) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
+				//the outData of this layer is the same object referenced in the inData of the Receiver layer
 				this.outData[h] = this.inData[h];
 			}
 		}

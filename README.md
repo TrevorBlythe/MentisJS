@@ -6,9 +6,9 @@ and intuitive machine learning library out there. Inspired by the complicated py
 
 # Showcase
 
-![image](https://github.com/TrevorBlythe/MentisJS/blob/main/showcase/MnistDigits.png?raw=true)
+![image](https://github.com/TrevorBlythe/MentisJS/blob/main/images/MnistDigits.png?raw=true)
 
-![image](https://github.com/TrevorBlythe/MentisJS/blob/main/showcase/XORrender.png?raw=true)
+![image](https://github.com/TrevorBlythe/MentisJS/blob/main/images/XORrender.png?raw=true)
 
 # This project is coming along!
 
@@ -16,19 +16,16 @@ Im rewriting it to be as simple as possible. It is now extremely easy to write y
 your first one.
 
 Things i will add:
-deconvoloution, soon
+deconvoloution -- Complete
 lstm layer, soon
 padding in conv layer, at 30 github stars
-more layers
-optimizers like adadelta
+optimizers, soon
 
 Things for the distant future:
 
 GAN tutorial.
 Diffusion model tutorial.
 WASM for speed?
-
-CURRENTLY WORKING ON: DECONV LAYERS + SAFETY AGAINST NAN (very hard which is why its been a few days since my last commit)
 
 # Tutorial
 
@@ -49,7 +46,7 @@ let outputs = [[0], [1], [1], [0]];
 
 ```
 
-<p>Next we must define the layers our Network will have!s</p>
+<p>Next we must define the layers our Network will have!</p>
 
 ```
 let layerOne = new Ment.FC(2,5); //input:2, output:5, fully connected layer
@@ -119,4 +116,4 @@ network.forward([1,1]);
 
 > [0.0012]
 
-<p> yay it works more docs coming soon but im tired rn seeya! </p>
+<p> For more tutorials and docs clone the repo and open index.html! </p>

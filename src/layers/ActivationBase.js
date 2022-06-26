@@ -34,6 +34,9 @@
 
 		forward(inData, actFunction) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}

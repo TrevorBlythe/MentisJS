@@ -45,7 +45,6 @@ NOT like this:
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
 			// this.bs = new Float32Array(this.outData.length);
-			// this.accessed = new Float32Array(this.inData.length).fill(1);
 			if (this.filterWidth > inWidth + padding || this.filterHeight > inHeight + padding) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -150,6 +149,7 @@ NOT like this:
 				}
 			}
 
+			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
@@ -169,7 +169,6 @@ NOT like this:
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
-									// this.accessed[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
@@ -178,12 +177,7 @@ NOT like this:
 					}
 				}
 			}
-
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] =
-			// 		this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 0);
-			// 	this.accessed[i] = 0;
-			// }
+			//---------------------------------End of monstrosity-----------------
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
@@ -192,11 +186,10 @@ NOT like this:
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				// this.filterws[i] /= this.outSize() / this.filters;
-				// this.filterws[i] /= this.trainIterations;
+				// this.filterws[i] /= this.trainIterations; //not sure if i should uncomment this... grads are usually low anyway
 				this.filterw[i] += Math.min(Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr), this.lr);
 				this.filterws[i] = 0;
 			}
-			//i forgor to update bias
 			// for (var i = 0; i < this.b.length; i++) {
 			// 	//is this correct i wonder?
 			// 	this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
@@ -217,7 +210,8 @@ NOT like this:
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}

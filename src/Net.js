@@ -47,8 +47,8 @@ var Ment = Ment || {};
 		}
 
 		connectLayers() {
-			//by 'connect' we mean set the outData to the inData of adjacent layers.
-			//this is so we dont have to copy over the arrays
+			//by 'connect' we mean make the outData the same object as the inData of adjacent arrays
+			//this is so we dont have to copy over the arrays values when forwarding/backwarding
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
@@ -88,6 +88,7 @@ var Ment = Ment || {};
 		}
 
 		enableGPU() {
+			console.log('gpu hasnt been implemented yet so nothing will happen');
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].gpuEnabled = true;
 				if (this.layers[i].initGPU) {
@@ -169,13 +170,6 @@ var Ment = Ment || {};
 
 			let loss = this.backward(expectedOut);
 			//done backpropping
-			this.epoch++;
-			if (this.epoch % this.batchSize == 0) {
-				for (var i = this.layers.length - 1; i >= 0; i--) {
-					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
-				}
-			}
-			//done updating params if epoch % batchsize is zero
 			return loss;
 		}
 
@@ -183,6 +177,12 @@ var Ment = Ment || {};
 			let loss = this.layers[this.layers.length - 1].backward(expected);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				this.layers[i].backward();
+			}
+			this.epoch++;
+			if (this.epoch % this.batchSize == 0) {
+				for (var i = this.layers.length - 1; i >= 0; i--) {
+					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
+				}
 			}
 			return loss;
 		}

@@ -1,12 +1,4 @@
 {
-	/*
-if you wanna input an image do it like this.
-[r,r,r,r,g,g,g,g,b,b,b,b,b]
-NOT like this:
-[r,g,b,r,g,b,r,g,b,r,g,b]
-
-*/
-
 	class MaxPoolLayer {
 		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0) {
 			if (padding != 0) {
@@ -59,15 +51,7 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw (
-						'INPUT SIZE WRONG ON MAX POOL LAYER:\nexpected array size (' +
-						this.inSize() +
-						', dimensions: [' +
-						this.inSizeDimensions() +
-						']), got: (' +
-						inData.length +
-						')'
-					);
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];

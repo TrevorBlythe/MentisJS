@@ -14,6 +14,12 @@ var Ment = Ment || {};
 			return num;
 		}
 	};
+
+	var inputError = function (layer, arr) {
+		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name}: `;
+		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? ',' + layer.inSizeDimensions() : ''}), got (${arr.length})`;
+	};
+
 	var gaussRandom = function () {
 		if (return_v) {
 			return_v = false;
@@ -158,6 +164,7 @@ var Ment = Ment || {};
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
 	Ment.protectNaN = protectNaN;
+	Ment.inputError = inputError;
 	let globalObject = isBrowser() ? window : global;
 	if (globalObject.GPU) {
 		const gpu = new GPU();

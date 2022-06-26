@@ -44,7 +44,7 @@
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON (Input or output or linear) LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
