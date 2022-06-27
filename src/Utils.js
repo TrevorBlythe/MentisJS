@@ -76,6 +76,17 @@ var Ment = Ment || {};
 		}
 	};
 
+	Ment.seed = 5;
+	Ment.seededRandom = function (min, max) {
+		max = max || 1;
+		min = min || 0;
+
+		Ment.seed = (Ment.seed * 9301 + 49297) % 233280;
+		var rnd = Ment.seed / 233280;
+
+		return min + rnd * (max - min);
+	};
+
 	let renderBox = function (net, ctx, x, y, scale, spread, background) {
 		if (background == undefined) {
 			background = 'white';
@@ -101,13 +112,30 @@ var Ment = Ment || {};
 			let layer = net.layers[i];
 			let layerSize = layer.inSize() > layer.outSize() ? layer.inSize() : layer.outSize();
 			layerSize += (maxSize - layerSize) / 3;
-			ctx.fillStyle = 'white';
-			ctx.fillRect(
-				(spread * scale) / 2 + scale + i * scale * spread - scale + x,
-				5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y,
-				scale,
-				(layerSize / maxSize) * scale * 6
-			);
+			let layerLeftSize = layer.inSize() + (maxSize - layer.inSize()) / 3;
+			let layerRightSize = layer.outSize() + (maxSize - layer.outSize()) / 3;
+			Ment.seed = layer.constructor.name.charCodeAt(0) * 5; //------ make random seed from layer name
+			for (var n = 1; n < layer.constructor.name.length; n++) {
+				Ment.seed += layer.constructor.name.charCodeAt(n);
+			} //----------End of make random seed from layer name
+			ctx.fillStyle = `rgb(${Ment.seededRandom(150, 255)},${Ment.seededRandom(100, 255)},${Ment.seededRandom(100, 255)})`;
+			let xy = (spread * scale) / 2 + scale + i * scale * spread - scale + x;
+			let yy = 5 + ((maxSize - layerLeftSize) / maxSize / 2) * scale * 6 + y;
+			let xyy = (spread * scale) / 2 + scale + i * scale * spread - scale + x + scale;
+			let yyy = 5 + ((maxSize - layerRightSize) / maxSize / 2) * scale * 6 + y;
+			ctx.beginPath();
+			ctx.moveTo(xy, yy);
+			ctx.lineTo(xyy, yyy);
+			ctx.lineTo(xyy, yyy + (layerRightSize / maxSize) * scale * 6);
+			ctx.lineTo(xy, yy + (layerLeftSize / maxSize) * scale * 6);
+			ctx.lineTo(xy, yy);
+			ctx.fill();
+			// ctx.fillRect(
+			// 	(spread * scale) / 2 + scale + i * scale * spread - scale + x,
+			// 	5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y,
+			// 	scale,
+			// 	(layerSize / maxSize) * scale * 6
+			// );
 			ctx.font = `${(layerSize / maxSize) * scale * 0.6}px serif`;
 			ctx.fillStyle = 'black';
 			ctx.save();
