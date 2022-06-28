@@ -1,12 +1,6 @@
 {
 	class DeconvLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0) {
-			if (padding != 0) {
-				throw (
-					'Dear user, I have not implemented padding yet.. set it to zero to avoid this message. ' +
-					'Star the project if you want me to complete it. or send me 5 bucks ill do it right now.'
-				);
-			}
+		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1) {
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -16,13 +10,10 @@
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.padding = padding;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
-			this.inData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 2 * padding + 1) / stride) * Math.ceil((inHeight - filterHeight + 2 * padding + 1) / stride) * this.filters
-			);
+			this.inData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters);
 			this.outData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
@@ -30,7 +21,7 @@
 			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
 			// this.bs = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.inData.length).fill(1);
-			if (this.filterWidth > inWidth + padding || this.filterHeight > inHeight + padding) {
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
 			//init random weights
@@ -67,11 +58,7 @@
 		}
 
 		inSizeDimensions() {
-			return [
-				Math.ceil((this.inWidth - this.filterWidth + 2 * this.padding + 1) / this.stride),
-				Math.ceil((this.inHeight - this.filterHeight + 2 * this.padding + 1) / this.stride),
-				this.filters,
-			];
+			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride), this.filters];
 		}
 
 		forward(inData) {
@@ -224,7 +211,7 @@
 		}
 
 		static load(json) {
-			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new DeconvLayer(
 				saveObject.inWidth,
@@ -233,8 +220,7 @@
 				saveObject.filterWidth,
 				saveObject.filterHeight,
 				saveObject.filters,
-				saveObject.stride,
-				saveObject.padding
+				saveObject.stride
 			);
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
