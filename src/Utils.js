@@ -130,22 +130,20 @@ var Ment = Ment || {};
 			ctx.lineTo(xy, yy + (layerLeftSize / maxSize) * scale * 6);
 			ctx.lineTo(xy, yy);
 			ctx.fill();
-			// ctx.fillRect(
-			// 	(spread * scale) / 2 + scale + i * scale * spread - scale + x,
-			// 	5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y,
-			// 	scale,
-			// 	(layerSize / maxSize) * scale * 6
-			// );
-			ctx.font = `${(layerSize / maxSize) * scale * 0.6}px serif`;
+			ctx.font = `${(layerSize / maxSize) * scale * (5 / layer.constructor.name.length)}px serif`;
 			ctx.fillStyle = 'black';
 			ctx.save();
-			ctx.translate(
-				(spread * scale) / 2 + scale + i * scale * spread - scale + x + scale / 1.5,
-				5 + ((maxSize - layerSize) / maxSize / 2) * scale * 6 + y + ((layerSize / maxSize) * scale * 6) / 2
-			);
-			ctx.rotate(-Math.PI / 2);
 			ctx.textAlign = 'center';
+			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
+			ctx.rotate(-Math.PI / 2);
+			//(${layer.inSize()})(${layer.outSize()})
 			ctx.fillText(layer.constructor.name, 0, 0);
+			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
+			ctx.fillText(
+				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()})`,
+				0,
+				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
+			);
 			ctx.restore();
 		}
 	};

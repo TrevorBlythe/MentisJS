@@ -60,7 +60,7 @@ var render = function () {
 		.getElementById('canvasNet')
 		.getContext('2d')
 		.clearRect(0, 0, document.getElementById('canvasNet').width, document.getElementById('canvasNet').height);
-	renderBox(net, document.getElementById('canvasNet').getContext('2d'), 5, 5, 30, 2, 'black');
+	renderBox(net, document.getElementById('canvasNet').getContext('2d'), 5, 5, 60, 2, 'black');
 };
 go();
 render();
