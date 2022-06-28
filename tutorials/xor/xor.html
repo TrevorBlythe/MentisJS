@@ -49,38 +49,71 @@
 				</button>
 				<button onclick="dropdown(2);">
 					Tutorial▼
-					<div class="dropdown" id="dropdown2" hidden><a href="">All Tutorial</a><br /><a href="#">ResNet</a><br /><a href="../xor/xor.html">XOR</a><br /></div>
+					<div class="dropdown" id="dropdown2" hidden>
+						<a href="">All Tutorial</a><br /><a href="../resnet/resnet.html">ResNet</a><br /><a href="#">XOR</a><br />
+					</div>
 				</button>
 			</div>
 		</div>
 		<!-- End of topbar -->
 		<div class="showcaseTitle">
-			<h1>Resnet implementation</h1>
-			<p>ResEmitterLayers with the same ID as ResReceiverLayers will transmit data across layers. The best way to show something though is by example.</p>
+			<h1>XOR Gate tutorial</h1>
+			<br />
+			<p>This is basically the "hello world" of making neural networks. Its very easy and a good benchmark</p>
 		</div>
+		<br />
+
+		<div class="showcaseTitle">
+			<h1>Getting Started</h1>
+			<br />
+			<p>
+				First understand what the XOR gate is. What we are trying to do it make a network with two inputs and one output. The output will only be on if only one
+				input is on. With that in mind lets make a network that can handle that task. We will use a couple hidden layers (huge overkill) just for funsies.
+			</p>
+		</div>
+		<br />
+		<br />
+		<br />
 
 		<div class="code">
-			let net = new Net([<br />&emsp;new Input(1),<br />&emsp;new Emitter(3), <br />&emsp;new FC(1, 1), <br />&emsp;new Sig(1), <br />&emsp;new Receiver(3)<br />]);
+			let net = new Net([<br />&emsp;new FC(1,3),<br />&emsp;new FC(3,3),<br />&emsp;new Sig(3,3), <br />&emsp;new FC(3, 1), <br />&emsp;new Sig(1), <br />]);
+		</div>
+
+		<div class="showcaseTitle">
+			<h1>Training it</h1>
+			<br />
+			<p>Now that we have a network. We just train it on the data for awhile and it will learn.</p>
 		</div>
 		<br />
-		<img src="resExam.png" />
-		<br /><br /><br /><br />
+		<br />
+		<br />
 		<div class="code">
-			let net = new Net([<br />&emsp;new Input(1),<br />&emsp;new Emitter("anything can be an identifyer"), <br />&emsp;new FC(1, 3), <br />&emsp;new
-			Receiver("anything can be an identifyer")<br />]);
+			for(var i = 0;i&lt;1000;i++){<br />
+			net.train([0,0],[0]);<br />
+			net.train([0,1],[1]);<br />
+			net.train([1,0],[1]);<br />
+			net.train([1,1],[0]);<br />
+			}
+			<br />
+		</div>
+
+		<div class="showcaseTitle">
+			<h1>Thats it!</h1>
+			<br />
+			<p>Your done with the hard part! Now your network is trained and you can use it whenever you want!</p>
 		</div>
 		<br />
-		<img src="resExamTwo.png" />
-		<br /><br /><br /><br />
+		<br />
+		<br />
 		<div class="code">
-			let net = new Net([<br />&emsp;new Input(1),<br />&emsp;new Emitter('a'), <br />&emsp;new Emitter('b'), <br />&emsp;new Receiver('a'), <br />&emsp;new
-			Receiver('b')<br />]);
+			net.forward([0,0]);//outputs ~0<br />
+			net.forward([0,1]);//outputs ~1<br />
+			net.forward([1,0]);//outputs ~1<br />
+			net.forward([1,1]);//outputs ~0<br />
+			<br />
 		</div>
-		<br />
-		<img src="resExamThree.png" />
-		<br /><br /><br /><br />
 	</body>
-	<script src="resnet.js"></script>
+	<script src="xor.js"></script>
 	<script>
 		let dropDownsActive = [false, false, false];
 		let dropdown = function (id) {

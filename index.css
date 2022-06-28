@@ -56,8 +56,8 @@ body {
 
 .showcaseTitle {
 	width: 100%;
-	height: 10vh;
 	margin-top: 2vh;
+	margin-bottom: 2vh;
 	text-align: center;
 }
 
@@ -124,6 +124,7 @@ body {
 	background-color: #212121;
 	color: white;
 	font-family: Consolas, 'Courier New', Courier, monospace;
+	margin-top: 3vh;
 }
 
 .dropdown {
