@@ -34,9 +34,21 @@ var Ment = Ment || {};
 			}
 		}
 
+		get outData() {
+			return [...this.layers[this.layers.length - 1].outData];
+		}
+
+		set outData(arr) {
+			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
+				this.layers[0].outData = arr;
+			} else {
+				throw 'cant set out data because its the wrong size';
+			}
+		}
+
 		connectLayers() {
-			//by 'connect' we mean set the outData to the inData of adjacent layers.
-			//this is so we dont have to copy over the arrays
+			//by 'connect' we mean make the outData the same object as the inData of adjacent arrays
+			//this is so we dont have to copy over the arrays values when forwarding/backwarding
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
@@ -48,7 +60,7 @@ var Ment = Ment || {};
 							this.layers[i].constructor.name
 						} output size: ${this.layers[i].outSize()}${this.layers[i].outSizeDimensions ? ' (' + this.layers[i].outSizeDimensions() + ')' : ''}, ${
 							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].outSizeDimensions ? ' (' + this.layers[i + 1].outSizeDimensions() + ')' : ''}`;
+						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].inSizeDimensions ? ' (' + this.layers[i + 1].inSizeDimensions() + ')' : ''}`;
 					}
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}
@@ -76,6 +88,7 @@ var Ment = Ment || {};
 		}
 
 		enableGPU() {
+			console.log('gpu hasnt been implemented yet so nothing will happen');
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].gpuEnabled = true;
 				if (this.layers[i].initGPU) {
@@ -157,13 +170,6 @@ var Ment = Ment || {};
 
 			let loss = this.backward(expectedOut);
 			//done backpropping
-			this.epoch++;
-			if (this.epoch % this.batchSize == 0) {
-				for (var i = this.layers.length - 1; i >= 0; i--) {
-					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
-				}
-			}
-			//done updating params if epoch % batchsize is zero
 			return loss;
 		}
 
@@ -172,12 +178,19 @@ var Ment = Ment || {};
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				this.layers[i].backward();
 			}
+			this.epoch++;
+			if (this.epoch % this.batchSize == 0) {
+				for (var i = this.layers.length - 1; i >= 0; i--) {
+					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
+				}
+			}
 			return loss;
 		}
 	} //END OF NET CLASS DECLARATION
 
 	Ment.Net = Net;
 }
+
 var Ment = Ment || {};
 {
 	class Population {
@@ -242,10 +255,29 @@ var Ment = Ment || {};
 
 	Ment.Population = Population;
 }
+
 var Ment = Ment || {};
 {
 	var return_v = false;
 	var v_val = 0.0;
+
+	var protectNaN = function (num) {
+		if (num == Infinity) {
+			return 1;
+		} else if (num == -Infinity) {
+			return -1;
+		} else if (isNaN(num)) {
+			return 0;
+		} else {
+			return num;
+		}
+	};
+
+	var inputError = function (layer, arr) {
+		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name}: `;
+		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? ',' + layer.inSizeDimensions() : ''}), got (${arr.length})`;
+	};
+
 	var gaussRandom = function () {
 		if (return_v) {
 			return_v = false;
@@ -299,6 +331,78 @@ var Ment = Ment || {};
 			} else {
 				global[key] = value; //node
 			}
+		}
+	};
+
+	Ment.seed = 5;
+	Ment.seededRandom = function (min, max) {
+		max = max || 1;
+		min = min || 0;
+
+		Ment.seed = (Ment.seed * 9301 + 49297) % 233280;
+		var rnd = Ment.seed / 233280;
+
+		return min + rnd * (max - min);
+	};
+
+	let renderBox = function (net, ctx, x, y, scale, spread, background) {
+		if (background == undefined) {
+			background = 'white';
+		}
+		if (background == false) {
+			background = 'rgba(0,0,0,0)';
+		}
+		const SPREAD = spread || 10;
+		let maxSize = 1;
+		for (var i = 0; i < net.layers.length; i++) {
+			if (net.layers[i].inSize() > maxSize) {
+				maxSize = net.layers[i].inSize();
+			} //end of if
+			if (net.layers[i].outSize() > maxSize) {
+				maxSize = net.layers[i].outSize();
+			} //end of if
+		}
+
+		ctx.fillStyle = background;
+
+		ctx.fillRect(x, y, scale + net.layers.length * scale * spread, scale + 6 * scale);
+		for (var i = 0; i < net.layers.length; i++) {
+			let layer = net.layers[i];
+			let layerSize = layer.inSize() > layer.outSize() ? layer.inSize() : layer.outSize();
+			layerSize += (maxSize - layerSize) / 3;
+			let layerLeftSize = layer.inSize() + (maxSize - layer.inSize()) / 3;
+			let layerRightSize = layer.outSize() + (maxSize - layer.outSize()) / 3;
+			Ment.seed = layer.constructor.name.charCodeAt(0) * 5; //------ make random seed from layer name
+			for (var n = 1; n < layer.constructor.name.length; n++) {
+				Ment.seed += layer.constructor.name.charCodeAt(n);
+			} //----------End of make random seed from layer name
+			ctx.fillStyle = `rgb(${Ment.seededRandom(150, 255)},${Ment.seededRandom(100, 255)},${Ment.seededRandom(100, 255)})`;
+			let xy = (spread * scale) / 2 + scale + i * scale * spread - scale + x;
+			let yy = 5 + ((maxSize - layerLeftSize) / maxSize / 2) * scale * 6 + y;
+			let xyy = (spread * scale) / 2 + scale + i * scale * spread - scale + x + scale;
+			let yyy = 5 + ((maxSize - layerRightSize) / maxSize / 2) * scale * 6 + y;
+			ctx.beginPath();
+			ctx.moveTo(xy, yy);
+			ctx.lineTo(xyy, yyy);
+			ctx.lineTo(xyy, yyy + (layerRightSize / maxSize) * scale * 6);
+			ctx.lineTo(xy, yy + (layerLeftSize / maxSize) * scale * 6);
+			ctx.lineTo(xy, yy);
+			ctx.fill();
+			ctx.font = `${(layerSize / maxSize) * scale * (5 / layer.constructor.name.length)}px serif`;
+			ctx.fillStyle = 'black';
+			ctx.save();
+			ctx.textAlign = 'center';
+			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
+			ctx.rotate(-Math.PI / 2);
+			//(${layer.inSize()})(${layer.outSize()})
+			ctx.fillText(layer.constructor.name, 0, 0);
+			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
+			ctx.fillText(
+				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()})`,
+				0,
+				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
+			);
+			ctx.restore();
 		}
 	};
 
@@ -382,6 +486,7 @@ var Ment = Ment || {};
 
 	Ment.clamp = clamp;
 	Ment.render = render;
+	Ment.renderBox = renderBox;
 	Ment.getLoss = getLoss;
 	Ment.tanh = Math.tanh;
 	Ment.lin = lin;
@@ -389,6 +494,8 @@ var Ment = Ment || {};
 	Ment.isBrowser = isBrowser;
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
+	Ment.protectNaN = protectNaN;
+	Ment.inputError = inputError;
 	let globalObject = isBrowser() ? window : global;
 	if (globalObject.GPU) {
 		const gpu = new GPU();
@@ -404,6 +511,7 @@ var Ment = Ment || {};
 		}
 	}
 }
+
 //Base layer for all activations to inherit from
 
 {
@@ -440,6 +548,9 @@ var Ment = Ment || {};
 
 		forward(inData, actFunction) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
@@ -476,7 +587,7 @@ var Ment = Ment || {};
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
 					return undefined;
 				}
 
@@ -492,6 +603,7 @@ var Ment = Ment || {};
 
 	Ment.ActivationBase = ActivationBase;
 }
+
 {
 	/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
@@ -539,13 +651,12 @@ NOT like this:
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
 			// this.bs = new Float32Array(this.outData.length);
-			// this.accessed = new Float32Array(this.inData.length).fill(1);
 			if (this.filterWidth > inWidth + padding || this.filterHeight > inHeight + padding) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
 			// for (var i = 0; i < this.b.length; i++) {
 			// 	this.b[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -644,6 +755,7 @@ NOT like this:
 				}
 			}
 
+			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
@@ -663,7 +775,6 @@ NOT like this:
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
-									// this.accessed[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
@@ -672,24 +783,19 @@ NOT like this:
 					}
 				}
 			}
-
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] =
-			// 		this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 0);
-			// 	this.accessed[i] = 0;
-			// }
+			//---------------------------------End of monstrosity-----------------
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
 			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				// this.filterws[i] /= this.outSize() / this.filters;
-				// this.filterws[i] /= this.trainIterations;
-				this.filterw[i] += this.filterws[i] * this.lr;
+				// this.filterws[i] /= this.trainIterations; //not sure if i should uncomment this... grads are usually low anyway
+				this.filterw[i] += Math.min(Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr), this.lr);
 				this.filterws[i] = 0;
 			}
-			//i forgor to update bias
 			// for (var i = 0; i < this.b.length; i++) {
 			// 	//is this correct i wonder?
 			// 	this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
@@ -710,7 +816,8 @@ NOT like this:
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}
@@ -748,6 +855,264 @@ NOT like this:
 	Ment.ConvLayer = ConvLayer;
 	Ment.Conv = ConvLayer;
 }
+
+{
+	class DeconvLayer {
+		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0) {
+			if (padding != 0) {
+				throw (
+					'Dear user, I have not implemented padding yet.. set it to zero to avoid this message. ' +
+					'Star the project if you want me to complete it. or send me 5 bucks ill do it right now.'
+				);
+			}
+			this.lr = 0.01; //learning rate, this will be set by the Net object
+
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.padding = padding;
+			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			this.trainIterations = 0;
+			this.inData = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 2 * padding + 1) / stride) * Math.ceil((inHeight - filterHeight + 2 * padding + 1) / stride) * this.filters
+			);
+			this.outData = new Float32Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
+			this.outData.fill(0); //to prevent mishap
+			this.costs = new Float32Array(this.inData.length);
+			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
+			// this.bs = new Float32Array(this.outData.length);
+			this.accessed = new Float32Array(this.inData.length).fill(1);
+			if (this.filterWidth > inWidth + padding || this.filterHeight > inHeight + padding) {
+				throw 'Conv layer error: filters cannot be bigger than the input';
+			}
+			//init random weights
+			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterw[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
+			// for (var i = 0; i < this.b.length; i++) {
+			// 	this.b[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			// }
+
+			//Everything below here is precalculated constants used in forward/backward
+			//to optimize this and make sure we are as effeiciant as possible.
+			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		outSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		inSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 2 * this.padding + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 2 * this.padding + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward(inData) {
+			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
+				for (var i = 0; i < inData.length; i++) {
+					this.inData[i] = inData[i];
+				}
+			}
+
+			this.outData.fill(0);
+
+			//-------------Beginning of monstrosity-----------------
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * this.stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * this.stride;
+						for (var h = 0; h < this.inDepth; h++) {
+							const hWIH = h * this.wIH + ba;
+							const hFWIH = h * this.fWIH + iFWIHID;
+							for (var j = 0; j < this.filterHeight; j++) {
+								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
+								const jFWHFWIH = j * this.filterWidth + hFWIH;
+								for (var k = 0; k < this.filterWidth; k++) {
+									this.outData[k + jGAIWBA] += this.inData[odi] * this.filterw[k + jFWHFWIH];
+								}
+							}
+						}
+						// this.outData[odi] += this.b[odi];
+					}
+				}
+			}
+			//-------------End of monstrosity-----------------
+		}
+
+		backward(expected) {
+			let loss = 0;
+			this.trainIterations++;
+			for (var i = 0; i < this.inSize(); i++) {
+				//reset the costs
+				this.costs[i] = 0;
+			}
+
+			if (!expected) {
+				if (this.nextLayer == undefined) {
+					throw 'error backproping on an unconnected layer with no expected parameter input deconv layer';
+				}
+			}
+
+			let getCost = (ind) => {
+				return this.nextLayer.costs[ind];
+			};
+			if (expected) {
+				getCost = (ind) => {
+					return expected[ind] - this.outData[ind];
+				};
+			}
+
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * this.stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * this.stride;
+						for (var h = 0; h < this.inDepth; h++) {
+							const hWIH = h * this.wIH;
+							const hFWIH = h * this.fWIH + iFWIHID;
+							for (var j = 0; j < this.filterHeight; j++) {
+								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
+								const jFWHFWIH = j * this.filterWidth + hFWIH;
+								for (var k = 0; k < this.filterWidth; k++) {
+									let err = getCost(k + jGAIWBA);
+									loss += Math.pow(err, 2);
+
+									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
+
+									// this.accessed[k + jGAIWBA]++;
+
+									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
+								}
+							}
+						}
+						// this.bs[odi] += err;
+					}
+				}
+			}
+
+			// for (var i = 0; i < this.inSize(); i++) {
+			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
+			// 	this.accessed[i] = 0;
+			// }
+
+			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
+		}
+
+		updateParams(optimizer) {
+			// console.log(this);
+			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterws[i] /= this.outSize() / this.filters;
+				let testy = false;
+
+				this.filterws[i] /= this.trainIterations;
+				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
+				this.filterw[i] += Math.max(-this.lr, Math.min(this.lr, this.filterws[i] * this.lr));
+
+				this.filterws[i] = 0;
+			}
+			//i forgor to update bias
+			// for (var i = 0; i < this.b.length; i++) {
+			// 	//is this correct i wonder?
+			// 	this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
+			// 	this.b[i] += this.bs[i] * this.lr;
+			// 	this.bs[i] = 0;
+			// }
+			this.trainIterations = 0;
+			// console.log(this);
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == 'filterws' ||
+					key == 'filterbs' ||
+					key == 'inData' ||
+					key == 'outData' ||
+					key == 'costs' ||
+					key == 'gpuEnabled' ||
+					key == 'trainIterations' ||
+					key == 'nextLayer' ||
+					key == 'previousLayer' ||
+					key == 'pl'
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1, padding = 0
+			let saveObject = JSON.parse(json);
+			let layer = new DeconvLayer(
+				saveObject.inWidth,
+				saveObject.inHeight,
+				saveObject.inDepth,
+				saveObject.filterWidth,
+				saveObject.filterHeight,
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.padding
+			);
+			for (var i = 0; i < layer.filterw.length; i++) {
+				layer.filterw[i] = saveObject.filterw[i];
+			}
+			// for (var i = 0; i < layer.b.length; i++) {
+			// 	layer.b[i] = saveObject.b[i];
+			// }
+			layer.lr = saveObject.lr;
+			return layer;
+		}
+	}
+
+	Ment.DeconvLayer = DeconvLayer;
+	Ment.DeConvLayer = DeconvLayer;
+	Ment.Deconv = DeconvLayer;
+	Ment.DeConv = DeconvLayer;
+
+	//only uncomment if you know what your doing
+}
+
 {
 	/*
 		Layer specification:
@@ -807,7 +1172,8 @@ NOT like this:
 	*/
 
 	class FCLayer {
-		constructor(inSize, outSize) {
+		constructor(inSize, outSize, useBias) {
+			this.useBias = useBias == undefined ? true : useBias;
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 			//dont set it in the constructor unless you really want to
 
@@ -831,7 +1197,11 @@ NOT like this:
 			} // ---- end init weights
 
 			for (var j = 0; j < outSize; j++) {
-				this.b[j] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				if (this.useBias == false) {
+					this.b[j] = 0;
+				} else {
+					this.b[j] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
 				this.bs[j] = 0;
 			} ///---------adding random biases
 		}
@@ -839,8 +1209,9 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON FC LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
+					throw inputError(this, inData);
 				}
+				//Fun fact: the fastest way to copy an array in javascript is to use a For Loop
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
@@ -858,40 +1229,31 @@ NOT like this:
 		backward(expected) {
 			this.trainIterations++;
 			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
-			}
+			this.costs.fill(0);
 
+			let geterr = (ind) => {
+				expected[ind] - this.outData[ind];
+			};
 			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
+				geterr = (ind) => {
+					return this.nextLayer.costs[ind];
+				};
 				if (this.nextLayer == undefined) {
 					throw 'error backproping on an unconnected layer with no expected parameter input';
 				}
-				for (var j = 0; j < this.outSize(); j++) {
-					let err = this.nextLayer.costs[j];
-					loss += Math.pow(err, 2);
-					for (var i = 0; i < this.inSize(); i++) {
-						//activation times error = change to the weight.
-						this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-						this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-					}
-					//bias grad is real simple :)
-					this.bs[j] += err;
+			}
+
+			for (var j = 0; j < this.outSize(); j++) {
+				let err = geterr(j);
+				loss += Math.pow(err, 2);
+				for (var i = 0; i < this.inSize(); i++) {
+					//activation times error = change to the weight.
+					this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
+					this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
 				}
-			} else {
-				for (var j = 0; j < this.outSize(); j++) {
-					let err = expected[j] - this.outData[j];
-					loss += Math.pow(err, 2);
-					for (var i = 0; i < this.inSize(); i++) {
-						//activation times error = change to the weight.
-						this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-						this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-					}
-					//bias grad is real simple :)
-					this.bs[j] += err;
-				}
-			} // end of 'sometimes the most effeciant is the least elagant' ----
+				//bias grad is real simple :)
+				this.bs[j] += err;
+			}
 
 			//finish averaging the costs
 			for (var i = 0; i < this.inSize(); i++) {
@@ -916,14 +1278,17 @@ NOT like this:
 			if (optimizer == 'SGD') {
 				for (var i = 0; i < this.ws.length; i++) {
 					this.ws[i] /= this.trainIterations;
-					this.w[i] += this.ws[i] * this.lr;
+					this.ws[i] = Ment.protectNaN(this.ws[i]);
+					this.w[i] += Math.min(Math.max(this.ws[i] * this.lr, -this.lr), this.lr);
+
 					this.ws[i] = 0;
 				}
-
-				for (var j = 0; j < this.outSize(); j++) {
-					this.bs[j] /= this.trainIterations;
-					this.b[j] += this.bs[j] * this.lr;
-					this.bs[j] = 0;
+				if (this.useBias) {
+					for (var j = 0; j < this.outSize(); j++) {
+						this.bs[j] /= this.trainIterations;
+						this.b[j] += this.bs[j] * this.lr;
+						this.bs[j] = 0;
+					}
 				}
 
 				this.trainIterations = 0;
@@ -936,9 +1301,11 @@ NOT like this:
 					this.w[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
 				}
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				if (Math.random() < mutationRate) {
-					this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					if (Math.random() < mutationRate) {
+						this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+					}
 				}
 			}
 		}
@@ -949,7 +1316,6 @@ NOT like this:
 			// the sizes;
 			this.savedInSize = this.inSize();
 			this.savedOutSize = this.outSize();
-
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
@@ -961,7 +1327,8 @@ NOT like this:
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}
@@ -975,10 +1342,11 @@ NOT like this:
 
 			return ret;
 		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize);
+			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
 			for (var i = 0; i < layer.w.length; i++) {
 				layer.w[i] = saveObject.w[i];
 			}
@@ -1014,6 +1382,7 @@ NOT like this:
 	Ment.FCLayer = FCLayer;
 	Ment.FC = FCLayer;
 }
+
 {
 	class IdentityLayer {
 		//this layer outputs the inputs with no changes
@@ -1041,7 +1410,7 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON (Input or output or linear) LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -1096,7 +1465,6 @@ NOT like this:
 
 			//This is how you delete object properties btw.
 			delete this.savedInSize;
-			delete this.savedOutSize;
 
 			return ret;
 		}
@@ -1117,6 +1485,7 @@ NOT like this:
 	Ment.OutputLayer = IdentityLayer;
 	Ment.Output = IdentityLayer;
 }
+
 {
 	class LeakyReluLayer extends Ment.ActivationBase {
 		static leakySlope = 0.25;
@@ -1127,6 +1496,9 @@ NOT like this:
 
 		forward(inData) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
@@ -1135,7 +1507,6 @@ NOT like this:
 			for (var h = 0; h < this.outSize(); h++) {
 				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : 0;
 			}
-			//Oh the misery
 		}
 
 		backward(expected) {
@@ -1156,7 +1527,7 @@ NOT like this:
 				if (this.outData[j] >= 0) {
 					this.costs[j] = err;
 				} else {
-					this.costs[j] = err * Ment.LeakyReluLayer.leakySlope;
+					this.costs[j] = err * LeakyReluLayer.leakySlope;
 				}
 			}
 			return loss / this.outSize();
@@ -1172,15 +1543,8 @@ NOT like this:
 	Ment.LeakyRelu = LeakyReluLayer;
 	Ment.LRelu = LeakyReluLayer;
 }
+
 {
-	/*
-if you wanna input an image do it like this.
-[r,r,r,r,g,g,g,g,b,b,b,b,b]
-NOT like this:
-[r,g,b,r,g,b,r,g,b,r,g,b]
-
-*/
-
 	class MaxPoolLayer {
 		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0) {
 			if (padding != 0) {
@@ -1233,15 +1597,7 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw (
-						'INPUT SIZE WRONG ON MAX POOL LAYER:\nexpected array size (' +
-						this.inSize() +
-						', dimensions: [' +
-						this.inSizeDimensions() +
-						']), got: (' +
-						inData.length +
-						')'
-					);
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -1299,10 +1655,6 @@ NOT like this:
 				}
 			}
 
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-			// 	this.accessed[i] = 0;
-			// }
 			return loss / (this.hMFHPO * this.wMFWPO * this.inDepth);
 		}
 
@@ -1315,7 +1667,8 @@ NOT like this:
 					key == 'gpuEnabled' ||
 					key == 'trainIterations' ||
 					key == 'nextLayer' ||
-					key == 'previousLayer'
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}
@@ -1345,6 +1698,7 @@ NOT like this:
 	Ment.MaxPoolLayer = MaxPoolLayer;
 	Ment.MaxPool = MaxPoolLayer;
 }
+
 {
 	class ReluLayer extends Ment.ActivationBase {
 		constructor(size) {
@@ -1353,11 +1707,13 @@ NOT like this:
 
 		forward(inData) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
 			}
-
 			for (var h = 0; h < this.outSize(); h++) {
 				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : 0;
 			}
@@ -1395,27 +1751,45 @@ NOT like this:
 	Ment.ReluLayer = ReluLayer;
 	Ment.Relu = ReluLayer;
 }
+
 {
 	class ResEmitterLayer {
 		//this layer outputs the inputs with no changes
-		constructor(size, id) {
+		constructor(id) {
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
-			this.inData = new Float64Array(size); //the inData
-			this.outData = new Float64Array(size); //will be init when "connect" is called.
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.inData = new Float64Array(0); //the inData
+			this.outData = new Float64Array(0); //will be init when "connect" is called.
+			this.costs = new Float64Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
+			this.pl = undefined;
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+
+		set previousLayer(layer) {
+			this.inData = new Float32Array(layer.outSize());
+			this.costs = new Float32Array(layer.outSize());
+			this.pl = layer;
+
+			this.outData = new Float32Array(layer.outSize());
 		}
 
 		forward(inData) {
 			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
 				}
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
+				//the outData of this layer is the same object referenced in the inData of the Receiver layer
 				this.outData[h] = this.inData[h];
 			}
 		}
@@ -1483,6 +1857,7 @@ NOT like this:
 	Ment.ResEmitter = ResEmitterLayer;
 	Ment.Emitter = ResEmitterLayer;
 }
+
 {
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
@@ -1529,7 +1904,7 @@ NOT like this:
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw 'INPUT SIZE WRONG ON (Input or output or linear) LAYER:\nexpected size (' + this.inSize() + '), got: (' + inData.length + ')';
+					throw Ment.inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -1603,6 +1978,7 @@ NOT like this:
 	Ment.ResReceiver = ResReceiverLayer;
 	Ment.Receiver = ResReceiverLayer;
 }
+
 {
 	class SigmoidLayer extends Ment.ActivationBase {
 		sigmoid(z) {
@@ -1610,7 +1986,11 @@ NOT like this:
 		}
 
 		sigmoidPrime(z) {
-			return Math.exp(-z) / Math.pow(1 + Math.exp(-z), 2);
+			let ret = Math.exp(-z) / Math.pow(1 + Math.exp(-z), 2);
+			if (isNaN(ret)) {
+				return 0;
+			}
+			return ret;
 		}
 
 		constructor(size) {
@@ -1622,7 +2002,7 @@ NOT like this:
 		}
 
 		backward(expected) {
-			super.backward(expected, this.sigmoidPrime);
+			return super.backward(expected, this.sigmoidPrime);
 		}
 
 		inSize() {
@@ -1644,6 +2024,7 @@ NOT like this:
 	Ment.Sigmoid = SigmoidLayer;
 	Ment.Sig = SigmoidLayer;
 }
+
 {
 	class SineLayer extends Ment.ActivationBase {
 		sine(z) {
@@ -1659,11 +2040,11 @@ NOT like this:
 		}
 
 		forward(inData) {
-			super.forward(inData, this.sine);
+			return super.forward(inData, this.sine);
 		}
 
 		backward(expected) {
-			super.backward(expected, this.sinePrime);
+			return super.backward(expected, this.sinePrime);
 		}
 
 		inSize() {
@@ -1684,6 +2065,7 @@ NOT like this:
 	Ment.Sine = SineLayer;
 	Ment.Sin = SineLayer;
 }
+
 {
 	class TanhLayer extends Ment.ActivationBase {
 		tanh(z) {
@@ -1703,7 +2085,7 @@ NOT like this:
 		}
 
 		backward(expected) {
-			super.backward(expected, this.tanhPrime);
+			return super.backward(expected, this.tanhPrime);
 		}
 
 		inSize() {
