@@ -100,6 +100,14 @@
 			return this.outData.length;
 		}
 
+		inSizeDimensions() {
+			return [inWidth, inHeight, inDepth];
+		}
+
+		outSizeDimensions() {
+			return [inWidth + pad * 2, inHeight + pad * 2, inDepth];
+		}
+
 		save() {
 			// we cant see the length of arrays after saving them in JSON
 			// for some reason so we are adding temp variables so we know
