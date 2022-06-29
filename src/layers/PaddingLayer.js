@@ -84,7 +84,6 @@
 								i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
 								i * (this.inHeight * this.pad) * 2
 						);
-						console.log(err);
 						loss += err;
 						this.costs[prop] = err;
 					}
