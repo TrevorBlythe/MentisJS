@@ -1088,7 +1088,7 @@ NOT like this:
 {
 	class DepaddingLayer {
 		constructor(outWidth, outHeight, outDepth, pad) {
-			pad = pad | 2;
+			pad = pad || 2;
 			this.outData = new Float32Array(outWidth * outHeight * outDepth);
 			this.inData = new Float32Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
 			this.pad = pad;
@@ -1793,7 +1793,7 @@ NOT like this:
 {
 	class PaddingLayer {
 		constructor(inWidth, inHeight, inDepth, pad, padwith) {
-			pad = pad | 2;
+			pad = pad || 2;
 			padwith = padwith | 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.outData = new Float32Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
