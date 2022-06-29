@@ -101,11 +101,11 @@
 		}
 
 		inSizeDimensions() {
-			return [inWidth, inHeight, inDepth];
+			return [this.inWidth, this.inHeight, this.inDepth];
 		}
 
 		outSizeDimensions() {
-			return [inWidth + pad * 2, inHeight + pad * 2, inDepth];
+			return [this.inWidth + this.pad * 2, this.inHeight + this.pad * 2, this.inDepth];
 		}
 
 		save() {
