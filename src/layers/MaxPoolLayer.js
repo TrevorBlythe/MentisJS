@@ -1,19 +1,12 @@
 {
 	class MaxPoolLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0) {
-			if (padding != 0) {
-				throw (
-					'Dear user, I have not implemented padding yet.. set it to zero to avoid this message. ' +
-					'Star the project if you want me to complete it. or send me 5 bucks ill do it right now.'
-				);
-			}
+		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1) {
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.padding = 0; //havent implemented padding yet
 			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
@@ -134,7 +127,7 @@
 		}
 
 		static load(json) {
-			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1, padding = 0
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
 				saveObject.inWidth,
@@ -142,8 +135,7 @@
 				saveObject.inDepth,
 				saveObject.filterWidth,
 				saveObject.filterHeight,
-				saveObject.stride,
-				saveObject.padding
+				saveObject.stride
 			);
 			return layer;
 		}
