@@ -30,22 +30,26 @@ NOT like this:
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
-			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters);
+			this.outData = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) *
+					Math.ceil((inHeight - filterHeight + 1) / stride) *
+					this.filters
+			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
-			// this.bs = new Float32Array(this.outData.length);
+			this.b = new Float32Array(this.outData.length); // bias in a conv layer is dumb
+			this.bs = new Float32Array(this.outData.length);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
-			// for (var i = 0; i < this.b.length; i++) {
-			// 	this.b[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
-			// }
+			for (var i = 0; i < this.b.length; i++) {
+				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
 
 			//Everything below here is precalculated constants used in forward/backward
 			//to optimize this and make sure we are as effeiciant as possible.
@@ -73,7 +77,11 @@ NOT like this:
 		}
 
 		outSizeDimensions() {
-			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride), this.filters];
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
 		}
 
 		forward(inData) {
@@ -115,7 +123,7 @@ NOT like this:
 								}
 							}
 						}
-						// this.outData[odi] += this.b[odi];
+						this.outData[odi] += this.b[odi];
 					}
 				}
 			}
@@ -160,7 +168,7 @@ NOT like this:
 								}
 							}
 						}
-						// this.bs[odi] += err;
+						this.bs[odi] += err;
 					}
 				}
 			}
@@ -174,15 +182,18 @@ NOT like this:
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				// this.filterws[i] /= this.outSize() / this.filters;
 				// this.filterws[i] /= this.trainIterations; //not sure if i should uncomment this... grads are usually low anyway
-				this.filterw[i] += Math.min(Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr), this.lr);
+				this.filterw[i] += Math.min(
+					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
+					this.lr
+				);
 				this.filterws[i] = 0;
 			}
-			// for (var i = 0; i < this.b.length; i++) {
-			// 	//is this correct i wonder?
-			// 	this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
-			// 	this.b[i] += this.bs[i] * this.lr;
-			// 	this.bs[i] = 0;
-			// }
+			for (var i = 0; i < this.b.length; i++) {
+				//is this correct i wonder?
+				// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
+				this.b[i] += this.bs[i] * this.lr;
+				this.bs[i] = 0;
+			}
 			this.trainIterations = 0;
 		}
 
@@ -224,9 +235,11 @@ NOT like this:
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			// for (var i = 0; i < layer.b.length; i++) {
-			// 	layer.b[i] = saveObject.b[i];
-			// }
+			if (saveObject.b) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
 			layer.lr = saveObject.lr;
 			return layer;
 		}
