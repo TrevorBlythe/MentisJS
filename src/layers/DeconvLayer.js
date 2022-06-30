@@ -13,24 +13,28 @@
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
-			this.inData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters);
+			this.inData = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) *
+					Math.ceil((inHeight - filterHeight + 1) / stride) *
+					this.filters
+			);
 			this.outData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(this.inData.length);
-			// this.b = new Float32Array(this.outData.length);  bias in a conv layer is dumb
-			// this.bs = new Float32Array(this.outData.length);
+			this.b = new Float32Array(this.outData.length);
+			this.bs = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.inData.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
-			// for (var i = 0; i < this.b.length; i++) {
-			// 	this.b[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
-			// }
+			for (var i = 0; i < this.b.length; i++) {
+				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
 
 			//Everything below here is precalculated constants used in forward/backward
 			//to optimize this and make sure we are as effeiciant as possible.
@@ -58,7 +62,11 @@
 		}
 
 		inSizeDimensions() {
-			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride), this.filters];
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
 		}
 
 		forward(inData) {
@@ -94,11 +102,14 @@
 								}
 							}
 						}
-						// this.outData[odi] += this.b[odi];
 					}
 				}
 			}
 			//-------------End of monstrosity-----------------
+
+			for (var i = 0; i < this.outData.length; i++) {
+				this.outData[i] += this.b[i];
+			}
 		}
 
 		backward(expected) {
@@ -151,11 +162,13 @@
 								}
 							}
 						}
-						// this.bs[odi] += err;
 					}
 				}
 			}
 
+			for (var i = 0; i < this.outData.length; i++) {
+				this.bs[i] += getCost(i);
+			}
 			// for (var i = 0; i < this.inSize(); i++) {
 			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
 			// 	this.accessed[i] = 0;
@@ -176,13 +189,13 @@
 
 				this.filterws[i] = 0;
 			}
-			//i forgor to update bias
-			// for (var i = 0; i < this.b.length; i++) {
-			// 	//is this correct i wonder?
-			// 	this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
-			// 	this.b[i] += this.bs[i] * this.lr;
-			// 	this.bs[i] = 0;
-			// }
+			// i forgor to update bias
+			for (var i = 0; i < this.b.length; i++) {
+				//is this correct i wonder?
+				// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
+				this.b[i] += this.bs[i] * this.lr;
+				this.bs[i] = 0;
+			}
 			this.trainIterations = 0;
 			// console.log(this);
 		}
@@ -225,9 +238,11 @@
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			// for (var i = 0; i < layer.b.length; i++) {
-			// 	layer.b[i] = saveObject.b[i];
-			// }
+			if (saveObject.b) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
 			layer.lr = saveObject.lr;
 			return layer;
 		}
