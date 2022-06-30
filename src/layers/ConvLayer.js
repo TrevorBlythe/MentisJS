@@ -38,7 +38,7 @@ NOT like this:
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.b = new Float32Array(this.outData.length); // bias in a conv layer is dumb
+			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
