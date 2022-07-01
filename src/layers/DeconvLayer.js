@@ -233,7 +233,8 @@
 				saveObject.filterWidth,
 				saveObject.filterHeight,
 				saveObject.filters,
-				saveObject.stride
+				saveObject.stride,
+				saveObject.useBias
 			);
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];

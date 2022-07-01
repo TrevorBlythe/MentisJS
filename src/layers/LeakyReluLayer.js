@@ -17,7 +17,8 @@
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : 0;
+				this.outData[h] =
+					this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
 			}
 		}
 

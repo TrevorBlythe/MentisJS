@@ -17,7 +17,16 @@ NOT like this:
 */
 
 	class ConvLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1) {
+		constructor(
+			inWidth,
+			inHeight,
+			inDepth,
+			filterWidth,
+			filterHeight,
+			filters = 3,
+			stride = 1,
+			bias = true
+		) {
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -40,6 +49,7 @@ NOT like this:
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
+			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -47,10 +57,13 @@ NOT like this:
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+			} else {
+				this.b.fill(0);
 			}
-
 			//Everything below here is precalculated constants used in forward/backward
 			//to optimize this and make sure we are as effeiciant as possible.
 			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
@@ -188,11 +201,13 @@ NOT like this:
 				);
 				this.filterws[i] = 0;
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				//is this correct i wonder?
-				// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
-				this.b[i] += this.bs[i] * this.lr;
-				this.bs[i] = 0;
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					//is this correct i wonder?
+					// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
+					this.b[i] += this.bs[i] * this.lr;
+					this.bs[i] = 0;
+				}
 			}
 			this.trainIterations = 0;
 		}
@@ -230,7 +245,8 @@ NOT like this:
 				saveObject.filterWidth,
 				saveObject.filterHeight,
 				saveObject.filters,
-				saveObject.stride
+				saveObject.stride,
+				saveObject.useBias
 			);
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
