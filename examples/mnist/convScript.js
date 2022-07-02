@@ -77,8 +77,8 @@ let greenBox = function (p) {
 // ]);
 
 var net = new Ment.Net([
-	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new Ment.MaxPool(7, 7, 5, 2, 2, 2),
+	new Ment.Conv([28, 28, 1], [10, 10], 5, 3, 0),
+	new Ment.MaxPool([7, 7, 5], [2, 2], 2),
 	new Ment.FC(45, 35),
 	new Ment.Sig(),
 	new Ment.FC(35, 10),

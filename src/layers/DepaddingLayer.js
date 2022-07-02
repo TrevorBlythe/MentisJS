@@ -1,6 +1,15 @@
 {
 	class DepaddingLayer {
-		constructor(outWidth, outHeight, outDepth, pad) {
+		constructor(outDim, pad) {
+
+			if(outDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = outDim[0];
+			let inHeight = outDim[1];
+			let inDepth = outDim[2];
+
 			pad = pad || 2;
 			this.outData = new Float32Array(outWidth * outHeight * outDepth);
 			this.inData = new Float32Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);

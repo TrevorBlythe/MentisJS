@@ -1,11 +1,11 @@
 {
-	/*
+/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
 this.filterw = [0,1,2,3,4,5,6,7,8,
 								0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8]
+								0,1,2,3,4,5,6,7,8.......]
 
-Each filter has depth equal to the InDepth, thats why there are three 3x3 in the array.
+Each filter has depth equal to the InDepth.
 
 this.filterw
 [filterNum * this.inDepth * filterWidth * filterHeight + x + (y * filterWidth) + (depth * filterWidth * filterHeight)]
@@ -14,19 +14,34 @@ if you wanna input an image do it like this.
 [r,r,r,r,g,g,g,g,b,b,b,b,b]
 NOT like this:
 [r,g,b,r,g,b,r,g,b,r,g,b]
+Im sorry but I had to choose one 
 */
 
 	class ConvLayer {
 		constructor(
-			inWidth,
-			inHeight,
-			inDepth,
-			filterWidth,
-			filterHeight,
+			inDim,
+			filterDim,
 			filters = 3,
 			stride = 1,
 			bias = true
+
 		) {
+
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -239,11 +254,15 @@ NOT like this:
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new ConvLayer(
+				[
 				saveObject.inWidth,
 				saveObject.inHeight,
 				saveObject.inDepth,
+				],
+				[
 				saveObject.filterWidth,
 				saveObject.filterHeight,
+				],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias

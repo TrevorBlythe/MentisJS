@@ -1,6 +1,21 @@
 {
 	class MaxPoolLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1) {
+		constructor(inDim, filterDim, stride = 1) {
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;

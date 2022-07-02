@@ -25,12 +25,11 @@ let greenBox = function (p) {
 	return "<span style='display:inline-block;height:20px;width:20px;background-color:rgb(0," + p + ",0);border:1px solid black'></span>";
 };
 
-let one = [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0];
 var net = new Ment.Net([
-	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
-	new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
-	new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0),
+	new Ment.Conv([28, 28, 1], [10, 10], 5, 3),
+	new Ment.Conv([7, 7, 5], [3, 3], 3, 1),
+	new Ment.DeConv([7, 7, 5], [3, 3], 3, 1),
+	new Ment.DeConv([28, 28, 1], [10, 10], 5, 3),
 ]);
 
 net.batchSize = 10;

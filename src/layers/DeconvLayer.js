@@ -1,6 +1,25 @@
 {
 	class DeconvLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1) {
+		constructor(
+			inDim,
+			filterDim, filters = 3, stride = 1) {
+
+
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -30,7 +49,7 @@
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -227,11 +246,11 @@
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new DeconvLayer(
-				saveObject.inWidth,
+				[saveObject.inWidth,
 				saveObject.inHeight,
-				saveObject.inDepth,
-				saveObject.filterWidth,
-				saveObject.filterHeight,
+				saveObject.inDepth],
+				[saveObject.filterWidth,
+				saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias

@@ -1,6 +1,14 @@
 {
 	class PaddingLayer {
-		constructor(inWidth, inHeight, inDepth, pad, padwith) {
+		constructor(inDim, pad, padwith) {
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+			
 			pad = pad || 2;
 			padwith = padwith | 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
