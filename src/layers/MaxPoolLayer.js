@@ -145,11 +145,11 @@
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
-				saveObject.inWidth,
+				[saveObject.inWidth,
 				saveObject.inHeight,
-				saveObject.inDepth,
-				saveObject.filterWidth,
-				saveObject.filterHeight,
+				saveObject.inDepth],
+				[saveObject.filterWidth,
+				saveObject.filterHeight],
 				saveObject.stride
 			);
 			return layer;

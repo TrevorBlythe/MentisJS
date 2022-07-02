@@ -135,7 +135,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new PaddingLayer(saveObject.inWidth, saveObject.inHeight, saveObject.inDepth, saveObject.pad, saveObject.padwith);
+			let layer = new PaddingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.pad, saveObject.padwith);
 			return layer;
 		}
 	}

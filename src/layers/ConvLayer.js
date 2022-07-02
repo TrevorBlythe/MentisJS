@@ -60,6 +60,7 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
+			this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -171,6 +172,11 @@ Im sorry but I had to choose one
 					throw 'error backproping on an unconnected layer with no expected parameter input';
 				}
 			}
+			let getErr = (ind) => expected[ind] - this.outData[ind];
+			
+			if(!expected){
+				getErr = (ind) => this.nextLayer.costs[ind];
+			}
 
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
@@ -182,7 +188,7 @@ Im sorry but I had to choose one
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * this.stride;
-						let err = !expected ? this.nextLayer.costs[odi] : expected[odi] - this.outData[odi];
+						let err = getErr(odi);
 						loss += Math.pow(err, 2);
 						for (var h = 0; h < this.inDepth; h++) {
 							const hWIH = h * this.wIH;
@@ -192,24 +198,30 @@ Im sorry but I had to choose one
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
+									this.costs[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
 						}
-						this.bs[odi] += err;
 					}
 				}
 			}
 			//---------------------------------End of monstrosity-----------------
-
+			for (var i = 0; i < this.outData.length; i++) {
+				this.bs[i] += getErr(i);
+			}
+			for(var i = 0;i<this.costs.length;i++){
+				this.costs[i] /= this.accessed[i];
+				this.accessed[i] = 0;
+			}
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				// this.filterws[i] /= this.outSize() / this.filters;
-				// this.filterws[i] /= this.trainIterations; //not sure if i should uncomment this... grads are usually low anyway
+				this.filterws[i] /= this.outSize() / this.filters;
+				this.filterws[i] /= this.trainIterations; 
 				this.filterw[i] += Math.min(
 					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
 					this.lr
@@ -218,8 +230,6 @@ Im sorry but I had to choose one
 			}
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
-					//is this correct i wonder?
-					// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
 					this.b[i] += this.bs[i] * this.lr;
 					this.bs[i] = 0;
 				}
@@ -251,7 +261,6 @@ Im sorry but I had to choose one
 		}
 
 		static load(json) {
-			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new ConvLayer(
 				[

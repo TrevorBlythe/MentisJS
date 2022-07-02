@@ -123,7 +123,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new DepaddingLayer(saveObject.outWidth, saveObject.outHeight, saveObject.outDepth, saveObject.pad);
+			let layer = new DepaddingLayer([saveObject.outWidth, saveObject.outHeight, saveObject.outDepth], saveObject.pad);
 			return layer;
 		}
 	}

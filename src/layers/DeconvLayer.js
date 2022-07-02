@@ -43,7 +43,7 @@
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.inData.length).fill(1);
+			this.accessed = new Float32Array(this.inData.length).fill(0);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -175,7 +175,7 @@
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									// this.accessed[k + jGAIWBA]++;
+									this.accessed[odi]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -188,10 +188,10 @@
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-			// 	this.accessed[i] = 0;
-			// }
+			for (var i = 0; i < this.inSize(); i++) {
+				this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
+				this.accessed[i] = 0;
+			}
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
