@@ -666,7 +666,7 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
+			// this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -804,7 +804,7 @@ Im sorry but I had to choose one
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
-									this.costs[k + jGAIWBA]++;
+									// this.accessed[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
@@ -816,18 +816,18 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getErr(i);
 			}
-			for(var i = 0;i<this.costs.length;i++){
-				this.costs[i] /= this.accessed[i];
-				this.accessed[i] = 0;
-			}
+			// for(var i = 0;i<this.costs.length;i++){
+			// 	this.costs[i] /= this.accessed[i];
+			// 	this.accessed[i] = 0;
+			// }
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				this.filterws[i] /= this.outSize() / this.filters;
+				// this.filterws[i] /= this.outSize() / this.filters;
 				this.filterws[i] /= this.trainIterations; 
+				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				this.filterw[i] += Math.min(
 					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
 					this.lr
@@ -944,7 +944,7 @@ Im sorry but I had to choose one
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.inData.length).fill(0);
+			// this.accessed = new Float32Array(this.inData.length).fill(0);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -1076,7 +1076,7 @@ Im sorry but I had to choose one
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									this.accessed[odi]++;
+									// this.accessed[odi]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -1089,10 +1089,10 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			for (var i = 0; i < this.inSize(); i++) {
-				this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-				this.accessed[i] = 0;
-			}
+			// for (var i = 0; i < this.inSize(); i++) {
+			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
+			// 	this.accessed[i] = 0;
+			// }
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
