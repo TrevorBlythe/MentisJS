@@ -605,13 +605,13 @@ var Ment = Ment || {};
 }
 
 {
-	/*
+/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
 this.filterw = [0,1,2,3,4,5,6,7,8,
 								0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8]
+								0,1,2,3,4,5,6,7,8.......]
 
-Each filter has depth equal to the InDepth, thats why there are three 3x3 in the array.
+Each filter has depth equal to the InDepth.
 
 this.filterw
 [filterNum * this.inDepth * filterWidth * filterHeight + x + (y * filterWidth) + (depth * filterWidth * filterHeight)]
@@ -620,19 +620,34 @@ if you wanna input an image do it like this.
 [r,r,r,r,g,g,g,g,b,b,b,b,b]
 NOT like this:
 [r,g,b,r,g,b,r,g,b,r,g,b]
+Im sorry but I had to choose one 
 */
 
 	class ConvLayer {
 		constructor(
-			inWidth,
-			inHeight,
-			inDepth,
-			filterWidth,
-			filterHeight,
+			inDim,
+			filterDim,
 			filters = 3,
 			stride = 1,
 			bias = true
+
 		) {
+
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -651,6 +666,7 @@ NOT like this:
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
+			this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -762,6 +778,11 @@ NOT like this:
 					throw 'error backproping on an unconnected layer with no expected parameter input';
 				}
 			}
+			let getErr = (ind) => expected[ind] - this.outData[ind];
+			
+			if(!expected){
+				getErr = (ind) => this.nextLayer.costs[ind];
+			}
 
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
@@ -773,7 +794,7 @@ NOT like this:
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * this.stride;
-						let err = !expected ? this.nextLayer.costs[odi] : expected[odi] - this.outData[odi];
+						let err = getErr(odi);
 						loss += Math.pow(err, 2);
 						for (var h = 0; h < this.inDepth; h++) {
 							const hWIH = h * this.wIH;
@@ -783,24 +804,30 @@ NOT like this:
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
+									this.costs[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
 						}
-						this.bs[odi] += err;
 					}
 				}
 			}
 			//---------------------------------End of monstrosity-----------------
-
+			for (var i = 0; i < this.outData.length; i++) {
+				this.bs[i] += getErr(i);
+			}
+			for(var i = 0;i<this.costs.length;i++){
+				this.costs[i] /= this.accessed[i];
+				this.accessed[i] = 0;
+			}
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				// this.filterws[i] /= this.outSize() / this.filters;
-				// this.filterws[i] /= this.trainIterations; //not sure if i should uncomment this... grads are usually low anyway
+				this.filterws[i] /= this.outSize() / this.filters;
+				this.filterws[i] /= this.trainIterations; 
 				this.filterw[i] += Math.min(
 					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
 					this.lr
@@ -809,8 +836,6 @@ NOT like this:
 			}
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
-					//is this correct i wonder?
-					// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
 					this.b[i] += this.bs[i] * this.lr;
 					this.bs[i] = 0;
 				}
@@ -842,14 +867,17 @@ NOT like this:
 		}
 
 		static load(json) {
-			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new ConvLayer(
+				[
 				saveObject.inWidth,
 				saveObject.inHeight,
 				saveObject.inDepth,
+				],
+				[
 				saveObject.filterWidth,
 				saveObject.filterHeight,
+				],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -873,7 +901,26 @@ NOT like this:
 
 {
 	class DeconvLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1) {
+		constructor(
+			inDim,
+			filterDim, filters = 3, stride = 1) {
+
+
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.lr = 0.01; //learning rate, this will be set by the Net object
 
 			this.filters = filters; //the amount of filters
@@ -897,13 +944,13 @@ NOT like this:
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.inData.length).fill(1);
+			this.accessed = new Float32Array(this.inData.length).fill(0);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -1029,7 +1076,7 @@ NOT like this:
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									// this.accessed[k + jGAIWBA]++;
+									this.accessed[odi]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -1042,10 +1089,10 @@ NOT like this:
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-			// 	this.accessed[i] = 0;
-			// }
+			for (var i = 0; i < this.inSize(); i++) {
+				this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
+				this.accessed[i] = 0;
+			}
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
@@ -1100,11 +1147,11 @@ NOT like this:
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new DeconvLayer(
-				saveObject.inWidth,
+				[saveObject.inWidth,
 				saveObject.inHeight,
-				saveObject.inDepth,
-				saveObject.filterWidth,
-				saveObject.filterHeight,
+				saveObject.inDepth],
+				[saveObject.filterWidth,
+				saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -1132,7 +1179,16 @@ NOT like this:
 
 {
 	class DepaddingLayer {
-		constructor(outWidth, outHeight, outDepth, pad) {
+		constructor(outDim, pad) {
+
+			if(outDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = outDim[0];
+			let inHeight = outDim[1];
+			let inDepth = outDim[2];
+
 			pad = pad || 2;
 			this.outData = new Float32Array(outWidth * outHeight * outDepth);
 			this.inData = new Float32Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
@@ -1246,7 +1302,7 @@ NOT like this:
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new DepaddingLayer(saveObject.outWidth, saveObject.outHeight, saveObject.outDepth, saveObject.pad);
+			let layer = new DepaddingLayer([saveObject.outWidth, saveObject.outHeight, saveObject.outDepth], saveObject.pad);
 			return layer;
 		}
 	}
@@ -1691,7 +1747,22 @@ NOT like this:
 
 {
 	class MaxPoolLayer {
-		constructor(inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1) {
+		constructor(inDim, filterDim, stride = 1) {
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;
@@ -1821,11 +1892,11 @@ NOT like this:
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
-				saveObject.inWidth,
+				[saveObject.inWidth,
 				saveObject.inHeight,
-				saveObject.inDepth,
-				saveObject.filterWidth,
-				saveObject.filterHeight,
+				saveObject.inDepth],
+				[saveObject.filterWidth,
+				saveObject.filterHeight],
 				saveObject.stride
 			);
 			return layer;
@@ -1838,7 +1909,15 @@ NOT like this:
 
 {
 	class PaddingLayer {
-		constructor(inWidth, inHeight, inDepth, pad, padwith) {
+		constructor(inDim, pad, padwith) {
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+			
 			pad = pad || 2;
 			padwith = padwith | 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
@@ -1965,7 +2044,7 @@ NOT like this:
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new PaddingLayer(saveObject.inWidth, saveObject.inHeight, saveObject.inDepth, saveObject.pad, saveObject.padwith);
+			let layer = new PaddingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.pad, saveObject.padwith);
 			return layer;
 		}
 	}
