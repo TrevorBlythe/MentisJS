@@ -110,4 +110,19 @@ network.forward([1,1]);
 
 > [0.0012]
 
-<p> For more tutorials and docs clone the repo and open index.html! </p>
+# All current layers:
+
+Conv(inDim,filterDim,filters = 3,stride = 1,bias = true)
+Deconv(inDim,filterDim,filters = 3,stride = 1,bias = true)
+Depadding(outDim, pad)
+FC(inSize,outSize)
+Identity(size)
+LeakyRelu(size)
+Relu(size)
+MaxPool(inDim, filterDim, stride = 1)
+Padding(inDim, pad, padwith)
+ResEmitter(id)
+ResReceiver(id)
+Sigmoid(size)
+Sine(size)
+Tanh(size)
