@@ -62,9 +62,8 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			if(ConvLayer.averageOutCosts){
 				this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
-			}
+			
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);

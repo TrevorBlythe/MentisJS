@@ -45,9 +45,7 @@
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			if(DeconvLayer.averageOutCosts){
 				this.accessed = new Float32Array(this.inData.length).fill(0);
-			}
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
