@@ -668,9 +668,8 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			if(ConvLayer.averageOutCosts){
 				this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
-			}
+			
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -913,7 +912,7 @@ Im sorry but I had to choose one
 		static averageOutGrads = false;
 		constructor(
 			inDim,
-			filterDim, filters = 3, stride = 1) {
+			filterDim, filters = 3, stride = 1,useBias = true) {
 
 
 			if(inDim.length != 3){
@@ -932,6 +931,7 @@ Im sorry but I had to choose one
 			let filterHeight = filterDim[1];
 
 			this.lr = 0.01; //learning rate, this will be set by the Net object
+			this.useBias = useBias;
 
 			this.filters = filters; //the amount of filters
 			this.inWidth = inWidth;
@@ -954,9 +954,7 @@ Im sorry but I had to choose one
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			if(DeconvLayer.averageOutCosts){
 				this.accessed = new Float32Array(this.inData.length).fill(0);
-			}
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -964,10 +962,13 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+			} else {
+				this.b.fill(0);
 			}
-
 			//Everything below here is precalculated constants used in forward/backward
 			//to optimize this and make sure we are as effeiciant as possible.
 			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
@@ -1122,9 +1123,11 @@ Im sorry but I had to choose one
 
 				this.filterws[i] = 0;
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				this.b[i] += this.bs[i] * this.lr;
-				this.bs[i] = 0;
+			if(this.useBias){
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] += this.bs[i] * this.lr;
+					this.bs[i] = 0;
+				}
 			}
 			this.trainIterations = 0;
 		}

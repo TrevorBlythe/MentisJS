@@ -4,7 +4,7 @@
 		static averageOutGrads = false;
 		constructor(
 			inDim,
-			filterDim, filters = 3, stride = 1) {
+			filterDim, filters = 3, stride = 1,useBias = true) {
 
 
 			if(inDim.length != 3){
@@ -23,6 +23,7 @@
 			let filterHeight = filterDim[1];
 
 			this.lr = 0.01; //learning rate, this will be set by the Net object
+			this.useBias = useBias;
 
 			this.filters = filters; //the amount of filters
 			this.inWidth = inWidth;
@@ -53,10 +54,13 @@
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+			} else {
+				this.b.fill(0);
 			}
-
 			//Everything below here is precalculated constants used in forward/backward
 			//to optimize this and make sure we are as effeiciant as possible.
 			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
@@ -211,9 +215,11 @@
 
 				this.filterws[i] = 0;
 			}
-			for (var i = 0; i < this.b.length; i++) {
-				this.b[i] += this.bs[i] * this.lr;
-				this.bs[i] = 0;
+			if(this.useBias){
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] += this.bs[i] * this.lr;
+					this.bs[i] = 0;
+				}
 			}
 			this.trainIterations = 0;
 		}
