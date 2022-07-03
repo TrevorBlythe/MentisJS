@@ -19,6 +19,7 @@
 		<script src="../../src/layers/ConvLayer.js"></script>
 		<script src="../../src/layers/DeconvLayer.js"></script>
 		<script src="../../src/layers/MaxPoolLayer.js"></script>
+		<script src="../../src/layers/UpscalingLayer.js"></script>
 		<script src="../../src/Population.js"></script>
 		<script src="../../src/Net.js"></script>
 		<title>MentisJS</title>
@@ -143,10 +144,10 @@
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
 var net = new Ment.Net(
 [
-	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new Ment.Conv(7, 7, 5, 3, 3, 3, 1, 0),
-	new Ment.DeConv(7, 7, 5, 3, 3, 3, 1, 0),
-	new Ment.DeConv(28, 28, 1, 10, 10, 5, 3, 0)
+	new Ment.Conv([28, 28, 1], [10, 10], 5, 3),
+	new Ment.Conv([7, 7, 5], [3, 3], 3, 1),
+	new Ment.DeConv([7, 7, 5], [3, 3], 3, 1),
+	new Ment.DeConv([28, 28, 1], [10, 10], 5, 3)
 ]);
 
 net.batchSize = 10;

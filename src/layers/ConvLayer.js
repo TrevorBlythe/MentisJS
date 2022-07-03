@@ -60,7 +60,7 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			// this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
+			this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -198,7 +198,7 @@ Im sorry but I had to choose one
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
 									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
-									// this.accessed[k + jGAIWBA]++;
+									this.accessed[k + jGAIWBA]++;
 									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
 								}
 							}
@@ -210,10 +210,10 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getErr(i);
 			}
-			// for(var i = 0;i<this.costs.length;i++){
-			// 	this.costs[i] /= this.accessed[i];
-			// 	this.accessed[i] = 0;
-			// }
+			for(var i = 0;i<this.costs.length;i++){
+				this.costs[i] /= this.accessed[i];
+				this.accessed[i] = 0;
+			}
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
