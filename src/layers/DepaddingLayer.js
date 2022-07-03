@@ -6,9 +6,9 @@
 				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
 				+ "First parameter in layer must be an 3 length array, width height and depth";
 			}
-			let inWidth = outDim[0];
-			let inHeight = outDim[1];
-			let inDepth = outDim[2];
+			let outWidth = outDim[0];
+			let outHeight = outDim[1];
+			let outDepth = outDim[2];
 
 			pad = pad || 2;
 			this.outData = new Float32Array(outWidth * outHeight * outDepth);
