@@ -21,6 +21,8 @@ GAN tutorial.
 Diffusion model tutorial.
 WASM for speed?
 
+Check the wiki for more docs!
+
 # Tutorial
 
 <h2>How to make a Neural Network</h2>
@@ -126,3 +128,5 @@ ResReceiver(id)<br>
 Sigmoid(size)<br>
 Sine(size)<br>
 Tanh(size)<br>
+
+Check the wiki for more docs!
