@@ -1,5 +1,7 @@
 {
 	class DeconvLayer {
+		static averageOutCosts = false;
+		static averageOutGrads = false;
 		constructor(
 			inDim,
 			filterDim, filters = 3, stride = 1) {
@@ -43,7 +45,9 @@
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-			// this.accessed = new Float32Array(this.inData.length).fill(0);
+			if(DeconvLayer.averageOutCosts){
+				this.accessed = new Float32Array(this.inData.length).fill(0);
+			}
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw 'Conv layer error: filters cannot be bigger than the input';
 			}
@@ -188,35 +192,32 @@
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			// for (var i = 0; i < this.inSize(); i++) {
-			// 	this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-			// 	this.accessed[i] = 0;
-			// }
+			if(DeconvLayer.averageOutCosts){
+				for (var i = 0; i < this.inSize(); i++) {
+					this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
+					this.accessed[i] = 0;
+				}
+			}
 
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
-			// console.log(this);
 			for (var i = 0; i < this.filterw.length; i++) {
+			if(DeconvLayer.averageOutGrads){
 				this.filterws[i] /= this.outSize() / this.filters;
-				let testy = false;
-
+			}
 				this.filterws[i] /= this.trainIterations;
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				this.filterw[i] += Math.max(-this.lr, Math.min(this.lr, this.filterws[i] * this.lr));
 
 				this.filterws[i] = 0;
 			}
-			// i forgor to update bias
 			for (var i = 0; i < this.b.length; i++) {
-				//is this correct i wonder?
-				// this.bs[i] /= this.wMFWPO * this.hMFHPO * this.filters;
 				this.b[i] += this.bs[i] * this.lr;
 				this.bs[i] = 0;
 			}
 			this.trainIterations = 0;
-			// console.log(this);
 		}
 
 		save() {

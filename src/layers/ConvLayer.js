@@ -18,6 +18,8 @@ Im sorry but I had to choose one
 */
 
 	class ConvLayer {
+		static averageOutCosts = false;
+		static averageOutGrads = false;
 		constructor(
 			inDim,
 			filterDim,
@@ -60,7 +62,9 @@ Im sorry but I had to choose one
 					this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
+			if(ConvLayer.averageOutCosts){
+				this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
+			}
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
@@ -210,16 +214,20 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getErr(i);
 			}
-			for(var i = 0;i<this.costs.length;i++){
-				this.costs[i] /= this.accessed[i];
-				this.accessed[i] = 0;
+			if(ConvLayer.averageOutCosts){
+				for(var i = 0;i<this.costs.length;i++){
+					this.costs[i] /= this.accessed[i];
+					this.accessed[i] = 0;
+				}
 			}
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		updateParams(optimizer) {
 			for (var i = 0; i < this.filterw.length; i++) {
-				// this.filterws[i] /= this.outSize() / this.filters;
+				if(ConvLayer.averageOutGrads){
+					this.filterws[i] /= this.outSize() / this.filters;
+				}
 				this.filterws[i] /= this.trainIterations; 
 				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
 				this.filterw[i] += Math.min(
