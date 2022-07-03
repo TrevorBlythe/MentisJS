@@ -112,17 +112,17 @@ network.forward([1,1]);
 
 # All current layers:
 
-Conv(inDim,filterDim,filters = 3,stride = 1,bias = true)
-Deconv(inDim,filterDim,filters = 3,stride = 1,bias = true)
-Depadding(outDim, pad)
-FC(inSize,outSize)
-Identity(size)
-LeakyRelu(size)
-Relu(size)
-MaxPool(inDim, filterDim, stride = 1)
-Padding(inDim, pad, padwith)
-ResEmitter(id)
-ResReceiver(id)
-Sigmoid(size)
-Sine(size)
-Tanh(size)
+Conv(inDim,filterDim,filters = 3,stride = 1,bias = true)<br>
+Deconv(inDim,filterDim,filters = 3,stride = 1,bias = true)<br>
+Depadding(outDim, pad)<br>
+FC(inSize,outSize)<br>
+Identity(size)<br>
+LeakyRelu(size)<br>
+Relu(size)<br>
+MaxPool(inDim, filterDim, stride = 1)<br>
+Padding(inDim, pad, padwith)<br>
+ResEmitter(id)<br>
+ResReceiver(id)<br>
+Sigmoid(size)<br>
+Sine(size)<br>
+Tanh(size)<br>
