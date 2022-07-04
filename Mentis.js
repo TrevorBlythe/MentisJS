@@ -2216,7 +2216,7 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResEmitterLayer(saveObject.savedSize, saveObject.id);
+			let layer = new ResEmitterLayer(saveObject.id);
 			return layer;
 		}
 	}
