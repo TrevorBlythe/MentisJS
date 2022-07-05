@@ -12,7 +12,7 @@
 			this.trainIterations = 0;
 			this.lr = 0;
 			for(var i =0 ;i<this.b.length;i++){
-				this.b[i] = 0.1 * Math.random * (Math.random() >  0.5 ? -1:1);
+				this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
 			}
 		}
 
@@ -26,6 +26,12 @@
 				this.inData = new Float32Array(layer.outSize());
 				this.outData = new Float32Array(layer.outSize());
 				this.costs = new Float32Array(layer.outSize());
+				this.b = new Float32Array(layer.outSize());
+				this.bs = new Float32Array(layer.outSize());
+				for(var i =0 ;i<this.b.length;i++){
+					this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
+				}
+
 			}
 			this.pl = layer;
 		}
