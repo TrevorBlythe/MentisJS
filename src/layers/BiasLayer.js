@@ -11,6 +11,9 @@
 			this.pl; //reference to previous layer
 			this.trainIterations = 0;
 			this.lr = 0;
+			for(var i =0 ;i<this.b.length;i++){
+				this.b[i] = 0.1 * Math.random * (Math.random() >  0.5 ? -1:1);
+			}
 		}
 
 		get previousLayer() {
