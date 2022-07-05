@@ -1,7 +1,8 @@
 {
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
-		constructor(id) {
+		constructor(id, mode = 'concat') { //mode can be concat or add
+			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
@@ -37,7 +38,14 @@
 			this.emitter = currentLayer;
 			this.inDataFromEmitter = this.emitter.outData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+			if(this.mode == 'add'){
+				if(layer.outSize() != this.emitter.outSize()){
+					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
+				}
+				this.outData = new Float32Array(layer.outSize());
+			}else if(this.mode == 'concat'){
+				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
 		}
 
@@ -50,40 +58,54 @@
 					this.inData[i] = inData[i];
 				}
 			}
-
-			for (var h = 0; h < this.inData.length; h++) {
-				this.outData[h] = this.inData[h];
-			}
-			for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
-				this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
+			if(this.mode == 'concat'){
+				for (var h = 0; h < this.inData.length; h++) {
+					this.outData[h] = this.inData[h];
+				}
+				for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
+					this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
+				}
+			}else if(this.mode == 'add'){
+				for(var i = 0;i<this.outData.length;i++){
+					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
+				}
 			}
 		}
 
 		backward(expected) {
 			let loss = 0;
-			if (!expected) {
+
+			let getErr = (ind) => {
+				return expected[i] - this.outData[i];
+			}
+
+			if(!expected){
 				if (this.nextLayer == undefined) {
 					throw 'nothing to backpropagate!';
 				}
+				let getErr = (ind) => {
+					return 	this.nextLayer.costs[ind]
+				}
+			}
+
+
+			if(this.mode == 'concat'){
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
+					this.costs[i] = getErr(i);
 					loss += this.costs[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = this.nextLayer.costs[i];
+					this.costsForEmitter[i - this.inData.length] = getErr(i);
 					loss += this.costsForEmitter[i - this.inData.length];
 				}
-			} else {
-				for (var j = 0; j < this.inData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					loss += Math.pow(err, 2);
-				}
-				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = expected[i] - this.outData[i];
-					loss += this.costsForEmitter[i - this.inData.length];
+			} else if(this.mode == 'add'){
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = getErr(i);
+					this.costsForEmitter[i] = getErr(i);
+					loss += this.costs[i]; 
 				}
 			}
+		
 			return loss / this.inSize();
 		}
 
@@ -109,7 +131,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResReceiverLayer(saveObject.id);
+			let layer = new ResReceiverLayer(saveObject.id,saveObject.mode);
 			return layer;
 		}
 	}
