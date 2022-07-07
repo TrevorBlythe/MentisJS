@@ -65,11 +65,7 @@ var Ment = Ment || {};
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}
 			}
-			for (var i = 0; i < this.layers.length; i++) {
-				if (this.layers[i].onConnect) {
-					this.layers[i].onConnect(); //this is useful for layers like ResEmitter that need to init after being connected
-				}
-			}
+
 		}
 
 		forward(data) {
