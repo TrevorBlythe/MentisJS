@@ -50,11 +50,21 @@ var Ment = Ment || {};
 			//by 'connect' we mean make the outData the same object as the inData of adjacent arrays
 			//this is so we dont have to copy over the arrays values when forwarding/backwarding
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
+			//We set these properties BEFORE the indata/outdata connecting so layers can initialize,
+			//this is because some layers rely on surrounding layers to initialize, (like Sigmoid
+			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
+			// you dont.)
+
+			for(var i = 1;i<this.layers.length;i++){
+				this.layers[i].previousLayer = this.layers[i-1];
+			}
+
+			for(var i = this.layers.length - 1; i >= 0; i--){
+				this.layers[i].nextLayer = this.layers[i+1];
+			}
+
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
-					this.layers[i + 1].previousLayer = this.layers[i];
-					this.layers[i].nextLayer = this.layers[i + 1];
-
 					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
 						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
 							this.layers[i].constructor.name
