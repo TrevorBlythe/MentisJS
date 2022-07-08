@@ -50,11 +50,21 @@ var Ment = Ment || {};
 			//by 'connect' we mean make the outData the same object as the inData of adjacent arrays
 			//this is so we dont have to copy over the arrays values when forwarding/backwarding
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
+			//We set these properties BEFORE the indata/outdata connecting so layers can initialize,
+			//this is because some layers rely on surrounding layers to initialize, (like Sigmoid
+			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
+			// you dont.)
+
+			for(var i = 1;i<this.layers.length;i++){
+				this.layers[i].previousLayer = this.layers[i-1];
+			}
+
+			for(var i = this.layers.length - 1; i >= 0; i--){
+				this.layers[i].nextLayer = this.layers[i+1];
+			}
+
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
-					this.layers[i + 1].previousLayer = this.layers[i];
-					this.layers[i].nextLayer = this.layers[i + 1];
-
 					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
 						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
 							this.layers[i].constructor.name
@@ -65,11 +75,7 @@ var Ment = Ment || {};
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}
 			}
-			for (var i = 0; i < this.layers.length; i++) {
-				if (this.layers[i].onConnect) {
-					this.layers[i].onConnect(); //this is useful for layers like ResEmitter that need to init after being connected
-				}
-			}
+
 		}
 
 		forward(data) {
@@ -618,7 +624,7 @@ var Ment = Ment || {};
 			this.trainIterations = 0;
 			this.lr = 0;
 			for(var i =0 ;i<this.b.length;i++){
-				this.b[i] = 0.1 * Math.random * (Math.random() >  0.5 ? -1:1);
+				this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
 			}
 		}
 
@@ -632,6 +638,12 @@ var Ment = Ment || {};
 				this.inData = new Float32Array(layer.outSize());
 				this.outData = new Float32Array(layer.outSize());
 				this.costs = new Float32Array(layer.outSize());
+				this.b = new Float32Array(layer.outSize());
+				this.bs = new Float32Array(layer.outSize());
+				for(var i =0 ;i<this.b.length;i++){
+					this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
+				}
+
 			}
 			this.pl = layer;
 		}
@@ -2359,7 +2371,8 @@ Im sorry but I had to choose one
 {
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
-		constructor(id) {
+		constructor(id, mode = 'concat') { //mode can be concat or add
+			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
@@ -2395,7 +2408,14 @@ Im sorry but I had to choose one
 			this.emitter = currentLayer;
 			this.inDataFromEmitter = this.emitter.outData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+			if(this.mode == 'add'){
+				if(layer.outSize() != this.emitter.outSize()){
+					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
+				}
+				this.outData = new Float32Array(layer.outSize());
+			}else if(this.mode == 'concat'){
+				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
 		}
 
@@ -2408,40 +2428,54 @@ Im sorry but I had to choose one
 					this.inData[i] = inData[i];
 				}
 			}
-
-			for (var h = 0; h < this.inData.length; h++) {
-				this.outData[h] = this.inData[h];
-			}
-			for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
-				this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
+			if(this.mode == 'concat'){
+				for (var h = 0; h < this.inData.length; h++) {
+					this.outData[h] = this.inData[h];
+				}
+				for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
+					this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
+				}
+			}else if(this.mode == 'add'){
+				for(var i = 0;i<this.outData.length;i++){
+					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
+				}
 			}
 		}
 
 		backward(expected) {
 			let loss = 0;
-			if (!expected) {
+
+			let getErr = (ind) => {
+				return expected[i] - this.outData[i];
+			}
+
+			if(!expected){
 				if (this.nextLayer == undefined) {
 					throw 'nothing to backpropagate!';
 				}
+				let getErr = (ind) => {
+					return 	this.nextLayer.costs[ind]
+				}
+			}
+
+
+			if(this.mode == 'concat'){
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
+					this.costs[i] = getErr(i);
 					loss += this.costs[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = this.nextLayer.costs[i];
+					this.costsForEmitter[i - this.inData.length] = getErr(i);
 					loss += this.costsForEmitter[i - this.inData.length];
 				}
-			} else {
-				for (var j = 0; j < this.inData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					loss += Math.pow(err, 2);
-				}
-				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = expected[i] - this.outData[i];
-					loss += this.costsForEmitter[i - this.inData.length];
+			} else if(this.mode == 'add'){
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = getErr(i);
+					this.costsForEmitter[i] = getErr(i);
+					loss += this.costs[i]; 
 				}
 			}
+		
 			return loss / this.inSize();
 		}
 
@@ -2467,7 +2501,7 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResReceiverLayer(saveObject.id);
+			let layer = new ResReceiverLayer(saveObject.id,saveObject.mode);
 			return layer;
 		}
 	}
