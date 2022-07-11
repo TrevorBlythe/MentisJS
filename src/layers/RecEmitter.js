@@ -2,6 +2,7 @@
 	class RecEmitterLayer {
 		//Glorified Identity layer, only difference it has an ID and reference to the receiver with same ID
 		constructor(id) {
+			console.log('this layer isnt finished yet it wont work.... sory :(')
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData = new Float32Array(0); //the inData
