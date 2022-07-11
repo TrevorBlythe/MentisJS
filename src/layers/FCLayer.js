@@ -156,27 +156,22 @@
 			return this.outData.length;
 		}
 
-		updateParams(optimizer) {
-			if (this.trainIterations < 0) {
-				return;
-			}
-			if (optimizer == 'SGD') {
+		getParamsAndGrads(forUpdate = true){
+			if(forUpdate){
 				for (var i = 0; i < this.ws.length; i++) {
-					this.ws[i] /= this.trainIterations;
-					this.ws[i] = Ment.protectNaN(this.ws[i]);
-					this.w[i] += Math.min(Math.max(this.ws[i] * this.lr, -this.lr), this.lr);
-
-					this.ws[i] = 0;
+					this.ws[i] /= this.trainIterations; //average out if its for an update to the params
 				}
-				if (this.useBias) {
-					for (var j = 0; j < this.outSize(); j++) {
-						this.bs[j] /= this.trainIterations;
-						this.b[j] += this.bs[j] * this.lr;
-						this.bs[j] = 0;
+				if(this.useBias){
+					for (var i = 0; i < this.bs.length; i++) {
+						this.bs[i] /= this.trainIterations;
 					}
 				}
-
 				this.trainIterations = 0;
+			}
+			if(this.useBias){
+				return [this.w,this.ws,this.b,this.bs];
+			}else{
+				return [this.w,this.ws];
 			}
 		}
 

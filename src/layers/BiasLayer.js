@@ -101,22 +101,14 @@
 			return ret;
 		}
 
-
-		updateParams(optimizer) {
-			if (this.trainIterations < 0) {
-				return;
-			}
-			if (optimizer == 'SGD') {
-
-					for (var j = 0; j < this.outSize(); j++) {
-						this.bs[j] /= this.trainIterations;
-						this.b[j] += this.bs[j] * this.lr;
-						this.bs[j] = 0;
-					}
-				
-
+		getParamsAndGrads(forUpdate = true){
+			if(forUpdate){
+				for (var i = 0; i < this.bs.length; i++) {
+					this.bs[i] /= this.trainIterations;
+				}
 				this.trainIterations = 0;
 			}
+			return [this.b,this.bs];
 		}
 
 		static load(json) {

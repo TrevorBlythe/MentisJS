@@ -186,11 +186,27 @@ var Ment = Ment || {};
 			}
 			this.epoch++;
 			if (this.epoch % this.batchSize == 0) {
-				for (var i = this.layers.length - 1; i >= 0; i--) {
-					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
-				}
+				this.updateParams();
 			}
 			return loss;
+		}
+
+		updateParams()	{ 
+			
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for(var j = 0;j<pag.length;j+=2){
+						let params = pag[j];
+						let grads = pag[j+1];
+						for(var k = 0;k<params.length;k++){
+							params[k] += Ment.protectNaN(grads[k] * this.learningRate);
+							grads[k] = 0;
+						}
+					}
+				}
+				if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
+			}
 		}
 	} //END OF NET CLASS DECLARATION
 

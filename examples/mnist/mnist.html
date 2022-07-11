@@ -192,13 +192,14 @@
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
 var net = new Ment.Net([
-	new Ment.Conv(28, 28, 1, 10, 10, 5, 3, 0),
-	new Ment.MaxPool(7, 7, 5, 2, 2, 2),
-	new Ment.FC(45, 35),
-	new Ment.Sig(35),
-	new Ment.FC(35, 10),
-	new Ment.Relu(10),
+		new Ment.Conv([28, 28, 1], [10, 10], 5, 3, 0),
+		new Ment.MaxPool([7, 7, 5], [2, 2], 2),
+		new Ment.FC(45, 35),
+		new Ment.Relu(35),
+		new Ment.FC(35, 10),
+		new Ment.Relu(10),
 ]);
+					
 											
                </textarea
 				>

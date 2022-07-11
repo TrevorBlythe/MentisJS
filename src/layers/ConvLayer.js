@@ -222,26 +222,26 @@ Im sorry but I had to choose one
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
-		updateParams(optimizer) {
-			for (var i = 0; i < this.filterw.length; i++) {
-				if(ConvLayer.averageOutGrads){
-					this.filterws[i] /= this.outSize() / this.filters;
+		getParamsAndGrads(forUpdate = true){
+			if(forUpdate){
+				for (var i = 0; i < this.filterws.length; i++) {
+					this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
+					if(ConvLayer.averageOutGrads){
+						this.filterws[i] /= this.outSize() / this.filters;
+					}
 				}
-				this.filterws[i] /= this.trainIterations; 
-				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				this.filterw[i] += Math.min(
-					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
-					this.lr
-				);
-				this.filterws[i] = 0;
-			}
-			if (this.useBias) {
-				for (var i = 0; i < this.b.length; i++) {
-					this.b[i] += this.bs[i] * this.lr;
-					this.bs[i] = 0;
+				if(this.useBias){
+					for (var i = 0; i < this.bs.length; i++) {
+						this.bs[i] /= this.trainIterations;
+					}
 				}
+				this.trainIterations = 0;
 			}
-			this.trainIterations = 0;
+			if(this.useBias){
+				return [this.filterw,this.filterws,this.b,this.bs];
+			}else{
+				return [this.filterw,this.filterws];
+			}
 		}
 
 		save() {
