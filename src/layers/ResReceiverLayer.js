@@ -49,6 +49,8 @@
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
 		}
 
+		//we dont look in front because residual data only goes forwards.
+
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
@@ -83,7 +85,7 @@
 				if (this.nextLayer == undefined) {
 					throw 'nothing to backpropagate!';
 				}
-				let getErr = (ind) => {
+				getErr = (ind) => {
 					return 	this.nextLayer.costs[ind]
 				}
 			}
@@ -138,5 +140,5 @@
 
 	Ment.ResReceiverLayer = ResReceiverLayer;
 	Ment.ResReceiver = ResReceiverLayer;
-	Ment.Receiver = ResReceiverLayer;
+	Ment.ResR = ResReceiverLayer;
 }
