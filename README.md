@@ -1,4 +1,4 @@
-# Mentis JS machine learning/evoloution <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/logo.png?raw=true" width = 100px>
+# Mentis JS machine learning/evolution <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/logo.png?raw=true" width = 100px>
 
 A javascript neural network library. It can train with backpropagation or neural evoloution! Ill post some examples of those soon!
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
