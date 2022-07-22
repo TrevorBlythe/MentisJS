@@ -4,6 +4,11 @@ A javascript neural network library. It can train with backpropagation or neural
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
 and intuitive machine learning library out there. Inspired by the complicated python ML apis (to make a better one )! Also Inspired by convnetjs!
 
+# BIG ANNOUNCEMENT 
+
+Rnn's are coming soon. I have a working example and a lot more work to do but that is why its been so long for an update
+After Rnn's I think i might take a break. Just kidding. I think i will crank out LSTM and get to work on attention mechanisms. I truly think mainstream AI libs SUCK and are uninutive.. nothing will stop me in my quest even if i have to work on this library for years to come. 
+
 # This project is a work in progress!
 
 Im rewriting it to be as simple as possible. It is now extremely easy to write your own layers! Look in FCLayer.js for a specification on how to write
