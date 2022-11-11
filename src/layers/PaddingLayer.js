@@ -1,14 +1,17 @@
 {
 	class PaddingLayer {
 		constructor(inDim, pad, padwith) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
-			
+
 			pad = pad || 2;
 			padwith = padwith | 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
@@ -76,7 +79,7 @@
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -92,7 +95,7 @@
 								i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
 								i * (this.inHeight * this.pad) * 2
 						);
-						loss += err;
+						loss += Math.pow(err, 2);
 						this.costs[prop] = err;
 					}
 				}
@@ -122,7 +125,14 @@
 			// the sizes;
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
 					return undefined;
 				}
 
@@ -135,7 +145,11 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new PaddingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.pad, saveObject.padwith);
+			let layer = new PaddingLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				saveObject.pad,
+				saveObject.padwith
+			);
 			return layer;
 		}
 	}

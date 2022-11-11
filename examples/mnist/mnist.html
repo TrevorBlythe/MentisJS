@@ -187,6 +187,7 @@
 				<canvas id="filterCanvas"  width="300px" height="60px"></canvas>
 				<h3>Filter Grads:</h3>
 				<canvas id="filterGCanvas"  width="300px" height="60px"></canvas>
+				<h3 id="totserr">Total Error:</h3>
 			</div>
 			<br /><br />
 			<div style="float: right">
@@ -206,7 +207,7 @@ var net = new Ment.Net([
 				<br />
 				<button onclick="eval.call(window,document.getElementById('textinput').value);">Reload Network</button>
 			</div>
-			<p id="lr">learning rate: 0.1</p>
+			<p id="lr">learning rate: 0.001</p>
 			<input
 				type="range"
 				min="0"

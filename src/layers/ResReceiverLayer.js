@@ -1,7 +1,8 @@
 {
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
-		constructor(id, mode = 'concat') { //mode can be concat or add
+		constructor(id, mode = "concat") {
+			//mode can be concat or add
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -31,19 +32,19 @@
 				} else {
 					currentLayer = currentLayer.previousLayer;
 					if (currentLayer == undefined) {
-						throw 'Could not find Matching Emitter Layer for Receiver Layer ID: ' + this.id;
+						throw "Could not find Matching Emitter Layer for Receiver Layer ID: " + this.id;
 					}
 				}
 			}
 			this.emitter = currentLayer;
 			this.inDataFromEmitter = this.emitter.outData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if(this.mode == 'add'){
-				if(layer.outSize() != this.emitter.outSize()){
+			if (this.mode == "add") {
+				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
 				this.outData = new Float32Array(layer.outSize());
-			}else if(this.mode == 'concat'){
+			} else if (this.mode == "concat") {
 				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
 			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
@@ -60,15 +61,16 @@
 					this.inData[i] = inData[i];
 				}
 			}
-			if(this.mode == 'concat'){
+			if (this.mode == "concat") {
+				//first the data behind it and then the skip layer data
 				for (var h = 0; h < this.inData.length; h++) {
 					this.outData[h] = this.inData[h];
 				}
 				for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
 					this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
 				}
-			}else if(this.mode == 'add'){
-				for(var i = 0;i<this.outData.length;i++){
+			} else if (this.mode == "add") {
+				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
 				}
 			}
@@ -79,35 +81,34 @@
 
 			let getErr = (ind) => {
 				return expected[i] - this.outData[i];
-			}
+			};
 
-			if(!expected){
+			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				getErr = (ind) => {
-					return 	this.nextLayer.costs[ind]
-				}
+					return this.nextLayer.costs[ind];
+				};
 			}
 
-
-			if(this.mode == 'concat'){
-				for (var i = 0; i < this.inData.length; i++) {
+			if (this.mode == "concat") {
+				for (var i = 0; i < this.inData.length - this.inDataFromEmitter; i++) {
 					this.costs[i] = getErr(i);
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
-				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
+				for (var i = this.inData.length - this.inDataFromEmitter; i < this.inData.length; i++) {
 					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += this.costsForEmitter[i - this.inData.length];
+					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
 				}
-			} else if(this.mode == 'add'){
+			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
 					this.costsForEmitter[i] = getErr(i);
-					loss += this.costs[i]; 
+					loss += Math.pow(this.costs[i], 2);
 				}
 			}
-		
+
 			return loss / this.inSize();
 		}
 
@@ -122,7 +123,21 @@
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'emitter' || key == 'pl' || key == 'receiver' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "emitter" ||
+					key == "pl" ||
+					key == "receiver" ||
+					key == "ws" ||
+					key == "bs" ||
+					key == "nl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "costsForEmitter" ||
+					key == "inDataFromEmitter"
+				) {
 					return undefined;
 				}
 
@@ -133,7 +148,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResReceiverLayer(saveObject.id,saveObject.mode);
+			let layer = new ResReceiverLayer(saveObject.id, saveObject.mode);
 			return layer;
 		}
 	}

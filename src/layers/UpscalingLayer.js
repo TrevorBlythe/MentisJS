@@ -1,14 +1,17 @@
 {
 	class UpscalingLayer {
 		constructor(inDim, scale) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
-			
+
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;
@@ -26,9 +29,7 @@
 		}
 
 		outSizeDimensions() {
-			return [
-				this.outWidth,this.outHeight,this.inDepth
-			];
+			return [this.outWidth, this.outHeight, this.inDepth];
 		}
 		forward(inData) {
 			if (inData) {
@@ -41,12 +42,15 @@
 				}
 			}
 
-			for(var i = 0;i<this.inDepth;i++){
-				for(var h = 0;h<this.inHeight * this.scale;h++){
-					for(var j = 0;j<this.inWidth * this.scale;j++){
-						this.outData[(i * this.outHeight * this.outWidth) + (h * this.outWidth) + j]
-						= 
-						this.inData[(Math.floor((i/this.scale)) * this.inHeight * this.inWidth) + (Math.floor((h/this.scale)) * this.inWidth) + Math.floor(j/this.scale)];
+			for (var i = 0; i < this.inDepth; i++) {
+				for (var h = 0; h < this.inHeight * this.scale; h++) {
+					for (var j = 0; j < this.inWidth * this.scale; j++) {
+						this.outData[i * this.outHeight * this.outWidth + h * this.outWidth + j] =
+							this.inData[
+								Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+									Math.floor(h / this.scale) * this.inWidth +
+									Math.floor(j / this.scale)
+							];
 					}
 				}
 			}
@@ -63,17 +67,21 @@
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
-			for(var i = 0;i<this.inDepth;i++){
-				for(var h = 0;h<this.inHeight * this.scale;h++){
-					for(var j = 0;j<this.inWidth * this.scale;j++){
-						this.costs[(Math.floor((i/this.scale)) * this.inHeight * this.inWidth) + (Math.floor((h/this.scale)) * this.inWidth) + Math.floor(j/this.scale)]
-						+= 
-						geterr((i * this.outHeight * this.outWidth) + (h * this.outWidth) + j);
-						loss += geterr((i * this.outHeight * this.outWidth) + (h * this.outWidth) + j);
+			for (var i = 0; i < this.inDepth; i++) {
+				//this can be optimized
+				for (var h = 0; h < this.inHeight * this.scale; h++) {
+					for (var j = 0; j < this.inWidth * this.scale; j++) {
+						let t = geterr(i * this.outHeight * this.outWidth + h * this.outWidth + j);
+						this.costs[
+							Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+								Math.floor(h / this.scale) * this.inWidth +
+								Math.floor(j / this.scale)
+						] += t;
+						loss += Math.pow(t, 2);
 					}
 				}
 			}
@@ -81,7 +89,7 @@
 			// 	this.costs[i] /= this.scale;
 			// }
 
-			return loss/this.outSize();
+			return loss / this.outSize();
 		}
 
 		inSize() {
@@ -93,20 +101,19 @@
 		}
 
 		save() {
-
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
-					key == 'ws' ||
-					key == 'bs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
 				) {
 					return undefined;
 				}
@@ -114,17 +121,15 @@
 				return value;
 			});
 
-
 			return ret;
 		}
 		//hey if your enjoying my library contact me trevorblythe82@gmail.com
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new UpscalingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],saveObject.scale);
+			let layer = new UpscalingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.scale);
 			return layer;
 		}
-
 	}
 
 	Ment.UpscalingLayer = UpscalingLayer;

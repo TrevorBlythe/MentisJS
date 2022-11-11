@@ -16,8 +16,11 @@ var Ment = Ment || {};
 	};
 
 	var inputError = function (layer, arr) {
-		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name}: `;
-		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? ',' + layer.inSizeDimensions() : ''}), got (${arr.length})`;
+		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name + (layer.id ? `(${layer.id})` : null)}: `;
+		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : ""}), got (${
+			arr.length
+		})`;
+		return ret;
 	};
 
 	var gaussRandom = function () {
@@ -34,7 +37,7 @@ var Ment = Ment || {};
 		return_v = true;
 		return u * c;
 	};
-	var isBrowser = () => !(typeof window === 'undefined');
+	var isBrowser = () => !(typeof window === "undefined");
 	//wrap everything in a namespace to not pollute global
 
 	let clamp = function (num, min, max) {
@@ -89,10 +92,10 @@ var Ment = Ment || {};
 
 	let renderBox = function (net, ctx, x, y, scale, spread, background) {
 		if (background == undefined) {
-			background = 'white';
+			background = "white";
 		}
 		if (background == false) {
-			background = 'rgba(0,0,0,0)';
+			background = "rgba(0,0,0,0)";
 		}
 		const SPREAD = spread || 10;
 		let maxSize = 1;
@@ -131,16 +134,18 @@ var Ment = Ment || {};
 			ctx.lineTo(xy, yy);
 			ctx.fill();
 			ctx.font = `${(layerSize / maxSize) * scale * (5 / layer.constructor.name.length)}px serif`;
-			ctx.fillStyle = 'black';
+			ctx.fillStyle = "black";
 			ctx.save();
-			ctx.textAlign = 'center';
+			ctx.textAlign = "center";
 			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
 			ctx.rotate(-Math.PI / 2);
 			//(${layer.inSize()})(${layer.outSize()})
 			ctx.fillText(layer.constructor.name, 0, 0);
 			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
 			ctx.fillText(
-				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()})`,
+				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${
+					layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()
+				})`,
 				0,
 				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
 			);
@@ -157,7 +162,7 @@ var Ment = Ment || {};
 		const DRAWBACKGROUND = background;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
-			if (net.layers[i].constructor.name != 'ConvLayer' && net.layers[i].constructor.name != 'MaxPoolLayer') {
+			if (net.layers[i].constructor.name != "ConvLayer" && net.layers[i].constructor.name != "MaxPoolLayer") {
 				if (net.layers[i].inSize() > maxSize) {
 					maxSize = net.layers[i].inSize();
 				} //end of if
@@ -166,7 +171,7 @@ var Ment = Ment || {};
 				} //end of if
 			} //end of for
 			if (DRAWBACKGROUND) {
-				ctx.fillStyle = 'grey';
+				ctx.fillStyle = "grey";
 				ctx.fillRect(x, y, 5 + net.layers.length * scale * SPREAD + scale, 5 + maxSize * scale * 2);
 			}
 		}
@@ -174,24 +179,35 @@ var Ment = Ment || {};
 		//render the neurons in each layer...
 		for (i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
-			if (layer.constructor.name != 'ConvLayer' && layer.constructor.name != 'MaxPoolLayer') {
+			if (layer.constructor.name != "ConvLayer" && layer.constructor.name != "MaxPoolLayer") {
 				for (var h = 0; h < layer.outSize(); h++) {
-					ctx.fillStyle = 'rgb(' + layer.outData[j] * 255 + ',' + layer.outData[j] * 255 + ',' + layer.outData[j] * 255 + ')';
-					ctx.fillRect(x + 5 + (i + 1) * scale * SPREAD, y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2), scale, scale);
+					ctx.fillStyle = "rgb(" + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + ")";
+					ctx.fillRect(
+						x + 5 + (i + 1) * scale * SPREAD,
+						y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
 				}
 
 				for (var j = 0; j < layer.inSize(); j++) {
-					ctx.fillStyle = 'rgb(' + layer.inData[j] * 255 + ',' + layer.inData[j] * 255 + ',' + layer.inData[j] * 255 + ')';
-					ctx.fillRect(x + 5 + i * scale * SPREAD, y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2), scale, scale);
+					ctx.fillStyle = "rgb(" + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + ")";
+					ctx.fillRect(
+						x + 5 + i * scale * SPREAD,
+						y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
 				}
 				//end of render neurons for each layer
 			}
-			if (layer.constructor.name == 'FCLayer') {
+			if (layer.constructor.name == "FCLayer") {
 				//render weights in the fc layer
 
 				for (var j = 0; j < layer.inSize(); j++) {
 					for (var h = 0; h < layer.outSize(); h++) {
-						ctx.strokeStyle = 'rgb(' + -(layer.w[j * layer.outSize() + h] * 255) + ',' + layer.w[j * layer.outSize() + h] * 255 + ',0)';
+						ctx.strokeStyle =
+							"rgb(" + -(layer.w[j * layer.outSize() + h] * 255) + "," + layer.w[j * layer.outSize() + h] * 255 + ",0)";
 						ctx.beginPath();
 						ctx.moveTo(
 							x + 5 + i * scale * SPREAD + scale / 2,
@@ -206,14 +222,14 @@ var Ment = Ment || {};
 				} //end of for loop each inSize
 			} //end of if layer is fc
 			if (
-				layer.constructor.name == 'SigmoidLayer' ||
-				layer.constructor.name == 'SineLayer' ||
-				layer.constructor.name == 'TanhLayer' ||
-				layer.constructor.name == 'ReluLayer'
+				layer.constructor.name == "SigmoidLayer" ||
+				layer.constructor.name == "SineLayer" ||
+				layer.constructor.name == "TanhLayer" ||
+				layer.constructor.name == "ReluLayer"
 			) {
 				//render the word sigmoid in between the nodes
-				ctx.fillStyle = 'white';
-				ctx.font = scale + 'px serif';
+				ctx.fillStyle = "white";
+				ctx.font = scale + "px serif";
 				ctx.fillText(
 					layer.constructor.name.slice(0, -5),
 					x + 5 + (i + 0.4) * scale * SPREAD,
@@ -221,7 +237,7 @@ var Ment = Ment || {};
 				);
 			}
 
-			if ((layer.constructor.name = 'ConvLayer')) {
+			if ((layer.constructor.name = "ConvLayer")) {
 			}
 		} //end of for loop each layer
 	};
@@ -246,7 +262,7 @@ var Ment = Ment || {};
 
 	if (!Ment.isBrowser()) {
 		//test if we are in node
-		if (typeof module === 'undefined' || typeof module.exports === 'undefined') {
+		if (typeof module === "undefined" || typeof module.exports === "undefined") {
 			window.Ment = Ment; // in ordinary browser attach library to window
 		} else {
 			module.exports = Ment; // in nodejs

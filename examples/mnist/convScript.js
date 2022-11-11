@@ -1,28 +1,28 @@
 let out = function (text) {
-	document.getElementById('out').innerHTML += '<br>' + text;
+	document.getElementById("out").innerHTML += "<br>" + text;
 };
 
 let clear = function () {
-	document.getElementById('out').innerHTML = '';
+	document.getElementById("out").innerHTML = "";
 };
 
 let examplesSeen = 0;
 
 let ctx = [
-	document.getElementById('canvas0').getContext('2d'),
-	document.getElementById('canvas1').getContext('2d'),
-	document.getElementById('canvas2').getContext('2d'),
-	document.getElementById('canvas3').getContext('2d'),
-	document.getElementById('canvas4').getContext('2d'),
-	document.getElementById('canvas5').getContext('2d'),
-	document.getElementById('canvas6').getContext('2d'),
-	document.getElementById('canvas7').getContext('2d'),
-	document.getElementById('canvas8').getContext('2d'),
-	document.getElementById('canvas9').getContext('2d'),
+	document.getElementById("canvas0").getContext("2d"),
+	document.getElementById("canvas1").getContext("2d"),
+	document.getElementById("canvas2").getContext("2d"),
+	document.getElementById("canvas3").getContext("2d"),
+	document.getElementById("canvas4").getContext("2d"),
+	document.getElementById("canvas5").getContext("2d"),
+	document.getElementById("canvas6").getContext("2d"),
+	document.getElementById("canvas7").getContext("2d"),
+	document.getElementById("canvas8").getContext("2d"),
+	document.getElementById("canvas9").getContext("2d"),
 ];
 
-let ctxF = document.getElementById('filterCanvas').getContext('2d');
-let ctxFG = document.getElementById('filterGCanvas').getContext('2d');
+let ctxF = document.getElementById("filterCanvas").getContext("2d");
+let ctxFG = document.getElementById("filterGCanvas").getContext("2d");
 
 let drawFromArr = function (arr, ctxy) {
 	let width = 28;
@@ -30,7 +30,7 @@ let drawFromArr = function (arr, ctxy) {
 	for (var i = 0; i < height; i++) {
 		for (var j = 0; j < width; j++) {
 			let x = arr[i * width + j] * 255;
-			ctxy.fillStyle = 'rgb(' + x + ',' + x + ',' + x + ')';
+			ctxy.fillStyle = "rgb(" + x + "," + x + "," + x + ")";
 			ctxy.fillRect(j * 5, i * 5, 5, 5);
 		}
 	}
@@ -46,9 +46,9 @@ let drawFromArrF = function (arr, ctx, xx, y, outOf) {
 			let x = arr[i * width + j] * outOf;
 
 			if (x < 0) {
-				ctx.fillStyle = 'rgb(' + -x + ',' + 0 + ',' + 0 + ')';
+				ctx.fillStyle = "rgb(" + -x + "," + 0 + "," + 0 + ")";
 			} else {
-				ctx.fillStyle = 'rgb(' + 0 + ',' + x + ',' + 0 + ')';
+				ctx.fillStyle = "rgb(" + 0 + "," + x + "," + 0 + ")";
 			}
 			ctx.fillRect(xx + j * 5, y + i * 5, 5, 5);
 		}
@@ -61,7 +61,9 @@ let getDigit = function (digit) {
 };
 
 let greenBox = function (p) {
-	return "<span style='display:inline-block;height:20px;width:20px;background-color:rgb(0," + p + ",0);border:1px solid black'></span>";
+	return (
+		"<span style='display:inline-block;height:20px;width:20px;background-color:rgb(0," + p + ",0);border:1px solid black'></span>"
+	);
 };
 //inWidth, inHeight, inDepth, filterWidth, filterHeight, filters=3, stride=1, padding=0
 
@@ -85,19 +87,21 @@ var net = new Ment.Net([
 	new Ment.Relu(),
 ]);
 
-net.batchSize = 20;
-net.learningRate = 0.1;
-
-let names = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'];
+net.batchSize = 5;
+net.learningRate = 0.001;
+document.getElementById("lr").innerHTML = "Learning Rate: " + net.learningRate;
+let names = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 
 var go = function () {
 	window.loop = setInterval(function () {
+		let fullerr = 0;
 		for (var i = 0; i < 10; i++) {
 			let c = Array(10).fill(0);
-			c[i] = 5;
+			c[i] = 5; //its 5 instead of one to make it more important to get it right
 			let err = net.train(getDigit(names[i]), c);
-			document.getElementById('err' + names[i]).innerHTML = 'Total Error: ' + parseInt(err * 100) + '%';
-			document.getElementById(names[i] + 'out').innerHTML = '';
+			document.getElementById("err" + names[i]).innerHTML = "Total Error: " + parseInt(err * 100) + "%";
+			document.getElementById(names[i] + "out").innerHTML = "";
+			fullerr += err * 100;
 			let max = 0;
 			let ind = 0;
 			for (var j = 0; j < 10; j++) {
@@ -106,12 +110,12 @@ var go = function () {
 					max = net.layers[net.layers.length - 1].outData[j];
 					ind = j;
 				}
-				document.getElementById(names[i] + 'out').innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
+				document.getElementById(names[i] + "out").innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
 			}
 			if (ind == i) {
-				document.getElementById(names[i] + 'c').innerHTML = 'Correct';
+				document.getElementById(names[i] + "c").innerHTML = "Correct";
 			} else {
-				document.getElementById(names[i] + 'c').innerHTML = 'WRONG YOU IDIOT!';
+				document.getElementById(names[i] + "c").innerHTML = "WRONG YOU IDIOT!";
 			}
 			drawFromArr(getDigit(names[i]), ctx[i]);
 		}
@@ -121,7 +125,9 @@ var go = function () {
 			drawFromArrF(
 				net.layers[0].filterw.slice(
 					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight + net.layers[0].filterWidth + net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
+					i * net.layers[0].filterWidth * net.layers[0].filterHeight +
+						net.layers[0].filterWidth +
+						net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
 				),
 				ctxF,
 				5 + i * net.layers[0].filterWidth * 6,
@@ -135,7 +141,9 @@ var go = function () {
 			drawFromArrF(
 				net.layers[0].filterws.slice(
 					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight + net.layers[0].filterWidth + net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
+					i * net.layers[0].filterWidth * net.layers[0].filterHeight +
+						net.layers[0].filterWidth +
+						net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
 				),
 				ctxFG,
 				5 + i * net.layers[0].filterWidth * 6,
@@ -143,9 +151,9 @@ var go = function () {
 				2550
 			);
 		}
-		document.getElementById('es').innerHTML = 'examples seen:' + examplesSeen;
 		examplesSeen++;
+		document.getElementById("es").innerHTML = "examples seen:" + examplesSeen;
+		document.getElementById("totserr").innerHTML = "Total Error:" + fullerr;
 	}, 0);
 };
-
 go();

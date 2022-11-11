@@ -59,11 +59,8 @@
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.lr = 0.01; //learning rate, this will be set by the Net object
-			//dont set it in the constructor unless you really want to
-
 			this.gpuEnabled = false;
-			this.trainIterations = 0; //++'d whenever backwards is called;
+			// this.trainIterations = 0; //++'d whenever backwards is called;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -92,6 +89,7 @@
 		}
 
 		forward(inData) {
+			// console.log(inData);
 			if (inData) {
 				if (inData.length != this.inSize()) {
 					throw inputError(this, inData);
@@ -101,18 +99,20 @@
 					this.inData[i] = inData[i];
 				}
 			}
+			// console.log(this.inData);
 
 			for (var h = 0; h < this.outSize(); h++) {
 				this.outData[h] = 0; //reset outData activation
 				for (var j = 0; j < this.inSize(); j++) {
 					this.outData[h] += this.inData[j] * this.w[h + j * this.outSize()]; // the dirty deed
 				}
+
 				this.outData[h] += this.b[h];
 			}
 		}
 
 		backward(expected) {
-			this.trainIterations++;
+			// this.trainIterations++;
 			let loss = 0;
 			this.costs.fill(0);
 
@@ -124,7 +124,7 @@
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -156,22 +156,22 @@
 			return this.outData.length;
 		}
 
-		getParamsAndGrads(forUpdate = true){
-			if(forUpdate){
-				for (var i = 0; i < this.ws.length; i++) {
-					this.ws[i] /= this.trainIterations; //average out if its for an update to the params
-				}
-				if(this.useBias){
-					for (var i = 0; i < this.bs.length; i++) {
-						this.bs[i] /= this.trainIterations;
-					}
-				}
-				this.trainIterations = 0;
-			}
-			if(this.useBias){
-				return [this.w,this.ws,this.b,this.bs];
-			}else{
-				return [this.w,this.ws];
+		getParamsAndGrads(forUpdate = true) {
+			// if(forUpdate){
+			// 	for (var i = 0; i < this.ws.length; i++) {
+			// 		this.ws[i] /= this.trainIterations; //average out if its for an update to the params
+			// 	}
+			// 	if(this.useBias){
+			// 		for (var i = 0; i < this.bs.length; i++) {
+			// 			this.bs[i] /= this.trainIterations;
+			// 		}
+			// 	}
+			// 	this.trainIterations = 0;
+			// } //why do we need this?
+			if (this.useBias) {
+				return [this.w, this.ws, this.b, this.bs];
+			} else {
+				return [this.w, this.ws];
 			}
 		}
 
@@ -199,16 +199,17 @@
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
-					key == 'ws' ||
-					key == 'bs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == (this.useBias ? null : "b")
 				) {
 					return undefined;
 				}
@@ -230,8 +231,10 @@
 			for (var i = 0; i < layer.w.length; i++) {
 				layer.w[i] = saveObject.w[i];
 			}
-			for (var i = 0; i < layer.b.length; i++) {
-				layer.b[i] = saveObject.b[i];
+			if (layer.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
 			}
 			layer.lr = saveObject.lr;
 			return layer;

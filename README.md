@@ -4,10 +4,16 @@ A javascript neural network library. It can train with backpropagation or neural
 I am about to be a college student so expect the next four years to be this projects prime. This project is aimed to be the most simple
 and intuitive machine learning library out there. Inspired by the complicated python ML apis (to make a better one )! Also Inspired by convnetjs!
 
-# BIG ANNOUNCEMENT 
+# RNN update
 
-Rnn's are coming soon. I have a working example and a lot more work to do but that is why its been so long for an update
-After Rnn's I think i might take a break. Just kidding. I think i will crank out LSTM and get to work on attention mechanisms. I truly think mainstream AI libs SUCK and are uninutive.. nothing will stop me in my quest even if i have to work on this library for years to come. 
+Im not completly sure if I did it correctly! This is why im releasing it with a warning that it might not work and
+the api might change. Please give feedback if anyone is even using this.
+
+A tutorial has been added to the website to get started with some rudimentary RNN models.
+
+Im trying to get a really small diffussion model as a proof of work that my rnn implementation is working.
+
+This latest update also comes with some minor fixes of things like saving arrays in json that dont need saved
 
 # This project is a work in progress!
 
@@ -15,16 +21,8 @@ Im rewriting it to be as simple as possible. It is now extremely easy to write y
 your first one.
 
 Things i will add:
-deconvoloution -- Complete
 lstm layer, soon
-padding in conv layer, at 30 github stars
 optimizers, soon
-
-Things for the distant future:
-
-GAN tutorial.
-Diffusion model tutorial.
-WASM for speed?
 
 Check the wiki for more docs!
 
@@ -132,6 +130,7 @@ ResEmitter(id)<br>
 ResReceiver(id)<br>
 Sigmoid(size)<br>
 Sine(size)<br>
+DataBlockLayer(size);<br>
 Tanh(size)<br>
 
 Check the wiki for more docs!

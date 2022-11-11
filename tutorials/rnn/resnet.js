@@ -1,0 +1,1 @@
+Ment.polluteGlobal();

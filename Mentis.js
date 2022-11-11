@@ -3,24 +3,14 @@ var Ment = Ment || {};
 	class Net {
 		constructor(layers, optimizer) {
 			this.layers = layers || [];
-			this.batchSize = 19;
-			this.epoch = 0;
-			this.lr = 0.01;
-			this.optimizer = optimizer || 'SGD';
+			this.batchSize = 5; //every 'batchSize' iterations, update the weights and reset this.iteration
+			this.epoch = 0; //goes up every 'updateParams' call
+			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
+			this.learningRate = 0.01;
+			this.optimizer = optimizer || "SGD";
 
 			this.connectLayers();
 		} //END OF CONSTRUCTOR
-
-		set learningRate(lr) {
-			for (var i = 0; i < this.layers.length; i++) {
-				this.layers[i].lr = lr;
-			}
-			this.lr = lr;
-		}
-
-		get learningRate() {
-			return this.lr;
-		}
 
 		get inData() {
 			return this.layers[0].inData;
@@ -30,7 +20,7 @@ var Ment = Ment || {};
 			if (arr.length == this.layers[0].inSize()) {
 				this.layers[0].inData = arr;
 			} else {
-				throw 'cant set in data because its the wrong size';
+				throw "cant set in data because its the wrong size";
 			}
 		}
 
@@ -42,7 +32,7 @@ var Ment = Ment || {};
 			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
 				this.layers[0].outData = arr;
 			} else {
-				throw 'cant set out data because its the wrong size';
+				throw "cant set out data because its the wrong size";
 			}
 		}
 
@@ -55,37 +45,41 @@ var Ment = Ment || {};
 			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
 			// you dont.)
 
-			for(var i = 1;i<this.layers.length;i++){
-				this.layers[i].previousLayer = this.layers[i-1];
+			for (var i = 1; i < this.layers.length; i++) {
+				this.layers[i].previousLayer = this.layers[i - 1];
 			}
 
-			for(var i = this.layers.length - 1; i >= 0; i--){
-				this.layers[i].nextLayer = this.layers[i+1];
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				this.layers[i].nextLayer = this.layers[i + 1];
 			}
 
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
 					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
-						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
-							this.layers[i].constructor.name
-						} output size: ${this.layers[i].outSize()}${this.layers[i].outSizeDimensions ? ' (' + this.layers[i].outSizeDimensions() + ')' : ''}, ${
+						throw `Failure connecting ${
+							this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
+						} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
+							i
+						].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
 							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].inSizeDimensions ? ' (' + this.layers[i + 1].inSizeDimensions() + ')' : ''}`;
+						} input size: ${this.layers[i + 1].inSize()}${
+							this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
+						}`;
 					}
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}
 			}
-
 		}
 
 		forward(data) {
-			if (!Array.isArray(data)) {
-				if (typeof data == 'number') {
+			if (!Array.isArray(data) && data.constructor.name != "Float32Array") {
+				if (typeof data == "number") {
 					data = [data];
 				} else {
-					throw 'INPUT ARRAYS INTO FORWARDS FUNCTION ONLY!';
+					throw "INPUT ARRAYS INTO FORWARDS FUNCTION ONLY! you inputted: " + data.constructor.name;
 				}
 			}
+			// console.log(data);
 			this.layers[0].forward(data);
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].forward();
@@ -94,7 +88,7 @@ var Ment = Ment || {};
 		}
 
 		enableGPU() {
-			console.log('gpu hasnt been implemented yet so nothing will happen');
+			console.log("gpu hasnt been implemented yet so nothing will happen");
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].gpuEnabled = true;
 				if (this.layers[i].initGPU) {
@@ -123,13 +117,13 @@ var Ment = Ment || {};
 
 			if (saveToFile) {
 				if (Ment.isBrowser()) {
-					var a = document.createElement('a');
+					var a = document.createElement("a");
 					var file = new Blob([this.save()]);
 					a.href = URL.createObjectURL(file);
-					a.download = 'model.json';
+					a.download = "model.json";
 					a.click();
 				} else {
-					var fs = require('fs');
+					var fs = require("fs");
 					fs.writeFileSync(filename, this.save());
 				}
 			}
@@ -138,13 +132,13 @@ var Ment = Ment || {};
 
 			saveObject.layerAmount = this.layers.length;
 			saveObject.optimizer = this.optimizer;
-			saveObject.lr = this.lr;
+			saveObject.learningRate = this.learningRate;
 			saveObject.batchSize = this.batchSize;
 			for (var i = 0; i < this.layers.length; i++) {
 				let layer = this.layers[i];
 				let layerSaveObject = {};
 				layerSaveObject.type = layer.constructor.name;
-				saveObject['layer' + i] = layerSaveObject;
+				saveObject["layer" + i] = layerSaveObject;
 				if (!layer.save) {
 					throw `Layer ${i} (${layer.constructor.name}) in your network doesnt have a save() function so your model cant be saved`;
 				}
@@ -158,18 +152,14 @@ var Ment = Ment || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = Ment[jsonObj['layer' + i].type].load(jsonObj['layer' + i].layerData);
+				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
 			let ret = new Ment.Net(layers, jsonObj.optimizer);
-			ret.learningRate = jsonObj.lr;
+			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
 		} //end of load method
-
-		copy(net) {
-			/* This method copies the weights and bes of one network into its own weights and bes  */
-		} //end of copy method
 
 		train(input, expectedOut) {
 			this.forward(input);
@@ -182,15 +172,58 @@ var Ment = Ment || {};
 		backward(expected) {
 			let loss = this.layers[this.layers.length - 1].backward(expected);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
-				this.layers[i].backward();
+				loss += this.layers[i].backward();
 			}
-			this.epoch++;
-			if (this.epoch % this.batchSize == 0) {
-				for (var i = this.layers.length - 1; i >= 0; i--) {
-					if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
-				}
+			this.iteration++;
+			if (this.iteration % this.batchSize == 0) {
+				this.updateParams();
+				this.iteration = 0;
 			}
 			return loss;
+		}
+
+		getParamsAndGrads() {
+			let ret = [];
+			for (var i = 0; i < this.layers.length; i++) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let params = pag[j];
+						let grads = pag[j + 1];
+						ret.push(params);
+						ret.push(grads);
+					}
+				}
+			}
+			return ret;
+		}
+
+		updateParams() {
+			if (!this.testCounter) {
+				this.testCounter = 0;
+			}
+			this.epoch++;
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let params = pag[j];
+						let grads = pag[j + 1];
+						for (var k = 0; k < params.length; k++) {
+							params[k] += (grads[k] / this.iteration) * this.learningRate; //only does SGD rn
+							// params[k] += Ment.protectNaN((grads[k] / this.batchSize) * this.learningRate); //safe version
+							this.testCounter += grads[k];
+							grads[k] = 0;
+						}
+						this.testCounter /= params.length;
+					}
+				}
+			}
+			this.testCounter /= this.layers.length;
+			if (this.epoch % 50 == 0) {
+				// console.log(this.testCounter * 1000);
+				this.testCounter = 0;
+			}
 		}
 	} //END OF NET CLASS DECLARATION
 
@@ -264,6 +297,145 @@ var Ment = Ment || {};
 
 var Ment = Ment || {};
 {
+	class Rnn extends Ment.Net {
+		constructor(layers, optimizer) {
+			console.log("DONT USE THIS YET RNN IS DEFINITLY NOT FINISHED AND WONT WORK.");
+			super(layers, optimizer);
+			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
+			//to do backprop over time
+		} //END OF CONSTRUCTOR
+
+		get inData() {
+			return this.layers[0].inData;
+		}
+
+		set inData(arr) {
+			if (arr.length == this.layers[0].inSize()) {
+				this.layers[0].inData = arr;
+			} else {
+				throw "cant set in data because its the wrong size";
+			}
+		}
+
+		get outData() {
+			return [...this.layers[this.layers.length - 1].outData];
+		}
+
+		set outData(arr) {
+			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
+				this.layers[0].outData = arr;
+			} else {
+				throw "cant set out data because its the wrong size";
+			}
+		}
+
+		setState(ind) {
+			if (ind == undefined) {
+				ind = this.savedStates.length - 1;
+			}
+			let state = this.savedStates[ind];
+
+			for (var i = 0; i < this.layers.length; i++) {
+				let layer = this.layers[i];
+				layer.inData = state[i];
+				if (i > 0) {
+					this.layers[i - 1].outData = layer.inData;
+				}
+			}
+			this.layers[this.layers.length - 1].outData = state[state.length - 1];
+
+			//special cases
+			for (var i = 0; i < this.layers.length; i++) {
+				if (this.layers[i].constructor.name == "ResReceiverLayer") {
+					this.layers[i].inDataFromEmitter = this.layers[i].emitter.outData;
+				}
+			}
+		}
+
+		forward(data) {
+			if (data == undefined) {
+				data = new Float32Array(this.layers[this.layers.length - 1].outData);
+			}
+			let ret = super.forward(data);
+			//save the state
+			let state = this.savedStates[this.savedStates.push([]) - 1];
+			for (var i = 0; i < this.layers.length; i++) {
+				state.push(new Float32Array(this.layers[i].inData));
+			}
+			state.push(new Float32Array(this.layers[this.layers.length - 1].outData));
+			return ret;
+		}
+
+		resetRecurrentData() {
+			for (var i = 0; i < this.layers.length; i++) {
+				let layer = this.layers[i];
+				if (layer.constructor.name == "RecEmitterLayer") {
+					layer.savedOutData.fill(0);
+				}
+
+				if (layer.constructor.name == "RecReceiverLayer") {
+					layer.savedCostsForEmitter.fill(0);
+				}
+			}
+		}
+
+		train(input, expectedOut) {
+			console.log("dont");
+			this.forward(input);
+
+			let loss = this.backward(expectedOut);
+			//done backpropping
+			return loss;
+		}
+
+		backward(expected) {
+			//in rnns we might not have an expected array.. in this case..
+			//backprop the error from the sequence.. yknow like how an rnn works.
+			//this will only work if the indata and outdata of the network are the same.
+
+			//you could have a network with different in/out sizes but you would need to specify
+			//the expected input and output at each step. - Trevor
+			if (expected == undefined) {
+				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
+					throw (
+						"uh oh, you made a FUCKY WUCKY. if your gonna train like that mister..." +
+						"Then you better make sure the in size of your network is the same as the outsize!" +
+						"or else daddy is gonna be extra mad! Now go ahead and search up how an RNN works buddy. Then we will talk"
+					);
+				}
+				expected = new Float32Array(this.layers[0].inSize());
+				for (var i = 0; i < this.layers[0].inSize(); i++) {
+					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i];
+				} //rip slow ass copy
+			}
+			this.setState();
+			//custom code:
+			this.layers[this.layers.length - 1].b = this.layers[0].inData;
+
+			let ret = super.backward(expected);
+			this.savedStates.pop();
+			return ret;
+		}
+
+		static load(json) {
+			let jsonObj = JSON.parse(json);
+			let layers = [];
+			for (var i = 0; i < jsonObj.layerAmount; i++) {
+				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				layers.push(layer);
+			}
+			let ret = new Ment.Rnn(layers, jsonObj.optimizer);
+			ret.learningRate = jsonObj.learningRate;
+			ret.batchSize = jsonObj.batchSize;
+			return ret;
+		} //end of load method
+	} //END OF Rnn CLASS DECLARATION
+
+	Ment.Rnn = Rnn;
+}
+
+var Ment = Ment || {};
+{
 	var return_v = false;
 	var v_val = 0.0;
 
@@ -280,8 +452,11 @@ var Ment = Ment || {};
 	};
 
 	var inputError = function (layer, arr) {
-		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name}: `;
-		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? ',' + layer.inSizeDimensions() : ''}), got (${arr.length})`;
+		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name + (layer.id ? `(${layer.id})` : null)}: `;
+		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : ""}), got (${
+			arr.length
+		})`;
+		return ret;
 	};
 
 	var gaussRandom = function () {
@@ -298,7 +473,7 @@ var Ment = Ment || {};
 		return_v = true;
 		return u * c;
 	};
-	var isBrowser = () => !(typeof window === 'undefined');
+	var isBrowser = () => !(typeof window === "undefined");
 	//wrap everything in a namespace to not pollute global
 
 	let clamp = function (num, min, max) {
@@ -353,10 +528,10 @@ var Ment = Ment || {};
 
 	let renderBox = function (net, ctx, x, y, scale, spread, background) {
 		if (background == undefined) {
-			background = 'white';
+			background = "white";
 		}
 		if (background == false) {
-			background = 'rgba(0,0,0,0)';
+			background = "rgba(0,0,0,0)";
 		}
 		const SPREAD = spread || 10;
 		let maxSize = 1;
@@ -395,16 +570,18 @@ var Ment = Ment || {};
 			ctx.lineTo(xy, yy);
 			ctx.fill();
 			ctx.font = `${(layerSize / maxSize) * scale * (5 / layer.constructor.name.length)}px serif`;
-			ctx.fillStyle = 'black';
+			ctx.fillStyle = "black";
 			ctx.save();
-			ctx.textAlign = 'center';
+			ctx.textAlign = "center";
 			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
 			ctx.rotate(-Math.PI / 2);
 			//(${layer.inSize()})(${layer.outSize()})
 			ctx.fillText(layer.constructor.name, 0, 0);
 			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
 			ctx.fillText(
-				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()})`,
+				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${
+					layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()
+				})`,
 				0,
 				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
 			);
@@ -421,7 +598,7 @@ var Ment = Ment || {};
 		const DRAWBACKGROUND = background;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
-			if (net.layers[i].constructor.name != 'ConvLayer' && net.layers[i].constructor.name != 'MaxPoolLayer') {
+			if (net.layers[i].constructor.name != "ConvLayer" && net.layers[i].constructor.name != "MaxPoolLayer") {
 				if (net.layers[i].inSize() > maxSize) {
 					maxSize = net.layers[i].inSize();
 				} //end of if
@@ -430,7 +607,7 @@ var Ment = Ment || {};
 				} //end of if
 			} //end of for
 			if (DRAWBACKGROUND) {
-				ctx.fillStyle = 'grey';
+				ctx.fillStyle = "grey";
 				ctx.fillRect(x, y, 5 + net.layers.length * scale * SPREAD + scale, 5 + maxSize * scale * 2);
 			}
 		}
@@ -438,24 +615,35 @@ var Ment = Ment || {};
 		//render the neurons in each layer...
 		for (i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
-			if (layer.constructor.name != 'ConvLayer' && layer.constructor.name != 'MaxPoolLayer') {
+			if (layer.constructor.name != "ConvLayer" && layer.constructor.name != "MaxPoolLayer") {
 				for (var h = 0; h < layer.outSize(); h++) {
-					ctx.fillStyle = 'rgb(' + layer.outData[j] * 255 + ',' + layer.outData[j] * 255 + ',' + layer.outData[j] * 255 + ')';
-					ctx.fillRect(x + 5 + (i + 1) * scale * SPREAD, y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2), scale, scale);
+					ctx.fillStyle = "rgb(" + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + ")";
+					ctx.fillRect(
+						x + 5 + (i + 1) * scale * SPREAD,
+						y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
 				}
 
 				for (var j = 0; j < layer.inSize(); j++) {
-					ctx.fillStyle = 'rgb(' + layer.inData[j] * 255 + ',' + layer.inData[j] * 255 + ',' + layer.inData[j] * 255 + ')';
-					ctx.fillRect(x + 5 + i * scale * SPREAD, y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2), scale, scale);
+					ctx.fillStyle = "rgb(" + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + ")";
+					ctx.fillRect(
+						x + 5 + i * scale * SPREAD,
+						y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
+						scale,
+						scale
+					);
 				}
 				//end of render neurons for each layer
 			}
-			if (layer.constructor.name == 'FCLayer') {
+			if (layer.constructor.name == "FCLayer") {
 				//render weights in the fc layer
 
 				for (var j = 0; j < layer.inSize(); j++) {
 					for (var h = 0; h < layer.outSize(); h++) {
-						ctx.strokeStyle = 'rgb(' + -(layer.w[j * layer.outSize() + h] * 255) + ',' + layer.w[j * layer.outSize() + h] * 255 + ',0)';
+						ctx.strokeStyle =
+							"rgb(" + -(layer.w[j * layer.outSize() + h] * 255) + "," + layer.w[j * layer.outSize() + h] * 255 + ",0)";
 						ctx.beginPath();
 						ctx.moveTo(
 							x + 5 + i * scale * SPREAD + scale / 2,
@@ -470,14 +658,14 @@ var Ment = Ment || {};
 				} //end of for loop each inSize
 			} //end of if layer is fc
 			if (
-				layer.constructor.name == 'SigmoidLayer' ||
-				layer.constructor.name == 'SineLayer' ||
-				layer.constructor.name == 'TanhLayer' ||
-				layer.constructor.name == 'ReluLayer'
+				layer.constructor.name == "SigmoidLayer" ||
+				layer.constructor.name == "SineLayer" ||
+				layer.constructor.name == "TanhLayer" ||
+				layer.constructor.name == "ReluLayer"
 			) {
 				//render the word sigmoid in between the nodes
-				ctx.fillStyle = 'white';
-				ctx.font = scale + 'px serif';
+				ctx.fillStyle = "white";
+				ctx.font = scale + "px serif";
 				ctx.fillText(
 					layer.constructor.name.slice(0, -5),
 					x + 5 + (i + 0.4) * scale * SPREAD,
@@ -485,7 +673,7 @@ var Ment = Ment || {};
 				);
 			}
 
-			if ((layer.constructor.name = 'ConvLayer')) {
+			if ((layer.constructor.name = "ConvLayer")) {
 			}
 		} //end of for loop each layer
 	};
@@ -510,7 +698,7 @@ var Ment = Ment || {};
 
 	if (!Ment.isBrowser()) {
 		//test if we are in node
-		if (typeof module === 'undefined' || typeof module.exports === 'undefined') {
+		if (typeof module === "undefined" || typeof module.exports === "undefined") {
 			window.Ment = Ment; // in ordinary browser attach library to window
 		} else {
 			module.exports = Ment; // in nodejs
@@ -572,7 +760,7 @@ var Ment = Ment || {};
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -593,7 +781,14 @@ var Ment = Ment || {};
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
 					return undefined;
 				}
 
@@ -622,9 +817,8 @@ var Ment = Ment || {};
 			this.costs = new Float32Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 			this.trainIterations = 0;
-			this.lr = 0;
-			for(var i =0 ;i<this.b.length;i++){
-				this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
+			for (var i = 0; i < this.b.length; i++) {
+				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
 		}
 
@@ -640,10 +834,9 @@ var Ment = Ment || {};
 				this.costs = new Float32Array(layer.outSize());
 				this.b = new Float32Array(layer.outSize());
 				this.bs = new Float32Array(layer.outSize());
-				for(var i =0 ;i<this.b.length;i++){
-					this.b[i] = 0.1 * Math.random() * (Math.random() >  0.5 ? -1:1);
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 				}
-
 			}
 			this.pl = layer;
 		}
@@ -667,13 +860,13 @@ var Ment = Ment || {};
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] = this.nextLayer.costs[i];
 					this.bs[i] += this.nextLayer.costs[i];
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 			} else {
 				for (var j = 0; j < this.outData.length; j++) {
@@ -700,7 +893,14 @@ var Ment = Ment || {};
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'pl' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "pl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer"
+				) {
 					return undefined;
 				}
 
@@ -713,22 +913,14 @@ var Ment = Ment || {};
 			return ret;
 		}
 
-
-		updateParams(optimizer) {
-			if (this.trainIterations < 0) {
-				return;
-			}
-			if (optimizer == 'SGD') {
-
-					for (var j = 0; j < this.outSize(); j++) {
-						this.bs[j] /= this.trainIterations;
-						this.b[j] += this.bs[j] * this.lr;
-						this.bs[j] = 0;
-					}
-				
-
+		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
+				for (var i = 0; i < this.bs.length; i++) {
+					this.bs[i] /= this.trainIterations;
+				}
 				this.trainIterations = 0;
 			}
+			return [this.b, this.bs];
 		}
 
 		static load(json) {
@@ -743,11 +935,10 @@ var Ment = Ment || {};
 
 	Ment.BiasLayer = BiasLayer;
 	Ment.Bias = BiasLayer;
-
 }
 
 {
-/*
+	/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
 this.filterw = [0,1,2,3,4,5,6,7,8,
 								0,1,2,3,4,5,6,7,8,
@@ -766,34 +957,29 @@ Im sorry but I had to choose one
 */
 
 	class ConvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
-		constructor(
-			inDim,
-			filterDim,
-			filters = 3,
-			stride = 1,
-			bias = true
-
-		) {
-
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+		static averageOutCosts = true; //probs
+		static averageOutGrads = false; //ehhh
+		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
-
-			this.lr = 0.01; //learning rate, this will be set by the Net object
-
 			this.filters = filters; //the amount of filters
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
@@ -803,22 +989,20 @@ Im sorry but I had to choose one
 			this.stride = stride;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.trainIterations = 0;
+			// this.trainIterations = 0;
 			this.outData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 1) / stride) *
-					Math.ceil((inHeight - filterHeight + 1) / stride) *
-					this.filters
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-				this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
-			
+			this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
 			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Conv layer error: filters cannot be bigger than the input';
+				throw "Conv layer error: filters cannot be bigger than the input";
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
@@ -867,15 +1051,7 @@ Im sorry but I had to choose one
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw (
-						'INPUT SIZE WRONG ON CONV LAYER:\nexpected array size (' +
-						this.inSize() +
-						', dimensions: [' +
-						this.inSizeDimensions() +
-						']), got: (' +
-						inData.length +
-						')'
-					);
+					throw inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -911,21 +1087,20 @@ Im sorry but I had to choose one
 
 		backward(expected) {
 			let loss = 0;
-			this.trainIterations++;
+			// this.trainIterations++;
 			for (var i = 0; i < this.inSize(); i++) {
 				//reset the costs
 				this.costs[i] = 0;
 			}
 
 			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 			let getErr = (ind) => expected[ind] - this.outData[ind];
-			
-			if(!expected){
+
+			if (!expected) {
 				getErr = (ind) => this.nextLayer.costs[ind];
 			}
 
@@ -961,8 +1136,8 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getErr(i);
 			}
-			if(ConvLayer.averageOutCosts){
-				for(var i = 0;i<this.costs.length;i++){
+			if (ConvLayer.averageOutCosts) {
+				for (var i = 0; i < this.costs.length; i++) {
 					this.costs[i] /= this.accessed[i];
 					this.accessed[i] = 0;
 				}
@@ -970,41 +1145,52 @@ Im sorry but I had to choose one
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
-		updateParams(optimizer) {
-			for (var i = 0; i < this.filterw.length; i++) {
-				if(ConvLayer.averageOutGrads){
-					this.filterws[i] /= this.outSize() / this.filters;
+		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
+				for (var i = 0; i < this.filterws.length; i++) {
+					// this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
+					if (ConvLayer.averageOutGrads) {
+						this.filterws[i] /= this.outSize() / this.filters;
+					}
 				}
-				this.filterws[i] /= this.trainIterations; 
-				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				this.filterw[i] += Math.min(
-					Math.max((this.filterws[i] / this.trainIterations) * this.lr, -this.lr),
-					this.lr
-				);
-				this.filterws[i] = 0;
+				// if (this.useBias) { //dont think we need this
+				// 	for (var i = 0; i < this.bs.length; i++) {
+				// 		this.bs[i] /= this.trainIterations;
+				// 	}
+				// }
+				// this.trainIterations = 0;
 			}
 			if (this.useBias) {
-				for (var i = 0; i < this.b.length; i++) {
-					this.b[i] += this.bs[i] * this.lr;
-					this.bs[i] = 0;
-				}
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
 			}
-			this.trainIterations = 0;
 		}
 
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'filterws' ||
-					key == 'filterbs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b")
 				) {
 					return undefined;
 				}
@@ -1018,15 +1204,8 @@ Im sorry but I had to choose one
 		static load(json) {
 			let saveObject = JSON.parse(json);
 			let layer = new ConvLayer(
-				[
-				saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth,
-				],
-				[
-				saveObject.filterWidth,
-				saveObject.filterHeight,
-				],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -1039,7 +1218,6 @@ Im sorry but I had to choose one
 					layer.b[i] = saveObject.b[i];
 				}
 			}
-			layer.lr = saveObject.lr;
 			return layer;
 		}
 	}
@@ -1049,30 +1227,118 @@ Im sorry but I had to choose one
 }
 
 {
+	class DataBlockLayer {
+		//this layer outputs the inputs with no changes
+		constructor(size) {
+			this.nextLayer; //the connected layer
+			this.inData = new Float32Array(size); //the inData
+			this.outData = new Float32Array(size); //will be init when "connect" is called.
+			this.costs = new Float32Array(size); //costs for each neuron
+			this.pl; //reference to previous layer
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+		set previousLayer(layer) {
+			// try to connect to it
+			if (this.inData.length == 0) {
+				//if not already initialized
+				this.inData = new Float32Array(layer.outSize());
+				this.outData = new Float32Array(layer.outSize());
+				this.costs = new Float32Array(layer.outSize());
+			}
+			this.pl = layer;
+		}
+		forward(inData) {
+			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
+				for (var i = 0; i < inData.length; i++) {
+					this.inData[i] = inData[i];
+				}
+			}
+
+			this.outData.fill(0);
+		}
+
+		backward(expected) {
+			this.costs.fill(0);
+			return 0; //best layer
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new DataBlockLayer(saveObject.savedSize);
+			return layer;
+		}
+	}
+
+	Ment.DataBlockLayer = DataBlockLayer;
+	Ment.Block = DataBlockLayer;
+	Ment.Zeroes = DataBlockLayer;
+	Ment.Wall = DataBlockLayer;
+}
+
+{
 	class DeconvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
-		constructor(
-			inDim,
-			filterDim, filters = 3, stride = 1,useBias = true) {
-
-
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+		static averageOutCosts = true; //probs
+		static averageOutGrads = false; //eh
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
-
-			this.lr = 0.01; //learning rate, this will be set by the Net object
 			this.useBias = useBias;
 
 			this.filters = filters; //the amount of filters
@@ -1086,9 +1352,7 @@ Im sorry but I had to choose one
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
 			this.inData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 1) / stride) *
-					Math.ceil((inHeight - filterHeight + 1) / stride) *
-					this.filters
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
 			this.outData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
@@ -1096,9 +1360,9 @@ Im sorry but I had to choose one
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-				this.accessed = new Float32Array(this.inData.length).fill(0);
+			this.accessed = new Float32Array(this.inData.length).fill(0);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Conv layer error: filters cannot be bigger than the input';
+				throw "Conv layer error: filters cannot be bigger than the input";
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
@@ -1197,7 +1461,7 @@ Im sorry but I had to choose one
 
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input deconv layer';
+					throw "error backproping on an unconnected layer with no expected parameter input deconv layer";
 				}
 			}
 
@@ -1231,7 +1495,7 @@ Im sorry but I had to choose one
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									// this.accessed[odi]++;
+									this.accessed[odi]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -1244,7 +1508,7 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			if(DeconvLayer.averageOutCosts){
+			if (DeconvLayer.averageOutCosts) {
 				for (var i = 0; i < this.inSize(); i++) {
 					this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
 					this.accessed[i] = 0;
@@ -1254,39 +1518,52 @@ Im sorry but I had to choose one
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
-		updateParams(optimizer) {
-			for (var i = 0; i < this.filterw.length; i++) {
-			if(DeconvLayer.averageOutGrads){
-				this.filterws[i] /= this.outSize() / this.filters;
-			}
-				this.filterws[i] /= this.trainIterations;
-				this.filterws[i] = Ment.protectNaN(this.filterws[i]);
-				this.filterw[i] += Math.max(-this.lr, Math.min(this.lr, this.filterws[i] * this.lr));
-
-				this.filterws[i] = 0;
-			}
-			if(this.useBias){
-				for (var i = 0; i < this.b.length; i++) {
-					this.b[i] += this.bs[i] * this.lr;
-					this.bs[i] = 0;
+		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
+				for (var i = 0; i < this.filterws.length; i++) {
+					this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
+					if (DeconvLayer.averageOutGrads) {
+						this.filterws[i] /= this.outSize() / this.filters;
+					}
 				}
+				if (this.useBias) {
+					for (var i = 0; i < this.bs.length; i++) {
+						this.bs[i] /= this.trainIterations;
+					}
+				}
+				this.trainIterations = 0;
 			}
-			this.trainIterations = 0;
+			if (this.useBias) {
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
+			}
 		}
 
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'filterws' ||
-					key == 'filterbs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "accessed" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b") //maybe bad
 				) {
 					return undefined;
 				}
@@ -1301,11 +1578,8 @@ Im sorry but I had to choose one
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new DeconvLayer(
-				[saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth],
-				[saveObject.filterWidth,
-				saveObject.filterHeight],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -1318,7 +1592,6 @@ Im sorry but I had to choose one
 					layer.b[i] = saveObject.b[i];
 				}
 			}
-			layer.lr = saveObject.lr;
 			return layer;
 		}
 	}
@@ -1334,10 +1607,12 @@ Im sorry but I had to choose one
 {
 	class DepaddingLayer {
 		constructor(outDim, pad) {
-
-			if(outDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (outDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let outWidth = outDim[0];
 			let outHeight = outDim[1];
@@ -1397,7 +1672,7 @@ Im sorry but I had to choose one
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -1406,7 +1681,7 @@ Im sorry but I had to choose one
 					for (var h = 0; h < this.outWidth; h++) {
 						let prop = i * this.outHeight * this.outWidth + j * this.outWidth + h;
 						let err = geterr(prop);
-						loss += err;
+						loss += Math.pow(err, 2);
 						this.costs[
 							(j + 1) * this.pad * 2 +
 								-this.pad +
@@ -1443,7 +1718,15 @@ Im sorry but I had to choose one
 			// the sizes;
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed"
+				) {
 					return undefined;
 				}
 
@@ -1528,11 +1811,8 @@ Im sorry but I had to choose one
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.lr = 0.01; //learning rate, this will be set by the Net object
-			//dont set it in the constructor unless you really want to
-
 			this.gpuEnabled = false;
-			this.trainIterations = 0; //++'d whenever backwards is called;
+			// this.trainIterations = 0; //++'d whenever backwards is called;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -1561,6 +1841,7 @@ Im sorry but I had to choose one
 		}
 
 		forward(inData) {
+			// console.log(inData);
 			if (inData) {
 				if (inData.length != this.inSize()) {
 					throw inputError(this, inData);
@@ -1570,18 +1851,20 @@ Im sorry but I had to choose one
 					this.inData[i] = inData[i];
 				}
 			}
+			// console.log(this.inData);
 
 			for (var h = 0; h < this.outSize(); h++) {
 				this.outData[h] = 0; //reset outData activation
 				for (var j = 0; j < this.inSize(); j++) {
 					this.outData[h] += this.inData[j] * this.w[h + j * this.outSize()]; // the dirty deed
 				}
+
 				this.outData[h] += this.b[h];
 			}
 		}
 
 		backward(expected) {
-			this.trainIterations++;
+			// this.trainIterations++;
 			let loss = 0;
 			this.costs.fill(0);
 
@@ -1593,7 +1876,7 @@ Im sorry but I had to choose one
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -1625,27 +1908,22 @@ Im sorry but I had to choose one
 			return this.outData.length;
 		}
 
-		updateParams(optimizer) {
-			if (this.trainIterations < 0) {
-				return;
-			}
-			if (optimizer == 'SGD') {
-				for (var i = 0; i < this.ws.length; i++) {
-					this.ws[i] /= this.trainIterations;
-					this.ws[i] = Ment.protectNaN(this.ws[i]);
-					this.w[i] += Math.min(Math.max(this.ws[i] * this.lr, -this.lr), this.lr);
-
-					this.ws[i] = 0;
-				}
-				if (this.useBias) {
-					for (var j = 0; j < this.outSize(); j++) {
-						this.bs[j] /= this.trainIterations;
-						this.b[j] += this.bs[j] * this.lr;
-						this.bs[j] = 0;
-					}
-				}
-
-				this.trainIterations = 0;
+		getParamsAndGrads(forUpdate = true) {
+			// if(forUpdate){
+			// 	for (var i = 0; i < this.ws.length; i++) {
+			// 		this.ws[i] /= this.trainIterations; //average out if its for an update to the params
+			// 	}
+			// 	if(this.useBias){
+			// 		for (var i = 0; i < this.bs.length; i++) {
+			// 			this.bs[i] /= this.trainIterations;
+			// 		}
+			// 	}
+			// 	this.trainIterations = 0;
+			// } //why do we need this?
+			if (this.useBias) {
+				return [this.w, this.ws, this.b, this.bs];
+			} else {
+				return [this.w, this.ws];
 			}
 		}
 
@@ -1673,16 +1951,17 @@ Im sorry but I had to choose one
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
-					key == 'ws' ||
-					key == 'bs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == (this.useBias ? null : "b")
 				) {
 					return undefined;
 				}
@@ -1704,8 +1983,10 @@ Im sorry but I had to choose one
 			for (var i = 0; i < layer.w.length; i++) {
 				layer.w[i] = saveObject.w[i];
 			}
-			for (var i = 0; i < layer.b.length; i++) {
-				layer.b[i] = saveObject.b[i];
+			if (layer.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
 			}
 			layer.lr = saveObject.lr;
 			return layer;
@@ -1780,7 +2061,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -1810,7 +2091,14 @@ Im sorry but I had to choose one
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'pl' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer"
+				) {
 					return undefined;
 				}
 
@@ -1859,8 +2147,7 @@ Im sorry but I had to choose one
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] =
-					this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
+				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
 			}
 		}
 
@@ -1868,7 +2155,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -1902,17 +2189,23 @@ Im sorry but I had to choose one
 {
 	class MaxPoolLayer {
 		constructor(inDim, filterDim, stride = 1) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
@@ -1923,13 +2216,15 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth);
+			this.outData = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
+			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)';
+				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
 
 			//Everything below here is precalculated constants used in forward/backward
@@ -1954,7 +2249,11 @@ Im sorry but I had to choose one
 		}
 
 		outSizeDimensions() {
-			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride), this.inDepth];
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride),
+				this.inDepth,
+			];
 		}
 
 		forward(inData) {
@@ -1999,7 +2298,7 @@ Im sorry but I had to choose one
 			if (!expected) {
 				// -- sometimes the most effiecant way is the least elagant one...
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -2024,14 +2323,14 @@ Im sorry but I had to choose one
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
 				) {
 					return undefined;
 				}
@@ -2046,11 +2345,8 @@ Im sorry but I had to choose one
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
-				[saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth],
-				[saveObject.filterWidth,
-				saveObject.filterHeight],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.stride
 			);
 			return layer;
@@ -2064,14 +2360,17 @@ Im sorry but I had to choose one
 {
 	class PaddingLayer {
 		constructor(inDim, pad, padwith) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
-			
+
 			pad = pad || 2;
 			padwith = padwith | 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
@@ -2139,7 +2438,7 @@ Im sorry but I had to choose one
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -2155,7 +2454,7 @@ Im sorry but I had to choose one
 								i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
 								i * (this.inHeight * this.pad) * 2
 						);
-						loss += err;
+						loss += Math.pow(err, 2);
 						this.costs[prop] = err;
 					}
 				}
@@ -2185,7 +2484,14 @@ Im sorry but I had to choose one
 			// the sizes;
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
 					return undefined;
 				}
 
@@ -2198,7 +2504,11 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new PaddingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.pad, saveObject.padwith);
+			let layer = new PaddingLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				saveObject.pad,
+				saveObject.padwith
+			);
 			return layer;
 		}
 	}
@@ -2213,6 +2523,7 @@ Im sorry but I had to choose one
 	class RecEmitterLayer {
 		//Glorified Identity layer, only difference it has an ID and reference to the receiver with same ID
 		constructor(id) {
+			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData = new Float32Array(0); //the inData
@@ -2220,8 +2531,7 @@ Im sorry but I had to choose one
 			this.costs = new Float32Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
-			this.savedOutData = new Float32Array(0);
-			this.savedOutData.fill(0);
+			this.savedOutData;
 			this.pl = undefined;
 		}
 
@@ -2235,12 +2545,16 @@ Im sorry but I had to choose one
 			this.pl = layer;
 
 			this.outData = new Float32Array(layer.outSize());
+			this.savedOutData = new Float32Array(layer.outSize());
+			this.savedOutData.fill(0);
 		}
 
 		forward(inData) {
 			//first save what was last outputted for the receiver
-			for(var i =0 ;i<this.outSize();i++){
-				this.savedOutData[i] = this.outData[i];
+			if (this.where == "behind") {
+				for (var i = 0; i < this.outSize(); i++) {
+					this.savedOutData[i] = this.outData[i];
+				}
 			}
 			if (inData) {
 				if (inData.length != this.inSize()) {
@@ -2255,30 +2569,35 @@ Im sorry but I had to choose one
 				//the outData of this layer is the same object referenced in the inData of the Receiver layer
 				this.outData[h] = this.inData[h];
 			}
+			if (this.where == "in front") {
+				for (var i = 0; i < this.outSize(); i++) {
+					this.savedOutData[i] = this.outData[i];
+				}
+			}
 		}
 
 		backward(expected) {
 			let loss = 0;
 			this.costs.fill(0);
+
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
-				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.receiver.costsForEmitter[i];
+					this.costs[i] += this.costsFromReceiver[i];
 					this.costs[i] /= 2;
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 			} else {
-				//this code should never run tbh
 				for (var j = 0; j < this.outData.length; j++) {
 					let err = expected[j] - this.outData[j];
-					this.costs[j] += err;
+					this.costs[j] += (err + this.costsFromReceiver[i]) / 2;
 					loss += Math.pow(err, 2);
 				}
 			}
+
 			return loss / this.inSize();
 		}
 
@@ -2295,7 +2614,19 @@ Im sorry but I had to choose one
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'receiver' || key == 'pl' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'emitter') {
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "emitter" ||
+					key == "costsFromReceiver"
+				) {
 					return undefined;
 				}
 
@@ -2324,7 +2655,9 @@ Im sorry but I had to choose one
 {
 	class RecReceiverLayer {
 		//Recurrent Receiver
-		constructor(id, mode = 'concat') { //mode can be concat or add
+		constructor(id, mode = "concat") {
+			//mode can be concat or add
+			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -2334,8 +2667,9 @@ Im sorry but I had to choose one
 			this.emitter;
 			this.inDataFromEmitter;
 			this.costsForEmitter;
+			this.savedCostsForEmitter; //costs one step behind
 			this.pl; // holds a reference to previous layer
-			this.nl; //guess
+			this.nl; //next layer
 		}
 
 		get previousLayer() {
@@ -2350,13 +2684,13 @@ Im sorry but I had to choose one
 			let found = false;
 			let currentLayer = layer; //start at this layer go back until find a reciever with the same ID
 			while (!found) {
-				if (currentLayer.id == this.id && currentLayer.constructor == Ment.ResEmitter) {
+				if (currentLayer.id == this.id && currentLayer.constructor == Ment.RecEmitter) {
 					found = true;
 				} else {
 					currentLayer = currentLayer.previousLayer;
 					if (currentLayer == undefined) {
-						if(this.checkedFront){
-							throw "COULD NOT FIND MATCHING REC EMITTER FOR REC RECEIVER LAYER";
+						if (this.checkedFront) {
+							throw "COULD NOT FIND MATCHING REC EMITTER FOR REC RECEIVER LAYERR";
 						}
 						this.checkedBehind = true;
 						return; //give up for now
@@ -2364,21 +2698,25 @@ Im sorry but I had to choose one
 				}
 			}
 			this.emitter = currentLayer;
+			this.emitter.where = "behind";
+
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if(this.mode == 'add'){
-				if(layer.outSize() != this.emitter.outSize()){
+			if (this.mode == "add") {
+				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
 				this.outData = new Float32Array(layer.outSize());
-			}else if(this.mode == 'concat'){
+			} else if (this.mode == "concat") {
 				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
 			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
 
 		get nextLayer() {
-			return this.pl;
+			return this.nl;
 		}
 
 		set nextLayer(layer) {
@@ -2387,12 +2725,13 @@ Im sorry but I had to choose one
 			let found = false;
 			let currentLayer = layer; //start at this layer go back until find a reciever with the same ID
 			while (!found) {
-				if (currentLayer.id == this.id && currentLayer.constructor == Ment.ResEmitter) {
+				if (currentLayer.id == this.id && currentLayer.constructor == Ment.RecEmitterLayer) {
 					found = true;
 				} else {
 					currentLayer = currentLayer.nextLayer;
+
 					if (currentLayer == undefined) {
-						if(this.checkedBehind){
+						if (this.checkedBehind) {
 							throw "COULD NOT FIND MATCHING REC EMITTER FOR REC RECEIVER LAYER";
 						}
 						this.checkedFront = true;
@@ -2401,20 +2740,21 @@ Im sorry but I had to choose one
 				}
 			}
 			this.emitter = currentLayer;
+			this.emitter.where = "in front";
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if(this.mode == 'add'){
-				if(layer.outSize() != this.emitter.outSize()){
+			if (this.mode == "add") {
+				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(layer.outSize());
-			}else if(this.mode == 'concat'){
-				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+				this.outData = new Float32Array(this.previousLayer.outSize());
+			} else if (this.mode == "concat") {
+				this.outData = new Float32Array(this.previousLayer.outSize() + this.emitter.outSize());
 			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
-
-		
 
 		forward(inData) {
 			if (inData) {
@@ -2425,15 +2765,15 @@ Im sorry but I had to choose one
 					this.inData[i] = inData[i];
 				}
 			}
-			if(this.mode == 'concat'){
+			if (this.mode == "concat") {
 				for (var h = 0; h < this.inData.length; h++) {
 					this.outData[h] = this.inData[h];
 				}
 				for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
 					this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
 				}
-			}else if(this.mode == 'add'){
-				for(var i = 0;i<this.outData.length;i++){
+			} else if (this.mode == "add") {
+				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
 				}
 			}
@@ -2444,35 +2784,46 @@ Im sorry but I had to choose one
 
 			let getErr = (ind) => {
 				return expected[i] - this.outData[i];
-			}
+			};
 
-			if(!expected){
+			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				getErr = (ind) => {
-					return 	this.nextLayer.costs[ind]
+					return this.nextLayer.costs[ind];
+				};
+			}
+
+			if (this.emitter.where == "behind") {
+				for (var i = 0; i < this.inSize(); i++) {
+					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
 				}
 			}
 
-
-			if(this.mode == 'concat'){
+			if (this.mode == "concat") {
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
 					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += this.costsForEmitter[i - this.inData.length];
+					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
 				}
-			} else if(this.mode == 'add'){
+			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
 					this.costsForEmitter[i] = getErr(i);
-					loss += this.costs[i]; 
+					loss += Math.pow(this.costs[i], 2);
 				}
 			}
-		
+
+			if (this.emitter.where == "in front") {
+				for (var i = 0; i < this.inSize(); i++) {
+					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
+				}
+			}
+
 			return loss / this.inSize();
 		}
 
@@ -2487,7 +2838,24 @@ Im sorry but I had to choose one
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'emitter' || key == 'pl' || key == 'receiver' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "emitter" ||
+					key == "pl" ||
+					key == "ws" ||
+					key == "bs" ||
+					key == "nl" ||
+					key == "receiver" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "costsForEmitter" ||
+					key == "inDataFromEmitter" ||
+					key == "savedCostsForEmitter" ||
+					key == "costsFromReceiver" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "savedOutData"
+				) {
 					return undefined;
 				}
 
@@ -2498,7 +2866,7 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new RecReceiverLayer(saveObject.id,saveObject.mode);
+			let layer = new RecReceiverLayer(saveObject.id, saveObject.mode);
 			return layer;
 		}
 	}
@@ -2506,7 +2874,6 @@ Im sorry but I had to choose one
 	Ment.RecReceiverLayer = RecReceiverLayer;
 	Ment.RecReceiver = RecReceiverLayer;
 	Ment.RecR = RecReceiverLayer;
-
 }
 
 {
@@ -2534,7 +2901,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -2609,18 +2976,18 @@ Im sorry but I had to choose one
 			this.costs.fill(0);
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] += this.nextLayer.costs[i];
 					this.costs[i] += this.receiver.costsForEmitter[i];
 					this.costs[i] /= 2;
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 			} else {
 				//this code should never run tbh
-				console.log('somethings a little weird about your network bud....');
+				console.log("somethings a little weird about your network bud....");
 				for (var j = 0; j < this.outData.length; j++) {
 					let err = expected[j] - this.outData[j];
 					this.costs[j] += err;
@@ -2643,7 +3010,16 @@ Im sorry but I had to choose one
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'receiver' || key == 'pl' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'emitter') {
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "emitter"
+				) {
 					return undefined;
 				}
 
@@ -2672,7 +3048,8 @@ Im sorry but I had to choose one
 {
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
-		constructor(id, mode = 'concat') { //mode can be concat or add
+		constructor(id, mode = "concat") {
+			//mode can be concat or add
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -2702,19 +3079,19 @@ Im sorry but I had to choose one
 				} else {
 					currentLayer = currentLayer.previousLayer;
 					if (currentLayer == undefined) {
-						throw 'Could not find Matching Emitter Layer for Receiver Layer ID: ' + this.id;
+						throw "Could not find Matching Emitter Layer for Receiver Layer ID: " + this.id;
 					}
 				}
 			}
 			this.emitter = currentLayer;
 			this.inDataFromEmitter = this.emitter.outData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if(this.mode == 'add'){
-				if(layer.outSize() != this.emitter.outSize()){
+			if (this.mode == "add") {
+				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
 				this.outData = new Float32Array(layer.outSize());
-			}else if(this.mode == 'concat'){
+			} else if (this.mode == "concat") {
 				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
 			}
 			this.costsForEmitter = new Float32Array(this.emitter.outSize());
@@ -2731,15 +3108,16 @@ Im sorry but I had to choose one
 					this.inData[i] = inData[i];
 				}
 			}
-			if(this.mode == 'concat'){
+			if (this.mode == "concat") {
+				//first the data behind it and then the skip layer data
 				for (var h = 0; h < this.inData.length; h++) {
 					this.outData[h] = this.inData[h];
 				}
 				for (var h = this.inData.length; h < this.inData.length + this.inDataFromEmitter.length; h++) {
 					this.outData[h] = this.inDataFromEmitter[h - this.inData.length];
 				}
-			}else if(this.mode == 'add'){
-				for(var i = 0;i<this.outData.length;i++){
+			} else if (this.mode == "add") {
+				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
 				}
 			}
@@ -2750,35 +3128,34 @@ Im sorry but I had to choose one
 
 			let getErr = (ind) => {
 				return expected[i] - this.outData[i];
-			}
+			};
 
-			if(!expected){
+			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				getErr = (ind) => {
-					return 	this.nextLayer.costs[ind]
-				}
+					return this.nextLayer.costs[ind];
+				};
 			}
 
-
-			if(this.mode == 'concat'){
-				for (var i = 0; i < this.inData.length; i++) {
+			if (this.mode == "concat") {
+				for (var i = 0; i < this.inData.length - this.inDataFromEmitter; i++) {
 					this.costs[i] = getErr(i);
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
-				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
+				for (var i = this.inData.length - this.inDataFromEmitter; i < this.inData.length; i++) {
 					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += this.costsForEmitter[i - this.inData.length];
+					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
 				}
-			} else if(this.mode == 'add'){
+			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
 					this.costsForEmitter[i] = getErr(i);
-					loss += this.costs[i]; 
+					loss += Math.pow(this.costs[i], 2);
 				}
 			}
-		
+
 			return loss / this.inSize();
 		}
 
@@ -2793,7 +3170,21 @@ Im sorry but I had to choose one
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'emitter' || key == 'pl' || key == 'receiver' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "emitter" ||
+					key == "pl" ||
+					key == "receiver" ||
+					key == "ws" ||
+					key == "bs" ||
+					key == "nl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "costsForEmitter" ||
+					key == "inDataFromEmitter"
+				) {
 					return undefined;
 				}
 
@@ -2804,7 +3195,7 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ResReceiverLayer(saveObject.id,saveObject.mode);
+			let layer = new ResReceiverLayer(saveObject.id, saveObject.mode);
 			return layer;
 		}
 	}
@@ -2945,14 +3336,17 @@ Im sorry but I had to choose one
 {
 	class UpscalingLayer {
 		constructor(inDim, scale) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
-			
+
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
 			this.inDepth = inDepth;
@@ -2970,9 +3364,7 @@ Im sorry but I had to choose one
 		}
 
 		outSizeDimensions() {
-			return [
-				this.outWidth,this.outHeight,this.inDepth
-			];
+			return [this.outWidth, this.outHeight, this.inDepth];
 		}
 		forward(inData) {
 			if (inData) {
@@ -2985,12 +3377,15 @@ Im sorry but I had to choose one
 				}
 			}
 
-			for(var i = 0;i<this.inDepth;i++){
-				for(var h = 0;h<this.inHeight * this.scale;h++){
-					for(var j = 0;j<this.inWidth * this.scale;j++){
-						this.outData[(i * this.outHeight * this.outWidth) + (h * this.outWidth) + j]
-						= 
-						this.inData[(Math.floor((i/this.scale)) * this.inHeight * this.inWidth) + (Math.floor((h/this.scale)) * this.inWidth) + Math.floor(j/this.scale)];
+			for (var i = 0; i < this.inDepth; i++) {
+				for (var h = 0; h < this.inHeight * this.scale; h++) {
+					for (var j = 0; j < this.inWidth * this.scale; j++) {
+						this.outData[i * this.outHeight * this.outWidth + h * this.outWidth + j] =
+							this.inData[
+								Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+									Math.floor(h / this.scale) * this.inWidth +
+									Math.floor(j / this.scale)
+							];
 					}
 				}
 			}
@@ -3007,17 +3402,21 @@ Im sorry but I had to choose one
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
-			for(var i = 0;i<this.inDepth;i++){
-				for(var h = 0;h<this.inHeight * this.scale;h++){
-					for(var j = 0;j<this.inWidth * this.scale;j++){
-						this.costs[(Math.floor((i/this.scale)) * this.inHeight * this.inWidth) + (Math.floor((h/this.scale)) * this.inWidth) + Math.floor(j/this.scale)]
-						+= 
-						geterr((i * this.outHeight * this.outWidth) + (h * this.outWidth) + j);
-						loss += geterr((i * this.outHeight * this.outWidth) + (h * this.outWidth) + j);
+			for (var i = 0; i < this.inDepth; i++) {
+				//this can be optimized
+				for (var h = 0; h < this.inHeight * this.scale; h++) {
+					for (var j = 0; j < this.inWidth * this.scale; j++) {
+						let t = geterr(i * this.outHeight * this.outWidth + h * this.outWidth + j);
+						this.costs[
+							Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+								Math.floor(h / this.scale) * this.inWidth +
+								Math.floor(j / this.scale)
+						] += t;
+						loss += Math.pow(t, 2);
 					}
 				}
 			}
@@ -3025,7 +3424,7 @@ Im sorry but I had to choose one
 			// 	this.costs[i] /= this.scale;
 			// }
 
-			return loss/this.outSize();
+			return loss / this.outSize();
 		}
 
 		inSize() {
@@ -3037,20 +3436,19 @@ Im sorry but I had to choose one
 		}
 
 		save() {
-
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (
-					key == 'ws' ||
-					key == 'bs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
 				) {
 					return undefined;
 				}
@@ -3058,17 +3456,15 @@ Im sorry but I had to choose one
 				return value;
 			});
 
-
 			return ret;
 		}
 		//hey if your enjoying my library contact me trevorblythe82@gmail.com
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new UpscalingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],saveObject.scale);
+			let layer = new UpscalingLayer([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.scale);
 			return layer;
 		}
-
 	}
 
 	Ment.UpscalingLayer = UpscalingLayer;

@@ -45,18 +45,18 @@
 			this.costs.fill(0);
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] += this.nextLayer.costs[i];
 					this.costs[i] += this.receiver.costsForEmitter[i];
 					this.costs[i] /= 2;
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 			} else {
 				//this code should never run tbh
-				console.log('somethings a little weird about your network bud....');
+				console.log("somethings a little weird about your network bud....");
 				for (var j = 0; j < this.outData.length; j++) {
 					let err = expected[j] - this.outData[j];
 					this.costs[j] += err;
@@ -79,7 +79,16 @@
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'receiver' || key == 'pl' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'emitter') {
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "emitter"
+				) {
 					return undefined;
 				}
 

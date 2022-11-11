@@ -2,7 +2,7 @@
 	class RecEmitterLayer {
 		//Glorified Identity layer, only difference it has an ID and reference to the receiver with same ID
 		constructor(id) {
-			console.log('this layer isnt finished yet it wont work.... sory :(')
+			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData = new Float32Array(0); //the inData
@@ -10,8 +10,7 @@
 			this.costs = new Float32Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
-			this.savedOutData = new Float32Array(0);
-			this.savedOutData.fill(0);
+			this.savedOutData;
 			this.pl = undefined;
 		}
 
@@ -25,12 +24,16 @@
 			this.pl = layer;
 
 			this.outData = new Float32Array(layer.outSize());
+			this.savedOutData = new Float32Array(layer.outSize());
+			this.savedOutData.fill(0);
 		}
 
 		forward(inData) {
 			//first save what was last outputted for the receiver
-			for(var i =0 ;i<this.outSize();i++){
-				this.savedOutData[i] = this.outData[i];
+			if (this.where == "behind") {
+				for (var i = 0; i < this.outSize(); i++) {
+					this.savedOutData[i] = this.outData[i];
+				}
 			}
 			if (inData) {
 				if (inData.length != this.inSize()) {
@@ -45,30 +48,35 @@
 				//the outData of this layer is the same object referenced in the inData of the Receiver layer
 				this.outData[h] = this.inData[h];
 			}
+			if (this.where == "in front") {
+				for (var i = 0; i < this.outSize(); i++) {
+					this.savedOutData[i] = this.outData[i];
+				}
+			}
 		}
 
 		backward(expected) {
 			let loss = 0;
 			this.costs.fill(0);
+
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
-				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
 					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.receiver.costsForEmitter[i];
+					this.costs[i] += this.costsFromReceiver[i];
 					this.costs[i] /= 2;
-					loss += this.costs[i];
+					loss += Math.pow(this.costs[i], 2);
 				}
 			} else {
-				//this code should never run tbh
 				for (var j = 0; j < this.outData.length; j++) {
 					let err = expected[j] - this.outData[j];
-					this.costs[j] += err;
+					this.costs[j] += (err + this.costsFromReceiver[i]) / 2;
 					loss += Math.pow(err, 2);
 				}
 			}
+
 			return loss / this.inSize();
 		}
 
@@ -85,7 +93,19 @@
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'receiver' || key == 'pl' || key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'emitter') {
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "emitter" ||
+					key == "costsFromReceiver"
+				) {
 					return undefined;
 				}
 

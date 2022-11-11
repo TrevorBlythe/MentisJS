@@ -3,24 +3,14 @@ var Ment = Ment || {};
 	class Net {
 		constructor(layers, optimizer) {
 			this.layers = layers || [];
-			this.batchSize = 19;
-			this.epoch = 0;
-			this.lr = 0.01;
-			this.optimizer = optimizer || 'SGD';
+			this.batchSize = 5; //every 'batchSize' iterations, update the weights and reset this.iteration
+			this.epoch = 0; //goes up every 'updateParams' call
+			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
+			this.learningRate = 0.01;
+			this.optimizer = optimizer || "SGD";
 
 			this.connectLayers();
 		} //END OF CONSTRUCTOR
-
-		set learningRate(lr) {
-			for (var i = 0; i < this.layers.length; i++) {
-				this.layers[i].lr = lr;
-			}
-			this.lr = lr;
-		}
-
-		get learningRate() {
-			return this.lr;
-		}
 
 		get inData() {
 			return this.layers[0].inData;
@@ -30,7 +20,7 @@ var Ment = Ment || {};
 			if (arr.length == this.layers[0].inSize()) {
 				this.layers[0].inData = arr;
 			} else {
-				throw 'cant set in data because its the wrong size';
+				throw "cant set in data because its the wrong size";
 			}
 		}
 
@@ -42,7 +32,7 @@ var Ment = Ment || {};
 			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
 				this.layers[0].outData = arr;
 			} else {
-				throw 'cant set out data because its the wrong size';
+				throw "cant set out data because its the wrong size";
 			}
 		}
 
@@ -55,37 +45,41 @@ var Ment = Ment || {};
 			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
 			// you dont.)
 
-			for(var i = 1;i<this.layers.length;i++){
-				this.layers[i].previousLayer = this.layers[i-1];
+			for (var i = 1; i < this.layers.length; i++) {
+				this.layers[i].previousLayer = this.layers[i - 1];
 			}
 
-			for(var i = this.layers.length - 1; i >= 0; i--){
-				this.layers[i].nextLayer = this.layers[i+1];
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				this.layers[i].nextLayer = this.layers[i + 1];
 			}
 
 			for (var i = 0; i < this.layers.length; i++) {
 				if (i < this.layers.length - 1) {
 					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
-						throw `Failure connecting ${this.layers[i].constructor.name} layer with ${this.layers[i + 1].constructor.name},${
-							this.layers[i].constructor.name
-						} output size: ${this.layers[i].outSize()}${this.layers[i].outSizeDimensions ? ' (' + this.layers[i].outSizeDimensions() + ')' : ''}, ${
+						throw `Failure connecting ${
+							this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
+						} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
+							i
+						].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
 							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${this.layers[i + 1].inSizeDimensions ? ' (' + this.layers[i + 1].inSizeDimensions() + ')' : ''}`;
+						} input size: ${this.layers[i + 1].inSize()}${
+							this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
+						}`;
 					}
 					this.layers[i + 1].inData = this.layers[i].outData;
 				}
 			}
-
 		}
 
 		forward(data) {
-			if (!Array.isArray(data)) {
-				if (typeof data == 'number') {
+			if (!Array.isArray(data) && data.constructor.name != "Float32Array") {
+				if (typeof data == "number") {
 					data = [data];
 				} else {
-					throw 'INPUT ARRAYS INTO FORWARDS FUNCTION ONLY!';
+					throw "INPUT ARRAYS INTO FORWARDS FUNCTION ONLY! you inputted: " + data.constructor.name;
 				}
 			}
+			// console.log(data);
 			this.layers[0].forward(data);
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].forward();
@@ -94,7 +88,7 @@ var Ment = Ment || {};
 		}
 
 		enableGPU() {
-			console.log('gpu hasnt been implemented yet so nothing will happen');
+			console.log("gpu hasnt been implemented yet so nothing will happen");
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].gpuEnabled = true;
 				if (this.layers[i].initGPU) {
@@ -123,13 +117,13 @@ var Ment = Ment || {};
 
 			if (saveToFile) {
 				if (Ment.isBrowser()) {
-					var a = document.createElement('a');
+					var a = document.createElement("a");
 					var file = new Blob([this.save()]);
 					a.href = URL.createObjectURL(file);
-					a.download = 'model.json';
+					a.download = "model.json";
 					a.click();
 				} else {
-					var fs = require('fs');
+					var fs = require("fs");
 					fs.writeFileSync(filename, this.save());
 				}
 			}
@@ -138,13 +132,13 @@ var Ment = Ment || {};
 
 			saveObject.layerAmount = this.layers.length;
 			saveObject.optimizer = this.optimizer;
-			saveObject.lr = this.lr;
+			saveObject.learningRate = this.learningRate;
 			saveObject.batchSize = this.batchSize;
 			for (var i = 0; i < this.layers.length; i++) {
 				let layer = this.layers[i];
 				let layerSaveObject = {};
 				layerSaveObject.type = layer.constructor.name;
-				saveObject['layer' + i] = layerSaveObject;
+				saveObject["layer" + i] = layerSaveObject;
 				if (!layer.save) {
 					throw `Layer ${i} (${layer.constructor.name}) in your network doesnt have a save() function so your model cant be saved`;
 				}
@@ -158,18 +152,14 @@ var Ment = Ment || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = Ment[jsonObj['layer' + i].type].load(jsonObj['layer' + i].layerData);
+				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
 			let ret = new Ment.Net(layers, jsonObj.optimizer);
-			ret.learningRate = jsonObj.lr;
+			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
 		} //end of load method
-
-		copy(net) {
-			/* This method copies the weights and bes of one network into its own weights and bes  */
-		} //end of copy method
 
 		train(input, expectedOut) {
 			this.forward(input);
@@ -184,28 +174,55 @@ var Ment = Ment || {};
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				this.layers[i].backward();
 			}
-			this.epoch++;
-			if (this.epoch % this.batchSize == 0) {
+			this.iteration++;
+			if (this.iteration % this.batchSize == 0) {
 				this.updateParams();
+				this.iteration = 0;
 			}
 			return loss;
 		}
 
-		updateParams()	{ 
-			
+		getParamsAndGrads() {
+			let ret = [];
+			for (var i = 0; i < this.layers.length; i++) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let params = pag[j];
+						let grads = pag[j + 1];
+						ret.push(params);
+						ret.push(grads);
+					}
+				}
+			}
+			return ret;
+		}
+
+		updateParams() {
+			if (!this.testCounter) {
+				this.testCounter = 0;
+			}
+			this.epoch++;
 			for (var i = this.layers.length - 1; i >= 0; i--) {
 				if (this.layers[i].getParamsAndGrads) {
 					let pag = this.layers[i].getParamsAndGrads();
-					for(var j = 0;j<pag.length;j+=2){
+					for (var j = 0; j < pag.length; j += 2) {
 						let params = pag[j];
-						let grads = pag[j+1];
-						for(var k = 0;k<params.length;k++){
-							params[k] += Ment.protectNaN(grads[k] * this.learningRate);
+						let grads = pag[j + 1];
+						for (var k = 0; k < params.length; k++) {
+							params[k] += (grads[k] / this.iteration) * this.learningRate; //only does SGD rn
+							// params[k] += Ment.protectNaN((grads[k] / this.batchSize) * this.learningRate); //safe version
+							this.testCounter += grads[k];
 							grads[k] = 0;
 						}
+						this.testCounter /= params.length;
 					}
 				}
-				if (this.layers[i].updateParams) this.layers[i].updateParams(this.optimizer);
+			}
+			this.testCounter /= this.layers.length;
+			if (this.epoch % 50 == 0) {
+				// console.log(this.testCounter * 1000);
+				this.testCounter = 0;
 			}
 		}
 	} //END OF NET CLASS DECLARATION

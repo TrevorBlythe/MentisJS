@@ -1,28 +1,28 @@
 {
 	class DeconvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
-		constructor(
-			inDim,
-			filterDim, filters = 3, stride = 1,useBias = true) {
-
-
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+		static averageOutCosts = true; //probs
+		static averageOutGrads = false; //eh
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
-
-			this.lr = 0.01; //learning rate, this will be set by the Net object
 			this.useBias = useBias;
 
 			this.filters = filters; //the amount of filters
@@ -36,9 +36,7 @@
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.trainIterations = 0;
 			this.inData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 1) / stride) *
-					Math.ceil((inHeight - filterHeight + 1) / stride) *
-					this.filters
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
 			this.outData = new Float32Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
@@ -46,9 +44,9 @@
 			this.costs = new Float32Array(this.inData.length);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
-				this.accessed = new Float32Array(this.inData.length).fill(0);
+			this.accessed = new Float32Array(this.inData.length).fill(0);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Conv layer error: filters cannot be bigger than the input';
+				throw "Conv layer error: filters cannot be bigger than the input";
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
@@ -147,7 +145,7 @@
 
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input deconv layer';
+					throw "error backproping on an unconnected layer with no expected parameter input deconv layer";
 				}
 			}
 
@@ -181,7 +179,7 @@
 
 									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
 
-									// this.accessed[odi]++;
+									this.accessed[odi]++;
 
 									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
 								}
@@ -194,7 +192,7 @@
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getCost(i);
 			}
-			if(DeconvLayer.averageOutCosts){
+			if (DeconvLayer.averageOutCosts) {
 				for (var i = 0; i < this.inSize(); i++) {
 					this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
 					this.accessed[i] = 0;
@@ -204,41 +202,52 @@
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
-		getParamsAndGrads(forUpdate = true){
-			if(forUpdate){
+		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
 				for (var i = 0; i < this.filterws.length; i++) {
 					this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
-					if(DeconvLayer.averageOutGrads){
+					if (DeconvLayer.averageOutGrads) {
 						this.filterws[i] /= this.outSize() / this.filters;
 					}
 				}
-				if(this.useBias){
+				if (this.useBias) {
 					for (var i = 0; i < this.bs.length; i++) {
 						this.bs[i] /= this.trainIterations;
 					}
 				}
 				this.trainIterations = 0;
 			}
-			if(this.useBias){
-				return [this.filterw,this.filterws,this.b,this.bs];
-			}else{
-				return [this.filterw,this.filterws];
+			if (this.useBias) {
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
 			}
 		}
 
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'filterws' ||
-					key == 'filterbs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "accessed" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b") //maybe bad
 				) {
 					return undefined;
 				}
@@ -253,11 +262,8 @@
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new DeconvLayer(
-				[saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth],
-				[saveObject.filterWidth,
-				saveObject.filterHeight],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -270,7 +276,6 @@
 					layer.b[i] = saveObject.b[i];
 				}
 			}
-			layer.lr = saveObject.lr;
 			return layer;
 		}
 	}

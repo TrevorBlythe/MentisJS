@@ -7,6 +7,7 @@
 		<link rel="stylesheet" href="index.css" />
 		<script src="src/Utils.js"></script>
 		<script src="src/Net.js"></script>
+		<script src="src/Rnn.js"></script>
 		<script src="src/layers/FCLayer.js"></script>
 		<script src="src/layers/ActivationBase.js"></script>
 		<script src="src/layers/SigmoidLayer.js"></script>
@@ -17,11 +18,14 @@
 		<script src="src/layers/IdentityLayer.js"></script>
 		<script src="src/layers/ConvLayer.js"></script>
 		<script src="src/layers/DeconvLayer.js"></script>
+		<script src="src/layers/DataBlockLayer.js"></script>
 		<script src="src/layers/PaddingLayer.js"></script>
 		<script src="src/layers/DepaddingLayer.js"></script>
 		<script src="src/layers/UpscalingLayer.js"></script>
 		<script src="src/layers/MaxPoolLayer.js"></script>
 		<script src="src/layers/ResReceiverLayer.js"></script>
+		<script src="src/layers/RecReceiverLayer.js"></script>
+		<script src="src/layers/RecEmitterLayer.js"></script>
 		<script src="src/layers/BiasLayer.js"></script>
 		<script src="src/layers/ResEmitterLayer.js"></script>
 		<script src="src/Population.js"></script>
@@ -253,5 +257,39 @@
 			// E is first number t is second r is how much
 			return r * (t - e) + e;
 		};
+
+
+		// clearInterval(loop);
+	// 	// let a = new Rnn([new FC(1,1), new Wall(1), new RecReceiver("id"),  new FC(2,1), new RecEmitter("id"), new FC(1,1)]) 
+	// 	let a = new Rnn([new FC(1,2), new RecEmitter("id"),  new RecReceiver("id"),  new FC(4,1)]) 
+	// 	// let a = new Rnn([new FC(1,2),new FC(2,1)]) 
+	// 	a.batchSize = 1;
+	// 	a.learningRate = 0.001;
+	// 	let trainy = () => {
+	// 	a.resetRecurrentData();
+	// 	for(var i = 0;i<10000 * a.batchSize;i++){
+						
+	// 		a.forward([0]);
+	// 		a.forward();
+	// 		a.forward();
+	// 		a.backward([3]);
+	// 		a.backward();
+	// 		a.backward();
+
+	// 		a.resetRecurrentData()
+	// 	}
+	// 	console.log('done');
+	// }
+	// // trainy();
+	// 		// console.clear();
+		
+	// 	// let a = new Net([new FC(1,1), new ResEmitter("id"),  new ResReceiver("id"), new FC(2,1)]) 
+	// 	// a.learningRate = 0.03;
+	// 	// a.batchSize = 50;
+	// 	// for(var i =0;i<1000 * a.batchSize;i++){
+	// 	// 	a.train([0],[0.1]);
+	// 	// 	a.train([0.5],[0.6]);
+	// 	// 	a.train([0.8],[0.9]);
+	// 	// }
 	</script>
 </html>

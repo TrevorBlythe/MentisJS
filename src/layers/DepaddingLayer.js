@@ -1,10 +1,12 @@
 {
 	class DepaddingLayer {
 		constructor(outDim, pad) {
-
-			if(outDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (outDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let outWidth = outDim[0];
 			let outHeight = outDim[1];
@@ -64,7 +66,7 @@
 					return this.nextLayer.costs[ind];
 				};
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 
@@ -73,7 +75,7 @@
 					for (var h = 0; h < this.outWidth; h++) {
 						let prop = i * this.outHeight * this.outWidth + j * this.outWidth + h;
 						let err = geterr(prop);
-						loss += err;
+						loss += Math.pow(err, 2);
 						this.costs[
 							(j + 1) * this.pad * 2 +
 								-this.pad +
@@ -110,7 +112,15 @@
 			// the sizes;
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed"
+				) {
 					return undefined;
 				}
 

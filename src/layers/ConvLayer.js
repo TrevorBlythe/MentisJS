@@ -1,5 +1,5 @@
 {
-/*
+	/*
 if filter is 3x3 with indepth of 3 the first filter stored as such:
 this.filterw = [0,1,2,3,4,5,6,7,8,
 								0,1,2,3,4,5,6,7,8,
@@ -18,34 +18,29 @@ Im sorry but I had to choose one
 */
 
 	class ConvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
-		constructor(
-			inDim,
-			filterDim,
-			filters = 3,
-			stride = 1,
-			bias = true
-
-		) {
-
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+		static averageOutCosts = true; //probs
+		static averageOutGrads = false; //ehhh
+		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
-
-			this.lr = 0.01; //learning rate, this will be set by the Net object
-
 			this.filters = filters; //the amount of filters
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
@@ -55,22 +50,20 @@ Im sorry but I had to choose one
 			this.stride = stride;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.trainIterations = 0;
+			// this.trainIterations = 0;
 			this.outData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 1) / stride) *
-					Math.ceil((inHeight - filterHeight + 1) / stride) *
-					this.filters
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-				this.accessed = new Float32Array(this.inData.length).fill(0);//to average out the costs
-			
+			this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+
 			this.inData.fill(0); //to prevent mishap
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.b = new Float32Array(this.outData.length);
 			this.bs = new Float32Array(this.outData.length);
 			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Conv layer error: filters cannot be bigger than the input';
+				throw "Conv layer error: filters cannot be bigger than the input";
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
@@ -119,15 +112,7 @@ Im sorry but I had to choose one
 		forward(inData) {
 			if (inData) {
 				if (inData.length != this.inSize()) {
-					throw (
-						'INPUT SIZE WRONG ON CONV LAYER:\nexpected array size (' +
-						this.inSize() +
-						', dimensions: [' +
-						this.inSizeDimensions() +
-						']), got: (' +
-						inData.length +
-						')'
-					);
+					throw inputError(this, inData);
 				}
 				for (var i = 0; i < inData.length; i++) {
 					this.inData[i] = inData[i];
@@ -163,21 +148,20 @@ Im sorry but I had to choose one
 
 		backward(expected) {
 			let loss = 0;
-			this.trainIterations++;
+			// this.trainIterations++;
 			for (var i = 0; i < this.inSize(); i++) {
 				//reset the costs
 				this.costs[i] = 0;
 			}
 
 			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
 				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
+					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
 			let getErr = (ind) => expected[ind] - this.outData[ind];
-			
-			if(!expected){
+
+			if (!expected) {
 				getErr = (ind) => this.nextLayer.costs[ind];
 			}
 
@@ -213,8 +197,8 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += getErr(i);
 			}
-			if(ConvLayer.averageOutCosts){
-				for(var i = 0;i<this.costs.length;i++){
+			if (ConvLayer.averageOutCosts) {
+				for (var i = 0; i < this.costs.length; i++) {
 					this.costs[i] /= this.accessed[i];
 					this.accessed[i] = 0;
 				}
@@ -222,41 +206,52 @@ Im sorry but I had to choose one
 			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
-		getParamsAndGrads(forUpdate = true){
-			if(forUpdate){
+		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
 				for (var i = 0; i < this.filterws.length; i++) {
-					this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
-					if(ConvLayer.averageOutGrads){
+					// this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
+					if (ConvLayer.averageOutGrads) {
 						this.filterws[i] /= this.outSize() / this.filters;
 					}
 				}
-				if(this.useBias){
-					for (var i = 0; i < this.bs.length; i++) {
-						this.bs[i] /= this.trainIterations;
-					}
-				}
-				this.trainIterations = 0;
+				// if (this.useBias) { //dont think we need this
+				// 	for (var i = 0; i < this.bs.length; i++) {
+				// 		this.bs[i] /= this.trainIterations;
+				// 	}
+				// }
+				// this.trainIterations = 0;
 			}
-			if(this.useBias){
-				return [this.filterw,this.filterws,this.b,this.bs];
-			}else{
-				return [this.filterw,this.filterws];
+			if (this.useBias) {
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
 			}
 		}
 
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'filterws' ||
-					key == 'filterbs' ||
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b")
 				) {
 					return undefined;
 				}
@@ -270,15 +265,8 @@ Im sorry but I had to choose one
 		static load(json) {
 			let saveObject = JSON.parse(json);
 			let layer = new ConvLayer(
-				[
-				saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth,
-				],
-				[
-				saveObject.filterWidth,
-				saveObject.filterHeight,
-				],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.filters,
 				saveObject.stride,
 				saveObject.useBias
@@ -291,7 +279,6 @@ Im sorry but I had to choose one
 					layer.b[i] = saveObject.b[i];
 				}
 			}
-			layer.lr = saveObject.lr;
 			return layer;
 		}
 	}
