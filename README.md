@@ -6,10 +6,22 @@ and intuitive machine learning library out there. Inspired by the complicated py
 
 # RNN update
 
-Im not completly sure if I did it correctly! This is why im releasing it with a warning that it might not work and
-the api might change. Please give feedback if anyone is even using this.
+Im about 95 percent sure it works! 
 
-A tutorial has been added to the website to get started with some rudimentary RNN models.
+Here is how to use RNN models:
+
+```
+let rnn = new Ment.Rnn(layers);
+
+rnn.forward(inputOne);
+rnn.forward(inputTwo);
+rnn.forward(inputThree);
+rnn.backward(outputThree);
+rnn.backward(outputTwo);
+rnn.backward(outputOne);
+
+//make sure to use reccurent layers or using an rnn over a normal net is POINTLESS.
+```
 
 Im trying to get a really small diffussion model as a proof of work that my rnn implementation is working.
 
