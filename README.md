@@ -65,6 +65,7 @@ network.batchSize = 4;
 ```
 
 <p> It is also possible to define the layers inside of the network definition to save space like so: </p>
+
 ```
 let network = new Ment.Net([
 	new Ment.FC(2,5),
