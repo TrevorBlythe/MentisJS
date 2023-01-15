@@ -3,7 +3,6 @@
 		//Recurrent Receiver
 		constructor(id, mode = "concat") {
 			//mode can be concat or add
-			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
