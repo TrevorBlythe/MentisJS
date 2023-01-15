@@ -7,6 +7,8 @@ and intuitive machine learning library out there. Inspired by the complicated py
 Im writing it to be as simple as possible. It is now extremely easy to write your own layers! Look in FCLayer.js for a specification on how to write
 your first one.
 
+To use this library just copy the file "Mentis.js" which contains everything.
+
 # Tutorial
 
 <h2>How to make a Neural Network</h2>
