@@ -168,6 +168,7 @@ let net = new Ment.Rnn([
 ]);
 ```
 
+Notice the parameter of the layers? That is an identification string. That is how you link corressponding <b>RecReceiver</b> and <b>RecEmitter</b> layers. It can be anything you want as long as its the same for both.
 This will make a network that looks like this. (white arrows are data flow)
 
 <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/net_diagram.png?raw=true" width = "800px">
