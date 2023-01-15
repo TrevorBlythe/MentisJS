@@ -19,6 +19,9 @@
 		}
 
 		set previousLayer(layer) {
+			if (layer.constructor.name == "RecReceiverLayer" && layer.id == this.id) {
+				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween)";
+			}
 			this.inData = new Float32Array(layer.outSize());
 			this.costs = new Float32Array(layer.outSize());
 			this.pl = layer;
