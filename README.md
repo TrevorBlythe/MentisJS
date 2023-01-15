@@ -11,7 +11,7 @@ your first one.
 
 <h2>How to make a Neural Network</h2>
 
-<p>In this example we will make a neural network that will be a XOR gate.</p>
+<p>In this example we will make a neural network that will act as a XOR gate. (a logic gate)</p>
 <p>First lets define the Dataset.</p>
 
 ```
@@ -29,17 +29,26 @@ let outputs = [[0], [1], [1], [0]];
 <p>Next we must define the layers our Network will have!</p>
 
 ```
-let layerOne = new Ment.FC(2,5); //input:2, output:5, fully connected layer
-let layerTwo = new Ment.Sig(5); //size:5, sigmoid activation
-let layerThree = new Ment.FC(5,5); //input:5, output:5, fully connected layer
-let layerFour = new Ment.FC(5,1); //input:5, output:1, fully connected layer
-let layerFive = new Ment.Sig(1); //size:1, sigmoid activation
+let layerOne = new Ment.FC(2,5);
+//input:2, output:5, fully connected layer
+
+let layerTwo = new Ment.Sig(5);
+//size:5, sigmoid activation
+
+let layerThree = new Ment.FC(5,5);
+//input:5, output:5, fully connected layer
+
+let layerFour = new Ment.FC(5,1);
+//input:5, output:1, fully connected layer
+
+let layerFive = new Ment.Sig(1);
+//size:1, sigmoid activation
 
 ```
 
-<p>Notice how the first layer takes an input size of two? This is because our dataset input size is two!</p>
-<p>The last layer only has one neuron. That will be the output neuron and will tell us what the network predicts!</p>
-<p>This network is MASSIVE overkill for simple XOR but is good for a tutorial. Next we put these layers in a Net object</p>
+<p>Notice how the first layer takes an input size of two? This is because we will be inputting two numbers into the network</p>
+<p>The last layer only has one neuron. That will be the output neuron and will tell us what the network predicts.</p>
+<p>This network is overkill for a simple XOR gate but is good for a tutorial. Next we put these layers in a Net object</p>
 
 ```
 let network = new Ment.Net([
@@ -55,46 +64,68 @@ network.batchSize = 4;
 
 ```
 
+<p> It is also possible to define the layers inside of the network definition to save space like so: </p>
+```
+let network = new Ment.Net([
+	new Ment.FC(2,5),
+	new Ment.Sig(5),
+	new Ment.FC(5,5),
+	new Ment.FC(5,1),
+	new Ment.Sig(1)
+]);
+```
+
 <p> Now that we have our network made we can use it to solve XOR! You can input data with the forward function.</p>
 
 ```
-network.forward(inputs[0]); //returns the output
-
+network.forward(inputs[0]); //returns the output (a number)
 ```
 
 <p>Since our network isnt trained yet, it returns gibberish... Lets train it</p>
 
 ```
-	for (var i = 0; i < 1000; i++) {
-		net.train(inputs[i % 4], outputs[i % 4]);
-	}
+    for (var i = 0; i < 5000; i++) {
+    	net.train(inputs[i % 4], outputs[i % 4]);
+    }
+
+	//net.train() takes input and desired output as parameters.
 ```
 
 <p>Now that it is trained lets test it</p>
 
 ```
+
 network.forward([0,0]);
+
 ```
 
 > [0.0001]
 
 ```
+
 network.forward([1,0]);
+
 ```
 
 > [0.9983]
 
 ```
+
 network.forward([0,1]);
+
 ```
 
 > [0.9923]
 
 ```
+
 network.forward([1,1]);
+
 ```
 
 > [0.0012]
+
+It works!
 
 # All current layers:
 
@@ -109,9 +140,11 @@ MaxPool(inDim, filterDim, stride = 1)<br>
 Padding(inDim, pad, padwith)<br>
 ResEmitter(id)<br>
 ResReceiver(id)<br>
+RecReceiverLayer(id)<br>
+RecEmitterLayer(id)<br>
 Sigmoid(size)<br>
 Sine(size)<br>
-DataBlockLayer(size);<br>
+DataBlockLayer(size)<br>
 Tanh(size)<br>
 
 # RNN update
@@ -141,6 +174,7 @@ In simple terms, a <b>RecEmitterLayer</b> saves its input and then forwards it t
 To add these layers into your model, add them like a normal layer.
 
 ```
+
 let net = new Ment.Rnn([
 new Input(2),
 new FC(2,5),
@@ -163,6 +197,7 @@ This will make a network that looks like this. (white arrows are data flow)
 We will be using this network to be trained to become a XOR gate.
 
 ```
+
 for(var i = 0;i<50000;i++){
 net.forward([0,1]);
 net.forward([1,0]);
@@ -188,6 +223,7 @@ afterwards in the opposite order.
 This is shown below:
 
 ```
+
 //normal training:
 net.forward(input1)
 net.backward(output1)
@@ -205,9 +241,10 @@ net.backward(output1)
 
 What this allows is rnn networks to have a 'hidden state' or 'memory'. We can show this by training a network to count numbers.
 This network will need to remember what it outputted last time to work. Now we could just input this into the network but the point here
-is to show that rnn networks can remember, so we will be blocking all input with a <b>block<b> layer. (this layers ignores input and outputs zeroes)
+is to show that rnn networks can remember, so we will be blocking all input with a <b>block</b> layer. (this layers ignores input and outputs zeroes)
 
 ```
+
 let net = new Ment.Rnn([
 new Block(1),
 new RecReceiverLayer(':-)'), //special layers here!!
@@ -216,29 +253,25 @@ new RecEmitterLayer(':-)'), //special layers here!!
 new Output(1),
 ]);
 
-
 for(var i = 0;i<5000;i++){
 
-
 net.forward([0]); //the input doesnt matter here, its blocked out
 
 net.forward([0]); //the input doesnt matter here, its blocked out
 
 net.forward([0]); //the input doesnt matter here, its blocked out
-
 
 net.backward([3]);
 net.backward([2]);
 net.backward([1]);
 
-net.resetRecurrentData();  // this function resets its memory
+net.resetRecurrentData(); // this function resets its memory
 //if we don't call it it might keep counting forever but we just want 1 2 and 3
 }
 
 console.log(net.forward([Math.random()])); //the input doesnt matter because the model cant see it,
 console.log(net.forward([Math.random()]));
 console.log(net.forward([Math.random()]));
-
 
 ```
 
@@ -255,7 +288,9 @@ It learned to count from 1 to 3! (or forever if u keep running it).
 A model stores data from its last forward propagation. You can clear this data with this function:
 
 ```
-net.resetRecurrentData();  // this function resets its memory
+
+net.resetRecurrentData(); // this function resets its memory
+
 ```
 
 It will replace the data with zeroes. In the last model of the tutorial we cleared it after every batch of data so the model
@@ -264,3 +299,7 @@ learned that when its memory is zero it starts at 1. If your training an rnn mak
 contact me: trevorblythe82@gmail.com
 
 Contribute?
+
+```
+
+```
