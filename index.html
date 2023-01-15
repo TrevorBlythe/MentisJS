@@ -6,7 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="index.css" />
 		<title>MentisJS</title>
-		
+	</head>
 	<body>
 		<div class="topbar">
 			<img src="images/logo.png" />
@@ -14,30 +14,25 @@
 		</div>
 		<!-- End of topbar -->
 
-		<div class="showcaseTitle">
-			<h1>Mentis JS examples</h1>
-		</div>
+		<div class="showcase"><canvas id="showcase"></canvas> <canvas id="showcaseNet"></canvas></div>
 
 		<div class="examples">
 			<div class="gridContainer">
 				<div onclick="window.location = 'examples/mnist/mnist.html';">
 					MNist Digit Classifying<br /><img src="images/digit.png" />
 				</div>
-				<div onclick="window.location = 'examples/xor/xor.html'">
-					Solve XOR logic gate<br /><img src="images/xor.png" />
-				</div>
+				<div onclick="window.location = 'examples/xor/xor.html'">Solve XOR logic gate<br /><img src="images/xor.png" /></div>
 				<div onclick="window.location = 'examples/mnistAE/mnist.html';">
 					Digit Auto Encoder<br /><img src="images/digit.png" />
 				</div>
 				<div onclick="window.location = 'tutorials/resnet/resnet.html';">
 					Residual Network Tutorial<br /><img src="tutorials/resnet/resExam.png" />
 				</div>
-				<div onclick="window.location = 'tutorials/xor/xor.html';">
-					XOR tutorial<br /><img src="images/xor.png" />
+				<div onclick="window.location = 'tutorials/xor/xor.html';">XOR tutorial<br /><img src="images/xor.png" /></div>
+				<div onclick="window.location = 'examples/evolution/evolution.html';">
+					Neural Evololution<br /><img src="images/yellowguys.png" />
 				</div>
 			</div>
 		</div>
 	</body>
-
-	
 </html>

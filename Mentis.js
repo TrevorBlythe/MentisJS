@@ -251,12 +251,14 @@ var Ment = Ment || {};
 		}
 
 		cullAndBreed() {
+			console.log("culling");
 			//keeps the strongest players.
 			//brutally kills the weakest
 
 			//but first we have to sort them. good to bad
 			this.networks.sort((a, b) => (a.score > b.score ? -1 : 1));
 			this.highScore = this.networks[0].score < this.highScore ? this.highScore : this.networks[0].score;
+			console.log(this.highScore);
 			//next we put the best ones in an array for later
 			let newPopulation = [];
 			for (let i = 0; i < this.elitism; i++) {
