@@ -268,4 +268,4 @@ learned that when its memory is zero it starts at 1. If your training an rnn mak
 
 contact me: trevorblythe82@gmail.com
 
-Contribute?
+Open up index.html for lots of examples of this network!
