@@ -172,7 +172,7 @@ var Ment = Ment || {};
 		backward(expected) {
 			let loss = this.layers[this.layers.length - 1].backward(expected);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
-				loss += this.layers[i].backward();
+				this.layers[i].backward();
 			}
 			this.iteration++;
 			if (this.iteration % this.batchSize == 0) {
@@ -299,7 +299,6 @@ var Ment = Ment || {};
 {
 	class Rnn extends Ment.Net {
 		constructor(layers, optimizer) {
-			console.log("DONT USE THIS YET RNN IS DEFINITLY NOT FINISHED AND WONT WORK.");
 			super(layers, optimizer);
 			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
 			//to do backprop over time
@@ -760,7 +759,7 @@ var Ment = Ment || {};
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
+					throw 'nothing to backpropagate!';
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -781,14 +780,7 @@ var Ment = Ment || {};
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (
-					key == "inData" ||
-					key == "outData" ||
-					key == "costs" ||
-					key == "nextLayer" ||
-					key == "previousLayer" ||
-					key == "pl"
-				) {
+				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
 					return undefined;
 				}
 
@@ -2061,7 +2053,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
+					throw 'nothing to backpropagate!';
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -2091,14 +2083,7 @@ Im sorry but I had to choose one
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (
-					key == "inData" ||
-					key == "pl" ||
-					key == "outData" ||
-					key == "costs" ||
-					key == "nextLayer" ||
-					key == "previousLayer"
-				) {
+				if (key == 'inData' || key == 'pl' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
 					return undefined;
 				}
 
@@ -2147,7 +2132,8 @@ Im sorry but I had to choose one
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
+				this.outData[h] =
+					this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
 			}
 		}
 
@@ -2155,7 +2141,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
+					throw 'nothing to backpropagate!';
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -2189,23 +2175,17 @@ Im sorry but I had to choose one
 {
 	class MaxPoolLayer {
 		constructor(inDim, filterDim, stride = 1) {
-			if (inDim.length != 3) {
-				throw (
-					this.constructor.name +
-					" parameter error: Missing dimensions parameter. \n" +
-					"First parameter in layer must be an 3 length array, width height and depth"
-				);
+			if(inDim.length != 3){
+				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
+				+ "First parameter in layer must be an 3 length array, width height and depth";
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if (filterDim.length != 2) {
-				throw (
-					this.constructor.name +
-					" parameter error: Missing filter dimensions parameter. \n" +
-					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
-				);
+			if(filterDim.length != 2){
+				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
+				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
@@ -2216,15 +2196,13 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
-				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
-			);
+			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
+				throw 'Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)';
 			}
 
 			//Everything below here is precalculated constants used in forward/backward
@@ -2249,11 +2227,7 @@ Im sorry but I had to choose one
 		}
 
 		outSizeDimensions() {
-			return [
-				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
-				Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride),
-				this.inDepth,
-			];
+			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride), this.inDepth];
 		}
 
 		forward(inData) {
@@ -2298,7 +2272,7 @@ Im sorry but I had to choose one
 			if (!expected) {
 				// -- sometimes the most effiecant way is the least elagant one...
 				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
+					throw 'error backproping on an unconnected layer with no expected parameter input';
 				}
 			}
 
@@ -2323,14 +2297,14 @@ Im sorry but I had to choose one
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == "inData" ||
-					key == "outData" ||
-					key == "costs" ||
-					key == "gpuEnabled" ||
-					key == "trainIterations" ||
-					key == "nextLayer" ||
-					key == "previousLayer" ||
-					key == "pl"
+					key == 'inData' ||
+					key == 'outData' ||
+					key == 'costs' ||
+					key == 'gpuEnabled' ||
+					key == 'trainIterations' ||
+					key == 'nextLayer' ||
+					key == 'previousLayer' ||
+					key == 'pl'
 				) {
 					return undefined;
 				}
@@ -2345,8 +2319,11 @@ Im sorry but I had to choose one
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
-				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
-				[saveObject.filterWidth, saveObject.filterHeight],
+				[saveObject.inWidth,
+				saveObject.inHeight,
+				saveObject.inDepth],
+				[saveObject.filterWidth,
+				saveObject.filterHeight],
 				saveObject.stride
 			);
 			return layer;
@@ -2523,7 +2500,6 @@ Im sorry but I had to choose one
 	class RecEmitterLayer {
 		//Glorified Identity layer, only difference it has an ID and reference to the receiver with same ID
 		constructor(id) {
-			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.inData = new Float32Array(0); //the inData
@@ -2540,6 +2516,9 @@ Im sorry but I had to choose one
 		}
 
 		set previousLayer(layer) {
+			if (layer.constructor.name == "RecReceiverLayer" && layer.id == this.id) {
+				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween)";
+			}
 			this.inData = new Float32Array(layer.outSize());
 			this.costs = new Float32Array(layer.outSize());
 			this.pl = layer;
@@ -2657,7 +2636,6 @@ Im sorry but I had to choose one
 		//Recurrent Receiver
 		constructor(id, mode = "concat") {
 			//mode can be concat or add
-			console.log("this layer isnt finished yet it wont work.... sory :(");
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -2901,7 +2879,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
+					throw 'nothing to backpropagate!';
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
