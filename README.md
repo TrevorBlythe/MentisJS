@@ -153,21 +153,19 @@ In simple terms, a <b>RecEmitterLayer</b> saves its input and then forwards it t
 
 To add these layers into your model, add them like a normal layer.
 
-```
-
+```javascript
 let net = new Ment.Rnn([
-new Input(2),
-new FC(2,5),
-new Sig(5),
-new RecReceiverLayer('id'), //special layers here!!
-new FC(10,10),
-new Sig(10),
-new FC(10,5),
-new Sig(5),
-new RecEmitterLayer('id'), //special layers here!!
-new FC(5,1)
+	new Input(2),
+	new FC(2, 5),
+	new Sig(5),
+	new RecReceiverLayer("id"), //special layers here!!
+	new FC(10, 10),
+	new Sig(10),
+	new FC(10, 5),
+	new Sig(5),
+	new RecEmitterLayer("id"), //special layers here!!
+	new FC(5, 1),
 ]);
-
 ```
 
 This will make a network that looks like this. (white arrows are data flow)
