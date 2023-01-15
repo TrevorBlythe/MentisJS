@@ -155,16 +155,16 @@ To add these layers into your model, add them like a normal layer.
 
 ```javascript
 let net = new Ment.Rnn([
-	new Input(2),
-	new FC(2, 5),
-	new Sig(5),
-	new RecReceiverLayer("id"), //special layers here!!
-	new FC(10, 10),
-	new Sig(10),
-	new FC(10, 5),
-	new Sig(5),
-	new RecEmitterLayer("id"), //special layers here!!
-	new FC(5, 1),
+	new Ment.Input(2),
+	new Ment.FC(2, 5),
+	new Ment.Sig(5),
+	new Ment.RecReceiverLayer("id"), //special layers here!!
+	new Ment.FC(10, 10),
+	new Ment.Sig(10),
+	new Ment.FC(10, 5),
+	new Ment.Sig(5),
+	new Ment.RecEmitterLayer("id"), //special layers here!!
+	new Ment.FC(5, 1),
 ]);
 ```
 
@@ -219,15 +219,15 @@ is to show that rnn networks can remember, so we will be blocking all input with
 
 ```javascript
 let net = new Ment.Rnn([
-	new Block(1),
-	new RecReceiverLayer(":-)"), //special layers here!!
-	new FC(2, 1),
-	new RecEmitterLayer(":-)"), //special layers here!!
-	new Output(1),
+	new Ment.Block(1),
+	new Ment.RecReceiverLayer(":-)"), //special layers here!!
+	new Ment.FC(2, 1),
+	new Ment.RecEmitterLayer(":-)"), //special layers here!!
+	new Ment.Output(1),
 ]);
 
 for (var i = 0; i < 5000; i++) {
-	net.forward([0]); //the input doesnt matter here, its blocked out
+	net.forward([0]); //the input doesnt matter here, its blocked out ( by the block layer)
 
 	net.forward([0]); //the input doesnt matter here, its blocked out
 
@@ -262,7 +262,7 @@ A model stores data from its last forward propagation. You can clear this data w
 net.resetRecurrentData(); // this function resets its memory
 ```
 
-It will replace the data with zeroes. In the last model of the tutorial we cleared it after every batch of data so the model
+It will replace the memory with zeroes. In the last model of the tutorial we cleared it after every batch of data so the model
 learned that when its memory is zero it starts at 1. If your training an rnn make sure to clear its memory after batches or whenever you need it cleared.
 
 contact me: trevorblythe82@gmail.com
