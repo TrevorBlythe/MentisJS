@@ -5,291 +5,39 @@
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="index.css" />
-		<script src="src/Utils.js"></script>
-		<script src="src/Net.js"></script>
-		<script src="src/Rnn.js"></script>
-		<script src="src/layers/FCLayer.js"></script>
-		<script src="src/layers/ActivationBase.js"></script>
-		<script src="src/layers/SigmoidLayer.js"></script>
-		<script src="src/layers/TanhLayer.js"></script>
-		<script src="src/layers/SineLayer.js"></script>
-		<script src="src/layers/ReluLayer.js"></script>
-		<script src="src/layers/LeakyReluLayer.js"></script>
-		<script src="src/layers/IdentityLayer.js"></script>
-		<script src="src/layers/ConvLayer.js"></script>
-		<script src="src/layers/DeconvLayer.js"></script>
-		<script src="src/layers/DataBlockLayer.js"></script>
-		<script src="src/layers/PaddingLayer.js"></script>
-		<script src="src/layers/DepaddingLayer.js"></script>
-		<script src="src/layers/UpscalingLayer.js"></script>
-		<script src="src/layers/MaxPoolLayer.js"></script>
-		<script src="src/layers/ResReceiverLayer.js"></script>
-		<script src="src/layers/RecReceiverLayer.js"></script>
-		<script src="src/layers/RecEmitterLayer.js"></script>
-		<script src="src/layers/BiasLayer.js"></script>
-		<script src="src/layers/ResEmitterLayer.js"></script>
-		<script src="src/Population.js"></script>
 		<title>MentisJS</title>
-	</head>
+		
 	<body>
 		<div class="topbar">
 			<img src="images/logo.png" />
 			<h1 onclick="window.location = 'index.html'">MentisJS</h1>
-			<div class="right">
-				<button onclick="dropdown(0);">
-					Examples▼
-					<div class="dropdown" id="dropdown0" hidden>
-						<a href="examples/allExamples.html">All Examples</a><br /><a href="examples/mnist/mnist.html">Mnist Digits</a><br /><a href="examples/xor/xor.html"
-							>XOR</a
-						><br />
-					</div>
-				</button>
-
-				<button onclick="dropdown(1);">
-					Docs▼
-					<div class="dropdown" id="dropdown1" hidden><a href="">All Docs</a><br /><a>Ment.Net</a><br /><a>Ment.FCLayer</a><br /></div>
-				</button>
-				<button onclick="dropdown(2);">
-					Tutorial▼
-					<div class="dropdown" id="dropdown2" hidden>
-						<a href="">All Tutorial</a><br /><a href="tutorials/resnet/resnet.html">ResNet</a><br /><a>XOR</a><br />
-					</div>
-				</button>
-			</div>
 		</div>
 		<!-- End of topbar -->
 
 		<div class="showcaseTitle">
-			<h1>Mentis JS: A Blazingly fast AI building tool!</h1>
-		</div>
-
-		<div class="showcase">
-			<canvas id="showcase"></canvas>
-			<canvas id="showcaseNet"></canvas>
+			<h1>Mentis JS examples</h1>
 		</div>
 
 		<div class="examples">
-			<h1>Mentis can..</h1>
 			<div class="gridContainer">
-				<div class="item1">Recognize Handwritten Numbers</div>
-				<div class="item2">Solve XOR</div>
-				<div class="item3">to be added..</div>
-				<div class="item4">to be added..</div>
+				<div onclick="window.location = 'examples/mnist/mnist.html';">
+					MNist Digit Classifying<br /><img src="images/digit.png" />
+				</div>
+				<div onclick="window.location = 'examples/xor/xor.html'">
+					Solve XOR logic gate<br /><img src="images/xor.png" />
+				</div>
+				<div onclick="window.location = 'examples/mnistAE/mnist.html';">
+					Digit Auto Encoder<br /><img src="images/digit.png" />
+				</div>
+				<div onclick="window.location = 'tutorials/resnet/resnet.html';">
+					Residual Network Tutorial<br /><img src="tutorials/resnet/resExam.png" />
+				</div>
+				<div onclick="window.location = 'tutorials/xor/xor.html';">
+					XOR tutorial<br /><img src="images/xor.png" />
+				</div>
 			</div>
 		</div>
 	</body>
 
-	<script>
-		let dropDownsActive = [false, false, false];
-		let dropdown = function (id) {
-			let drop = document.getElementById('dropdown' + id);
-			if (!dropDownsActive[id]) {
-				drop.hidden = false;
-
-				dropDownsActive[id] = true;
-				window.addEventListener(
-					'resize',
-					(window.fn = function (event) {
-						drop.style.left = drop.parentElement.getClientRects()[0].x + 'px';
-						drop.style.top = drop.parentElement.getClientRects()[0].y + drop.parentElement.clientHeight + 'px';
-						let height = 0;
-						for (var i = 0; i < drop.children.length; i++) {
-							height += drop.children[i].clientHeight;
-						}
-						drop.style.height = height + 'px';
-					})
-				);
-				window.fn();
-			} else {
-				drop.hidden = true;
-				dropDownsActive[id] = false;
-				if (
-					dropDownsActive.every((elem, ind) => {
-						return !elem; //if all elems are false
-					})
-				) {
-					window.removeEventListener('resize', window.fn); //remove useless listener
-				}
-			}
-		};
-		//Neural netowrk stuff below
-		Ment.polluteGlobal();
-		var canvas = document.getElementById('showcase');
-		var canvasN = document.getElementById('showcaseNet');
-		var ctx = canvas.getContext('2d');
-		var ctxN = document.getElementById('showcaseNet').getContext('2d');
-
-		canvas.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / (10 / 4.5);
-		canvas.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / (10 / 5);
-		canvasN.width = Math.max(document.documentElement.clientWidth || 0, window.innerWidth || 0) / (10 / 4.5);
-		canvasN.height = Math.max(document.documentElement.clientHeight || 0, window.innerHeight || 0) / (10 / 5);
-
-		var players = [];
-		for (var i = 0; i < 10; i++) {
-			players.push({ x: 0.5 * canvas.width, y: 0.5 * canvas.height, speed: 0, angle: 0, input: Array(7) });
-		}
-		let foods = [];
-		foods.push({ x: 80, y: 50 });
-
-		for (var i = 1; i < 30; i++) {
-			foods.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
-		}
-
-		var pop = new Population([new FC(7, 3), new FC(3, 5), new FC(5, 1, false), new Sig(1)], 10, 3);
-
-		for (var i = 0; i < pop.networks.length; i++) {
-			pop.networks[i] = Net.load(
-				'{"layerAmount":4,"optimizer":"SGD","lr":0.01,"batchSize":19,"layer0":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"lr\\":0.01,\\"w\\":{\\"0\\":1.3668303489685059,\\"1\\":-4.204006671905518,\\"2\\":-0.5212617516517639,\\"3\\":0.23794488608837128,\\"4\\":-4.998271942138672,\\"5\\":1.224429726600647,\\"6\\":3.230072021484375,\\"7\\":8.482738494873047,\\"8\\":2.151326894760132,\\"9\\":-4.36154317855835,\\"10\\":5.851412773132324,\\"11\\":-3.3579933643341064,\\"12\\":-6.12884521484375,\\"13\\":-2.512819766998291,\\"14\\":-1.9725676774978638,\\"15\\":-4.750381946563721,\\"16\\":-0.5405484437942505,\\"17\\":-0.48752278089523315,\\"18\\":0.8425425887107849,\\"19\\":1.332161784172058,\\"20\\":-2.1697657108306885},\\"b\\":{\\"0\\":1.7067879438400269,\\"1\\":-0.4724692702293396,\\"2\\":5.118583679199219},\\"savedInSize\\":7,\\"savedOutSize\\":3}"},"layer1":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"lr\\":0.01,\\"w\\":{\\"0\\":2.9886560440063477,\\"1\\":-0.4132721424102783,\\"2\\":-3.4559528827667236,\\"3\\":9.530652046203613,\\"4\\":-4.651780128479004,\\"5\\":3.50288462638855,\\"6\\":-0.8798971176147461,\\"7\\":-3.239370822906494,\\"8\\":-6.1337432861328125,\\"9\\":-0.9524235129356384,\\"10\\":1.1112467050552368,\\"11\\":-1.3851567506790161,\\"12\\":0.1023741364479065,\\"13\\":3.462207078933716,\\"14\\":-3.30831241607666},\\"b\\":{\\"0\\":2.063535690307617,\\"1\\":-7.260211944580078,\\"2\\":2.2893598079681396,\\"3\\":-6.1648759841918945,\\"4\\":4.3245930671691895},\\"savedInSize\\":3,\\"savedOutSize\\":5}"},"layer2":{"type":"FCLayer","layerData":"{\\"useBias\\":false,\\"lr\\":0.01,\\"w\\":{\\"0\\":-1.4727469682693481,\\"1\\":1.9842839241027832,\\"2\\":-0.8543251752853394,\\"3\\":-1.9898641109466553,\\"4\\":-4.192050457000732},\\"b\\":{\\"0\\":0},\\"savedInSize\\":5,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"lr\\":0.01,\\"savedSize\\":1}"}}'
-			);
-		}
-		pop.cullAndBreed();
-		var speed = 50; //lower is faster
-		var wallPunish = 0.01;
-		let hideFood = false;
-		var loop = setInterval(() => {
-			ctx.clearRect(0, 0, canvas.width, canvas.height);
-			for (var i = 0; i < foods.length; i++) {
-				ctx.beginPath();
-				ctx.arc(foods[i].x, foods[i].y, 5, 0, 2 * Math.PI, false);
-				ctx.fillStyle = 'green';
-				ctx.fill();
-				ctx.lineWidth = 1;
-				ctx.strokeStyle = '#003300';
-				ctx.stroke();
-			}
-			for (var z = 0; z < players.length; z++) {
-				let player = players[z];
-				let input = player.input;
-				input.fill(0);
-				ctx.fillStyle = 'rgba(100,100,100,0.1)';
-
-				ctx.beginPath();
-				ctx.moveTo(player.x, player.y);
-				ctx.lineTo(100 * Math.cos(player.angle + -1) + player.x, 100 * Math.sin(player.angle + -1) + player.y);
-				ctx.lineTo(100 * Math.cos(player.angle + 1) + player.x, 100 * Math.sin(player.angle + 1) + player.y);
-				ctx.fill();
-
-				ctx.beginPath();
-				ctx.arc(player.x, player.y, 10, 0, 2 * Math.PI, false);
-				ctx.fillStyle = 'yellow';
-				if (z == 0) {
-					//draw the best one in red
-					ctx.fillStyle = 'orange';
-				}
-				ctx.fill();
-				ctx.lineWidth = 5;
-				ctx.strokeStyle = 'yellowgreen';
-				ctx.stroke();
-
-				for (var b = 0; b < 200 / speed; b++) {
-					let toCheck = [];
-					let toCheckInds = [];
-					for (var h = 0; h < foods.length; h++) {
-						if (Math.sqrt(Math.pow(player.x - foods[h].x, 2) + Math.pow(player.y - foods[h].y, 2)) < 100) {
-							toCheck.push(foods[h]);
-							toCheckInds.push(h);
-						}
-					}
-
-					for (var i = 0; i < 5; i++) {
-						input[i] = 1;
-
-						for (var j = 0; j < 10; j++) {
-							let xCheck = j * 10 * Math.cos(player.angle + -1 + (2 / 4) * i) + player.x;
-
-							let yCheck = j * 10 * Math.sin(player.angle + -1 + (2 / 4) * i) + player.y;
-
-							for (var h = 0; h < toCheck.length; h++) {
-								if (Math.abs(toCheck[h].x - xCheck) < 10 && Math.abs(toCheck[h].y - yCheck) < 10) {
-									input[i] = Math.min(Math.sqrt(Math.pow(player.x - toCheck[h].x, 2) + Math.pow(player.y - toCheck[h].y, 2)) / 100, input[i]);
-								}
-							}
-						}
-					}
-
-					for (var i = 0; i < toCheck.length; i++) {
-						if (Math.sqrt(Math.pow(player.x - toCheck[i].x, 2) + Math.pow(player.y - toCheck[i].y, 2)) < 10) {
-							pop.networks[z].score++;
-							foods.splice(toCheckInds[i], 1);
-						}
-					}
-
-					if (player.x < 5 || player.x > canvas.width - 5 || player.y < 5 || player.y > canvas.height - 5) {
-						pop.networks[z].score -= wallPunish;
-						input[6] = 1;
-					}
-
-					player.x += Math.cos(player.angle) * player.speed;
-					player.y += Math.sin(player.angle) * player.speed;
-					player.x = Math.min(Math.max(player.x, 0), canvas.width);
-					player.y = Math.min(Math.max(player.y, 0), canvas.height);
-					player.speed = 1;
-
-					input[5] = player.angle / (2 * Math.PI);
-					let brainOut = pop.networks[z].forward(input);
-					player.angle += brainOut[0] * 2;
-					if (player.angle > 2 * Math.PI) {
-						player.angle -= 2 * Math.PI;
-					}
-					if (player.angle < 0) {
-						player.angle += 2 * Math.PI;
-					}
-				}
-			}
-			render(pop.networks[0], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
-		}, speed);
-
-		setInterval(function () {
-			pop.cullAndBreed();
-			for (var i = 0; i < players.length; i++) {
-				let player = players[i];
-				player.x = canvas.width / 2;
-				player.y = canvas.height / 2;
-				player.angle = 0;
-			}
-			foods = [];
-			for (var i = 1; i < 30; i++) {
-				foods.push({ x: Math.random() * (canvas.width - (hideFood ? 120 : 0)) + (hideFood ? 120 : 0), y: Math.random() * canvas.height });
-			}
-		}, speed * 100);
-
-		let lerp = function (e, t, r) {
-			// E is first number t is second r is how much
-			return r * (t - e) + e;
-		};
-
-
-		// clearInterval(loop);
-	// 	// let a = new Rnn([new FC(1,1), new Wall(1), new RecReceiver("id"),  new FC(2,1), new RecEmitter("id"), new FC(1,1)]) 
-	// 	let a = new Rnn([new FC(1,2), new RecEmitter("id"),  new RecReceiver("id"),  new FC(4,1)]) 
-	// 	// let a = new Rnn([new FC(1,2),new FC(2,1)]) 
-	// 	a.batchSize = 1;
-	// 	a.learningRate = 0.001;
-	// 	let trainy = () => {
-	// 	a.resetRecurrentData();
-	// 	for(var i = 0;i<10000 * a.batchSize;i++){
-						
-	// 		a.forward([0]);
-	// 		a.forward();
-	// 		a.forward();
-	// 		a.backward([3]);
-	// 		a.backward();
-	// 		a.backward();
-
-	// 		a.resetRecurrentData()
-	// 	}
-	// 	console.log('done');
-	// }
-	// // trainy();
-	// 		// console.clear();
-		
-	// 	// let a = new Net([new FC(1,1), new ResEmitter("id"),  new ResReceiver("id"), new FC(2,1)]) 
-	// 	// a.learningRate = 0.03;
-	// 	// a.batchSize = 50;
-	// 	// for(var i =0;i<1000 * a.batchSize;i++){
-	// 	// 	a.train([0],[0.1]);
-	// 	// 	a.train([0.5],[0.6]);
-	// 	// 	a.train([0.8],[0.9]);
-	// 	// }
-	</script>
+	
 </html>

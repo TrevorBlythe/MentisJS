@@ -22,10 +22,6 @@ body {
 .topbar img {
 	width: 6vh;
 }
-.topbar .right {
-	width: 75%;
-	margin-left: auto;
-}
 
 .topbar h1 {
 	color: rgb(58, 58, 58);
@@ -88,27 +84,16 @@ body {
 	color: #555;
 }
 
-.item1 {
-	grid-area: tleft;
-}
-.item2 {
-	grid-area: tright;
-}
-.item3 {
-	grid-area: left;
-}
-.item4 {
-	grid-area: right;
+.gridContainer img {
+	width: 40%;
+	height: 90%;
 }
 
 .examples .gridContainer {
 	margin-top: 5vh;
 	display: grid;
-	grid-template-areas:
-		'tleft tleft tleft tright tright tright'
-		'left left left right right right'
-		'bleft bleft bleft bright bright bright';
-	gap: 1vh;
+	grid-template-columns: 30vw 30vw 30vw;
+	gap: 2vw;
 	background-color: #2196f3;
 	padding: 2vh;
 }
@@ -118,12 +103,13 @@ body {
 	text-align: center;
 	padding: 5vh 0;
 	font-size: 30px;
+	height: 30vh;
 }
 
 .code {
 	background-color: #212121;
 	color: white;
-	font-family: Consolas, 'Courier New', Courier, monospace;
+	font-family: Consolas, "Courier New", Courier, monospace;
 	margin-top: 3vh;
 }
 

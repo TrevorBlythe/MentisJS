@@ -32,28 +32,6 @@
 		<div class="topbar">
 			<img src="../../images/logo.png" />
 			<h1 onclick="window.location = '../../index.html'">MentisJS</h1>
-			<div class="right">
-				<button onclick="dropdown(0);">
-					Examples▼
-					<div class="dropdown" id="dropdown0" hidden>
-						<a href="../../examples/allExamples.html">All Examples</a><br /><a href="../../examples/mnist/mnist.html">Mnist Digits</a><br /><a
-							href="../../examples/xor/xor.html"
-							>XOR</a
-						><br />
-					</div>
-				</button>
-
-				<button onclick="dropdown(1);">
-					Docs▼
-					<div class="dropdown" id="dropdown1" hidden><a href="">All Docs</a><br /><a>Ment.Net</a><br /><a>Ment.FCLayer</a><br /></div>
-				</button>
-				<button onclick="dropdown(2);">
-					Tutorial▼
-					<div class="dropdown" id="dropdown2" hidden>
-						<a href="">All Tutorial</a><br /><a href="../resnet/resnet.html">ResNet</a><br /><a href="#">XOR</a><br />
-					</div>
-				</button>
-			</div>
 		</div>
 		<!-- End of topbar -->
 		<div class="showcaseTitle">
@@ -67,8 +45,9 @@
 			<h1>Getting Started</h1>
 			<br />
 			<p>
-				First understand what the XOR gate is. What we are trying to do it make a network with two inputs and one output. The output will only be on if only one
-				input is on. With that in mind lets make a network that can handle that task. We will use a couple hidden layers (huge overkill) just for funsies.
+				First understand what the XOR gate is. What we are trying to do it make a network with two inputs and one output. The
+				output will only be on if only one input is on. With that in mind lets make a network that can handle that task. We will
+				use a couple hidden layers (huge overkill) just for funsies.
 			</p>
 		</div>
 		<br />
@@ -76,7 +55,8 @@
 		<br />
 
 		<div class="code">
-			let net = new Net([<br />&emsp;new FC(1,3),<br />&emsp;new FC(3,3),<br />&emsp;new Sig(3,3), <br />&emsp;new FC(3, 1), <br />&emsp;new Sig(1), <br />]);
+			let net = new Net([<br />&emsp;new FC(1,3),<br />&emsp;new FC(3,3),<br />&emsp;new Sig(3,3), <br />&emsp;new FC(3, 1),
+			<br />&emsp;new Sig(1), <br />]);
 		</div>
 
 		<div class="showcaseTitle">
@@ -114,38 +94,4 @@
 		</div>
 	</body>
 	<script src="xor.js"></script>
-	<script>
-		let dropDownsActive = [false, false, false];
-		let dropdown = function (id) {
-			let drop = document.getElementById('dropdown' + id);
-			if (!dropDownsActive[id]) {
-				drop.hidden = false;
-
-				dropDownsActive[id] = true;
-				window.addEventListener(
-					'resize',
-					(window.fn = function (event) {
-						drop.style.left = drop.parentElement.getClientRects()[0].x + 'px';
-						drop.style.top = drop.parentElement.getClientRects()[0].y + drop.parentElement.clientHeight + 'px';
-						let height = 0;
-						for (var i = 0; i < drop.children.length; i++) {
-							height += drop.children[i].clientHeight;
-						}
-						drop.style.height = height + 'px';
-					})
-				);
-				window.fn();
-			} else {
-				drop.hidden = true;
-				dropDownsActive[id] = false;
-				if (
-					dropDownsActive.every((elem, ind) => {
-						return !elem; //if all elems are false
-					})
-				) {
-					window.removeEventListener('resize', window.fn); //remove useless listener
-				}
-			}
-		};
-	</script>
 </html>
