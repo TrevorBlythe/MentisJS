@@ -15,11 +15,28 @@ var Ment = Ment || {};
 		}
 	};
 
+	var printNet = function (net) {
+		let text = "LAYERS:\n";
+		for (var i = 0; i < net.layers.length; i++) {
+			let layer = net.layers[i];
+
+			text += `	${net.layers[i].constructor.name} (${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()},${
+				layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize()
+			})${layer.id ? ` id:${layer.id}` : ""}\n`;
+		}
+		text += "STATS:\n";
+		Object.keys(net).forEach(function (key, index) {
+			if (key != "layers") {
+				var value = net[key];
+				text += `	${key}:${value}\n`;
+			}
+		});
+		console.log(text);
+	};
+
 	var inputError = function (layer, arr) {
 		let ret = `INPUT SIZE WRONG ON ${layer.constructor.name + (layer.id ? `(${layer.id})` : null)}: `;
-		ret += `expected size (${layer.inSize()}${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : ""}), got (${
-			arr.length
-		})`;
+		ret += `expected size (${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()}), got (${arr.length})`;
 		return ret;
 	};
 
@@ -254,6 +271,7 @@ var Ment = Ment || {};
 	Ment.polluteGlobal = polluteGlobal;
 	Ment.protectNaN = protectNaN;
 	Ment.inputError = inputError;
+	Ment.printNet = printNet;
 	let globalObject = isBrowser() ? window : global;
 	if (globalObject.GPU) {
 		const gpu = new GPU();
