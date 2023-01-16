@@ -77,9 +77,8 @@ new Sig(1),
 				players.push({ x: 0.5 * canvas.width, y: 0.5 * canvas.height, speed: 0, angle: 0, input: Array(7) });
 			}
 			let foods = [];
-			foods.push({ x: 80, y: 50 });
 
-			for (var i = 1; i < 30; i++) {
+			for (var i = 0; i < 30; i++) {
 				foods.push({ x: Math.random() * canvas.width, y: Math.random() * canvas.height });
 			}
 
@@ -89,14 +88,14 @@ new Sig(1),
 				ctxN.clearRect(0, 0, canvasN.width, canvasN.height);
 				for (var i = 0; i < pop.networks.length; i++) {
 					pop.networks[i] = Net.load(
-						'{"layerAmount":4,"optimizer":"SGD","learningRate":0.01,"batchSize":5,"layer0":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"w\\":{\\"0\\":-3.265805959701538,\\"1\\":1.8755496740341187,\\"2\\":-2.848592758178711,\\"3\\":3.588385820388794,\\"4\\":0.38708147406578064,\\"5\\":-2.954390525817871,\\"6\\":-0.03741682320833206,\\"7\\":-4.776790618896484,\\"8\\":3.051630735397339,\\"9\\":-0.039719078689813614,\\"10\\":-0.1807866245508194,\\"11\\":4.0954132080078125,\\"12\\":-0.76215660572052,\\"13\\":2.0814244747161865,\\"14\\":-0.07662652432918549,\\"15\\":2.8697805404663086,\\"16\\":-3.854335069656372,\\"17\\":-2.4877402782440186,\\"18\\":3.700566053390503,\\"19\\":-1.180647850036621,\\"20\\":-5.168059349060059},\\"b\\":{\\"0\\":-1.929213523864746,\\"1\\":3.206442356109619,\\"2\\":-0.5271685123443604},\\"savedInSize\\":7,\\"savedOutSize\\":3}"},"layer1":{"type":"SigmoidLayer","layerData":"{\\"savedSize\\":3}"},"layer2":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"w\\":{\\"0\\":0.10309112817049026,\\"1\\":-4.773685455322266,\\"2\\":7.533465385437012},\\"b\\":{\\"0\\":-1.3806982040405273},\\"savedInSize\\":3,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"savedSize\\":1}"}}'
+						'{"layerAmount":4,"optimizer":"SGD","learningRate":0.01,"batchSize":5,"layer0":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"w\\":{\\"0\\":-2.6047627925872803,\\"1\\":1.9413589239120483,\\"2\\":-1.7137320041656494,\\"3\\":5.236575126647949,\\"4\\":0.3923672139644623,\\"5\\":-0.9512033462524414,\\"6\\":0.6757899522781372,\\"7\\":-4.095882415771484,\\"8\\":2.8437788486480713,\\"9\\":-1.3165422677993774,\\"10\\":2.5251693725585938,\\"11\\":3.9062044620513916,\\"12\\":-2.315662145614624,\\"13\\":2.5558531284332275,\\"14\\":-2.1744160652160645,\\"15\\":2.917292356491089,\\"16\\":-1.936957597732544,\\"17\\":-4.532154083251953,\\"18\\":5.372739315032959,\\"19\\":-0.9272580742835999,\\"20\\":-4.4716291427612305},\\"b\\":{\\"0\\":-1.4962319135665894,\\"1\\":3.8002586364746094,\\"2\\":0.5708938241004944},\\"savedInSize\\":7,\\"savedOutSize\\":3}"},"layer1":{"type":"SigmoidLayer","layerData":"{\\"savedSize\\":3}"},"layer2":{"type":"FCLayer","layerData":"{\\"useBias\\":true,\\"w\\":{\\"0\\":2.3993117809295654,\\"1\\":-6.170536994934082,\\"2\\":3.987260341644287},\\"b\\":{\\"0\\":-1.8193005323410034},\\"savedInSize\\":3,\\"savedOutSize\\":1}"},"layer3":{"type":"SigmoidLayer","layerData":"{\\"savedSize\\":1}"}}'
 					);
 					pop.networks[i].score = 0;
 				}
 			};
 			var speed = 50; //lower is faster
 			var wallPunish = 0.01;
-			let hideFood = false;
+			var turnPunish = 0.2;
 			let go = function () {
 				window.loop = setInterval(() => {
 					ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -183,6 +182,7 @@ new Sig(1),
 							input[5] = player.angle / (2 * Math.PI);
 							let brainOut = pop.networks[z].forward(input);
 							player.angle += brainOut[0] * 2;
+							pop.networks[z].score -= brainOut[0] * turnPunish;
 							if (player.angle > 2 * Math.PI) {
 								player.angle -= 2 * Math.PI;
 							}
@@ -208,7 +208,7 @@ new Sig(1),
 					foods = [];
 					for (var i = 1; i < 30; i++) {
 						foods.push({
-							x: Math.random() * (canvas.width - (hideFood ? 120 : 0)) + (hideFood ? 120 : 0),
+							x: Math.random() * canvas.width,
 							y: Math.random() * canvas.height,
 						});
 					}
