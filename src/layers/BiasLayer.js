@@ -9,7 +9,6 @@
 			this.bs = new Float32Array(size);
 			this.costs = new Float32Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
-			this.trainIterations = 0;
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
@@ -49,7 +48,6 @@
 		}
 
 		backward(expected) {
-			this.trainIterations++;
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
@@ -107,12 +105,6 @@
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			if (forUpdate) {
-				for (var i = 0; i < this.bs.length; i++) {
-					this.bs[i] /= this.trainIterations;
-				}
-				this.trainIterations = 0;
-			}
 			return [this.b, this.bs];
 		}
 

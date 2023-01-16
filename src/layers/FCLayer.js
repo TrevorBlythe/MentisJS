@@ -60,7 +60,6 @@
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
 			this.gpuEnabled = false;
-			// this.trainIterations = 0; //++'d whenever backwards is called;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -112,7 +111,6 @@
 		}
 
 		backward(expected) {
-			// this.trainIterations++;
 			let loss = 0;
 			this.costs.fill(0);
 
@@ -157,17 +155,6 @@
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			// if(forUpdate){
-			// 	for (var i = 0; i < this.ws.length; i++) {
-			// 		this.ws[i] /= this.trainIterations; //average out if its for an update to the params
-			// 	}
-			// 	if(this.useBias){
-			// 		for (var i = 0; i < this.bs.length; i++) {
-			// 			this.bs[i] /= this.trainIterations;
-			// 		}
-			// 	}
-			// 	this.trainIterations = 0;
-			// } //why do we need this?
 			if (this.useBias) {
 				return [this.w, this.ws, this.b, this.bs];
 			} else {

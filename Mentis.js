@@ -808,7 +808,6 @@ var Ment = Ment || {};
 			this.bs = new Float32Array(size);
 			this.costs = new Float32Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
-			this.trainIterations = 0;
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 			}
@@ -848,7 +847,6 @@ var Ment = Ment || {};
 		}
 
 		backward(expected) {
-			this.trainIterations++;
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
@@ -906,12 +904,6 @@ var Ment = Ment || {};
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			if (forUpdate) {
-				for (var i = 0; i < this.bs.length; i++) {
-					this.bs[i] /= this.trainIterations;
-				}
-				this.trainIterations = 0;
-			}
 			return [this.b, this.bs];
 		}
 
@@ -981,7 +973,6 @@ Im sorry but I had to choose one
 			this.stride = stride;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			// this.trainIterations = 0;
 			this.outData = new Float32Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
@@ -1079,7 +1070,6 @@ Im sorry but I had to choose one
 
 		backward(expected) {
 			let loss = 0;
-			// this.trainIterations++;
 			for (var i = 0; i < this.inSize(); i++) {
 				//reset the costs
 				this.costs[i] = 0;
@@ -1140,17 +1130,10 @@ Im sorry but I had to choose one
 		getParamsAndGrads(forUpdate = true) {
 			if (forUpdate) {
 				for (var i = 0; i < this.filterws.length; i++) {
-					// this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
 					if (ConvLayer.averageOutGrads) {
 						this.filterws[i] /= this.outSize() / this.filters;
 					}
 				}
-				// if (this.useBias) { //dont think we need this
-				// 	for (var i = 0; i < this.bs.length; i++) {
-				// 		this.bs[i] /= this.trainIterations;
-				// 	}
-				// }
-				// this.trainIterations = 0;
 			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
@@ -1342,7 +1325,6 @@ Im sorry but I had to choose one
 			this.stride = stride;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.trainIterations = 0;
 			this.inData = new Float32Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
@@ -1445,7 +1427,6 @@ Im sorry but I had to choose one
 
 		backward(expected) {
 			let loss = 0;
-			this.trainIterations++;
 			for (var i = 0; i < this.inSize(); i++) {
 				//reset the costs
 				this.costs[i] = 0;
@@ -1511,20 +1492,6 @@ Im sorry but I had to choose one
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			if (forUpdate) {
-				for (var i = 0; i < this.filterws.length; i++) {
-					this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
-					if (DeconvLayer.averageOutGrads) {
-						this.filterws[i] /= this.outSize() / this.filters;
-					}
-				}
-				if (this.useBias) {
-					for (var i = 0; i < this.bs.length; i++) {
-						this.bs[i] /= this.trainIterations;
-					}
-				}
-				this.trainIterations = 0;
-			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
 			} else {
@@ -1804,7 +1771,6 @@ Im sorry but I had to choose one
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
 			this.gpuEnabled = false;
-			// this.trainIterations = 0; //++'d whenever backwards is called;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -1856,7 +1822,6 @@ Im sorry but I had to choose one
 		}
 
 		backward(expected) {
-			// this.trainIterations++;
 			let loss = 0;
 			this.costs.fill(0);
 
@@ -1901,17 +1866,6 @@ Im sorry but I had to choose one
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			// if(forUpdate){
-			// 	for (var i = 0; i < this.ws.length; i++) {
-			// 		this.ws[i] /= this.trainIterations; //average out if its for an update to the params
-			// 	}
-			// 	if(this.useBias){
-			// 		for (var i = 0; i < this.bs.length; i++) {
-			// 			this.bs[i] /= this.trainIterations;
-			// 		}
-			// 	}
-			// 	this.trainIterations = 0;
-			// } //why do we need this?
 			if (this.useBias) {
 				return [this.w, this.ws, this.b, this.bs];
 			} else {
@@ -2761,7 +2715,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 
 			let getErr = (ind) => {
-				return expected[i] - this.outData[i];
+				return expected[ind] - this.outData[ind];
 			};
 
 			if (!expected) {
@@ -3105,7 +3059,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 
 			let getErr = (ind) => {
-				return expected[i] - this.outData[i];
+				return expected[ind] - this.outData[ind];
 			};
 
 			if (!expected) {

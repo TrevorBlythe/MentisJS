@@ -50,7 +50,6 @@ Im sorry but I had to choose one
 			this.stride = stride;
 			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			// this.trainIterations = 0;
 			this.outData = new Float32Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
@@ -148,7 +147,6 @@ Im sorry but I had to choose one
 
 		backward(expected) {
 			let loss = 0;
-			// this.trainIterations++;
 			for (var i = 0; i < this.inSize(); i++) {
 				//reset the costs
 				this.costs[i] = 0;
@@ -209,17 +207,10 @@ Im sorry but I had to choose one
 		getParamsAndGrads(forUpdate = true) {
 			if (forUpdate) {
 				for (var i = 0; i < this.filterws.length; i++) {
-					// this.filterws[i] /= this.trainIterations; //average out if its for an update to the params
 					if (ConvLayer.averageOutGrads) {
 						this.filterws[i] /= this.outSize() / this.filters;
 					}
 				}
-				// if (this.useBias) { //dont think we need this
-				// 	for (var i = 0; i < this.bs.length; i++) {
-				// 		this.bs[i] /= this.trainIterations;
-				// 	}
-				// }
-				// this.trainIterations = 0;
 			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
