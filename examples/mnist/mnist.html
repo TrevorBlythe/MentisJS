@@ -186,7 +186,7 @@ net.learningRate = 0.0001;
 			<button onclick="eval.call(window,document.getElementById('textinput').value);">Reload Network</button>
 		</div>
 		<p id="lr">learning rate: 0.001</p>
-		<input type="range" min="0" max="5000" value="250"
+		<input type="range" min="0" max="500" value="250"
 			oninput="net.learningRate = this.value/2500;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;" />
 		<p id="es">examples seen: 0</p>
 		<button onclick="clearInterval(loop);">Stop</button>
