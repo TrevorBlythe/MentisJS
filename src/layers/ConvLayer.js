@@ -157,7 +157,7 @@ Im sorry but I had to choose one
 					throw "error backproping on an unconnected layer with no expected parameter input";
 				}
 			}
-			let getErr = (ind) => expected[ind] - this.outData[ind];
+			let getErr = (ind) => (expected[ind] - this.outData[ind]) / this.outData.length;
 
 			if (!expected) {
 				getErr = (ind) => this.nextLayer.costs[ind];

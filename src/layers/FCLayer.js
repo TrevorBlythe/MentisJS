@@ -115,7 +115,7 @@
 			this.costs.fill(0);
 
 			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
+				return (expected[ind] - this.outData[ind]) / this.outData.length;
 			};
 			if (!expected) {
 				geterr = (ind) => {

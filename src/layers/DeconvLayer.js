@@ -152,7 +152,7 @@
 			};
 			if (expected) {
 				getCost = (ind) => {
-					return expected[ind] - this.outData[ind];
+					return (expected[ind] - this.outData[ind]) / this.outData.length;
 				};
 			}
 
