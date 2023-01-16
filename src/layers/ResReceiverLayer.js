@@ -80,7 +80,7 @@
 			let loss = 0;
 
 			let getErr = (ind) => {
-				return expected[i] - this.outData[i];
+				return expected[ind] - this.outData[ind];
 			};
 
 			if (!expected) {
