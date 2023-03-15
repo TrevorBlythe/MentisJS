@@ -30,7 +30,7 @@ var Ment = Ment || {};
 
 		set outData(arr) {
 			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
-				this.layers[0].outData = arr;
+				this.layers[this.layers.length - 1].outData = arr;
 			} else {
 				throw "cant set out data because its the wrong size";
 			}
