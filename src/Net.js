@@ -3,11 +3,11 @@ var Ment = Ment || {};
 	class Net {
 		constructor(layers, optimizer) {
 			this.layers = layers || [];
-			this.batchSize = 5; //every 'batchSize' iterations, update the weights and reset this.iteration
+			this.batchSize = 5; //every 'batchSize' iterations, update the weights by calling 'updateParams' (resets iteration to 0)
 			this.epoch = 0; //goes up every 'updateParams' call
 			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
 			this.learningRate = 0.01;
-			this.optimizer = optimizer || "SGD";
+			this.optimizer = optimizer || "SGD"; //I have not made any other optimizer's yet
 
 			this.connectLayers();
 		} //END OF CONSTRUCTOR
@@ -37,13 +37,15 @@ var Ment = Ment || {};
 		}
 
 		connectLayers() {
-			//by 'connect' we mean make the outData the same object as the inData of adjacent arrays
+			//'connect' means make the outData array the same object as the inData of the next layer.
 			//this is so we dont have to copy over the arrays values when forwarding/backwarding
 			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
-			//We set these properties BEFORE the indata/outdata connecting so layers can initialize,
-			//this is because some layers rely on surrounding layers to initialize, (like Sigmoid
+			//We set these properties BEFORE the indata/outdata connecting so layers can initialize array sizes.(they can sometimes be infered)
+			//this is because some layers rely on surrounding layers to initialize, (like Sigmoid, you dont need to put in the size)
 			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
 			// you dont.)
+
+			//this function is always safe to call. some data may get reset though.
 
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].previousLayer = this.layers[i - 1];
@@ -149,6 +151,7 @@ var Ment = Ment || {};
 		} //end of save method
 
 		static load(json) {
+			//this function takes json from the "save" function
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
@@ -199,9 +202,6 @@ var Ment = Ment || {};
 		}
 
 		updateParams() {
-			if (!this.testCounter) {
-				this.testCounter = 0;
-			}
 			this.epoch++;
 			for (var i = this.layers.length - 1; i >= 0; i--) {
 				if (this.layers[i].getParamsAndGrads) {
@@ -212,17 +212,10 @@ var Ment = Ment || {};
 						for (var k = 0; k < params.length; k++) {
 							params[k] += (grads[k] / this.iteration) * this.learningRate; //only does SGD rn
 							// params[k] += Ment.protectNaN((grads[k] / this.batchSize) * this.learningRate); //safe version
-							this.testCounter += grads[k];
 							grads[k] = 0;
 						}
-						this.testCounter /= params.length;
 					}
 				}
-			}
-			this.testCounter /= this.layers.length;
-			if (this.epoch % 50 == 0) {
-				// console.log(this.testCounter * 1000);
-				this.testCounter = 0;
 			}
 		}
 	} //END OF NET CLASS DECLARATION
