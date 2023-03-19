@@ -78,15 +78,14 @@ var Ment = Ment || {};
 				if (typeof data == "number") {
 					data = [data];
 				} else {
-					throw "INPUT ARRAYS INTO FORWARDS FUNCTION ONLY! you inputted: " + data.constructor.name;
+					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
 			}
-			// console.log(data);
 			this.layers[0].forward(data);
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].forward();
 			}
-			return new Float32Array(this.layers[this.layers.length - 1].outData); //return inData of the last layer (copied btw so you can change it if you want)
+			return this.layers[this.layers.length - 1].outData;
 		}
 
 		enableGPU() {
@@ -166,7 +165,6 @@ var Ment = Ment || {};
 
 		train(input, expectedOut) {
 			this.forward(input);
-
 			let loss = this.backward(expectedOut);
 			//done backpropping
 			return loss;
@@ -186,6 +184,7 @@ var Ment = Ment || {};
 		}
 
 		getParamsAndGrads() {
+			//The word "params" could also be seen as "weights" here.
 			let ret = [];
 			for (var i = 0; i < this.layers.length; i++) {
 				if (this.layers[i].getParamsAndGrads) {
