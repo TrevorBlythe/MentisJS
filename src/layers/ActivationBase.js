@@ -52,7 +52,7 @@
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -73,7 +73,14 @@
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
 					return undefined;
 				}
 

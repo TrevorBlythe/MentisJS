@@ -71,14 +71,14 @@
 				display: flex;
 				width: 100%;
 				border: 5px solid black;
-				height:20vw;
+				height:35vw;
 				background: grey;
 			}
 			.showcasenet canvas {
 				margin-left: auto;
 				border: 1px solid black;
 				width: 69vw;
-				height:19vw;
+				height:35vw;
 				margin-right: auto;
 			}
 		</style>
@@ -94,7 +94,7 @@
 		</div>
 		<div class="wrapper">
 			<div class="showcasenet">
-				<canvas id="canvasNet" width="1200px" height="400px"></canvas>
+				<canvas id="canvasNet" width="1242px" height = "500px"></canvas>
 			</div>
 			<div class="showcase">
 				<h3 style="margin-right: 3%">Net Input:</h3>
@@ -130,7 +130,7 @@ net.learningRate = 0.01;
 				oninput="net.learningRate = this.value/1000;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;"
 			/>
 			<p id="es">examples seen: 0</p>
-			<button onclick="clearInterval(loop);">Stop</button>
+			<button onclick="clearInterval(loop); clearInterval(loopTwo)">Stop</button>
 			<button onclick="go();">Go</button><br />
 			<button onclick="net = Ment.Net.load(model);render();">Load pre-trained model</button>
 			<br /><br />

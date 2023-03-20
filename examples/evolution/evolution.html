@@ -191,7 +191,15 @@ new Sig(1),
 							}
 						}
 					}
-					render(pop.networks[0], ctxN, canvasN.width / 10, canvas.height / 10, 10, false, 10);
+					render({
+						net: pop.networks[0],
+						ctx: ctxN,
+						x: canvasN.width / 10,
+						y: canvas.height / 10,
+						scale: 10,
+						background: false,
+						spread: 10,
+					});
 				}, speed);
 
 				window.loopTwo = setInterval(function () {

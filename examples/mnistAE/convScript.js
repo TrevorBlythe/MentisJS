@@ -51,13 +51,14 @@ var go = function () {
 
 		document.getElementById("err").innerHTML = `Total error: ${loss.toString().substring(0, 3)}`;
 		let output = net.outData;
-		if (net.epoch % 100 == 0) {
-			drawFromArr(input, ctx);
-			drawFromArr(output, ctxO);
-		}
 		document.getElementById("es").innerHTML = "examples seen:" + examplesSeen;
 		examplesSeen++;
 	}, 0);
+	window.loopTwo = setInterval(() => {
+		render();
+		drawFromArr(net.inData, ctx);
+		drawFromArr(net.outData, ctxO);
+	}, 1000);
 };
 
 var render = function () {
@@ -65,7 +66,15 @@ var render = function () {
 		.getElementById("canvasNet")
 		.getContext("2d")
 		.clearRect(0, 0, document.getElementById("canvasNet").width, document.getElementById("canvasNet").height);
-	renderBox(net, document.getElementById("canvasNet").getContext("2d"), 5, 5, 60, 2, "black");
+	renderBox({
+		net: net,
+		ctx: document.getElementById("canvasNet").getContext("2d"),
+		x: 5,
+		y: 5,
+		scale: 50,
+		spread: 3,
+		background: false,
+		showAsImage: true,
+	});
 };
 go();
-render();

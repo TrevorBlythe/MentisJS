@@ -78,15 +78,14 @@ var Ment = Ment || {};
 				if (typeof data == "number") {
 					data = [data];
 				} else {
-					throw "INPUT ARRAYS INTO FORWARDS FUNCTION ONLY! you inputted: " + data.constructor.name;
+					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
 			}
-			// console.log(data);
 			this.layers[0].forward(data);
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].forward();
 			}
-			return new Float32Array(this.layers[this.layers.length - 1].outData); //return inData of the last layer (copied btw so you can change it if you want)
+			return this.layers[this.layers.length - 1].outData;
 		}
 
 		enableGPU() {
@@ -166,7 +165,6 @@ var Ment = Ment || {};
 
 		train(input, expectedOut) {
 			this.forward(input);
-
 			let loss = this.backward(expectedOut);
 			//done backpropping
 			return loss;
@@ -186,6 +184,7 @@ var Ment = Ment || {};
 		}
 
 		getParamsAndGrads() {
+			//The word "params" could also be seen as "weights" here.
 			let ret = [];
 			for (var i = 0; i < this.layers.length; i++) {
 				if (this.layers[i].getParamsAndGrads) {
@@ -482,6 +481,7 @@ var Ment = Ment || {};
 		return_v = true;
 		return u * c;
 	};
+
 	var isBrowser = () => !(typeof window === "undefined");
 	//wrap everything in a namespace to not pollute global
 
@@ -535,7 +535,14 @@ var Ment = Ment || {};
 		return min + rnd * (max - min);
 	};
 
-	let renderBox = function (net, ctx, x, y, scale, spread, background) {
+	let renderBox = function (options) {
+		let net = options.net;
+		let ctx = options.ctx;
+		let x = options.x;
+		let y = options.y;
+		let scale = options.scale;
+		let spread = options.spread;
+		let background = options.background;
 		if (background == undefined) {
 			background = "white";
 		}
@@ -555,7 +562,7 @@ var Ment = Ment || {};
 
 		ctx.fillStyle = background;
 
-		ctx.fillRect(x, y, scale + net.layers.length * scale * spread, scale + 6 * scale);
+		ctx.fillRect(x, y, scale + net.layers.length * scale * spread, 6 * scale);
 		for (var i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
 			let layerSize = layer.inSize() > layer.outSize() ? layer.inSize() : layer.outSize();
@@ -584,7 +591,6 @@ var Ment = Ment || {};
 			ctx.textAlign = "center";
 			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
 			ctx.rotate(-Math.PI / 2);
-			//(${layer.inSize()})(${layer.outSize()})
 			ctx.fillText(layer.constructor.name, 0, 0);
 			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
 			ctx.fillText(
@@ -595,10 +601,37 @@ var Ment = Ment || {};
 				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
 			);
 			ctx.restore();
+			if (layer.outSizeDimensions && options.showAsImage) {
+				wid = layer.outSizeDimensions()[0];
+				hei = layer.outSizeDimensions()[1] | 1;
+				dep = layer.outSizeDimensions()[2] | 1;
+				for (var g = 0; g < dep; g++) {
+					for (var h = 0; h < hei; h++) {
+						for (var j = 0; j < wid; j++) {
+							let row = 6 + scale * 6 + y + (scale / (maxSize * 0.02)) * h;
+							c = layer.outData[h * wid + j + g * (wid * hei)] * 255;
+							ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
+							ctx.fillRect(
+								xy + -((hei * scale) / (maxSize * 0.02) - scale) / 2 + (scale / (maxSize * 0.02)) * j,
+								row + ((scale * hei) / (maxSize * 0.019)) * g,
+								scale / (maxSize * 0.019),
+								scale / (maxSize * 0.019)
+							);
+						}
+					}
+				}
+			}
 		}
 	};
 
-	let render = function (net, ctx, x, y, scale, background, spread) {
+	let render = function (options) {
+		let net = options.net;
+		let ctx = options.ctx;
+		let x = options.x;
+		let y = options.y;
+		let scale = options.scale;
+		let spread = options.spread;
+		let background = options.background;
 		// a built in network renderer
 		if (background == undefined) {
 			background = true;
@@ -770,7 +803,7 @@ var Ment = Ment || {};
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -791,7 +824,14 @@ var Ment = Ment || {};
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer' || key == 'pl') {
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
 					return undefined;
 				}
 
@@ -2018,7 +2058,7 @@ Im sorry but I had to choose one
 			let loss = 0;
 			if (!expected) {
 				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
+					throw "nothing to backpropagate!";
 				}
 				expected = [];
 				for (var i = 0; i < this.outData.length; i++) {
@@ -2048,7 +2088,14 @@ Im sorry but I had to choose one
 
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
-				if (key == 'inData' || key == 'pl' || key == 'outData' || key == 'costs' || key == 'nextLayer' || key == 'previousLayer') {
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer"
+				) {
 					return undefined;
 				}
 
