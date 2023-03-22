@@ -163,7 +163,7 @@ var Ment = Ment || {};
 			ctx.fill();
 
 			layerSize = Math.max(0.5, layerSize);
-			ctx.font = `${(layerSize * scale) / 2}px Verdana Geneva sans-serif`;
+			ctx.font = `${(layerSize * scale) / 2}px Arial`;
 			ctx.fillStyle = "black";
 			ctx.save();
 			ctx.textAlign = "center";
