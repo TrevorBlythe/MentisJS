@@ -71,8 +71,8 @@ var render = function () {
 		ctx: document.getElementById("canvasNet").getContext("2d"),
 		x: 5,
 		y: 5,
-		scale: 50,
-		spread: 3,
+		scale: 60,
+		spread: 60,
 		background: false,
 		showAsImage: true,
 	});

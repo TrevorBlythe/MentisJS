@@ -122,7 +122,7 @@ var Ment = Ment || {};
 		if (background == false) {
 			background = "rgba(0,0,0,0)";
 		}
-		const SPREAD = spread || 10;
+		const SPREAD = spread || 3;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
 			if (net.layers[i].inSize() > maxSize) {
@@ -135,43 +135,48 @@ var Ment = Ment || {};
 
 		ctx.fillStyle = background;
 
-		ctx.fillRect(x, y, scale + net.layers.length * scale * spread, 6 * scale);
+		ctx.fillRect(x, y, net.layers.length * (spread + scale) + scale, 7 * scale);
 		for (var i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
 			let layerSize = layer.inSize() > layer.outSize() ? layer.inSize() : layer.outSize();
-			layerSize += (maxSize - layerSize) / 3;
-			let layerLeftSize = layer.inSize() + (maxSize - layer.inSize()) / 3;
-			let layerRightSize = layer.outSize() + (maxSize - layer.outSize()) / 3;
-			Ment.seed = layer.constructor.name.charCodeAt(0) * 5; //------ make random seed from layer name
+			layerSize = layerSize / maxSize; //is zero to one. one if its the max size, 0 if its zero size
+			let layerLeftSize = layer.inSize() / maxSize; // is zero to one, same as above
+			let layerRightSize = layer.outSize() / maxSize; // same as above
+
+			Ment.seed = layer.constructor.name.charCodeAt(0) * 5; //------ make seed from layer name
 			for (var n = 1; n < layer.constructor.name.length; n++) {
 				Ment.seed += layer.constructor.name.charCodeAt(n);
 			} //----------End of make random seed from layer name
 			ctx.fillStyle = `rgb(${Ment.seededRandom(150, 255)},${Ment.seededRandom(100, 255)},${Ment.seededRandom(100, 255)})`;
-			let xy = (spread * scale) / 2 + scale + i * scale * spread - scale + x;
-			let yy = 5 + ((maxSize - layerLeftSize) / maxSize / 2) * scale * 6 + y;
-			let xyy = (spread * scale) / 2 + scale + i * scale * spread - scale + x + scale;
-			let yyy = 5 + ((maxSize - layerRightSize) / maxSize / 2) * scale * 6 + y;
+
+			let xy = scale / 2 + i * scale + i * spread + x; //x coord of top left, (scale)/2 is the margin on the left added.
+			let yy = scale / 2 + y + (1 - layerLeftSize * 1) * scale * 3; // y coord of top left, scale/2 is the top margin.
+			let xyy = scale / 2 + i * scale + i * spread + x + scale; //x coord of top right, each layer is "scale" pixels wide
+			let yyy = scale / 2 + y + (1 - layerRightSize * 1) * scale * 3; // y coord of top right corner, not sure why the sqrt here works LOL
+
 			ctx.beginPath();
 			ctx.moveTo(xy, yy);
 			ctx.lineTo(xyy, yyy);
-			ctx.lineTo(xyy, yyy + (layerRightSize / maxSize) * scale * 6);
-			ctx.lineTo(xy, yy + (layerLeftSize / maxSize) * scale * 6);
+			ctx.lineTo(xyy, yyy + layerRightSize * scale * 6);
+			ctx.lineTo(xy, yy + layerLeftSize * scale * 6);
 			ctx.lineTo(xy, yy);
 			ctx.fill();
-			ctx.font = `${(layerSize / maxSize) * scale * (5 / layer.constructor.name.length)}px serif`;
+
+			layerSize = Math.max(0.5, layerSize);
+			ctx.font = `${(layerSize * scale) / 2}px Verdana Geneva sans-serif`;
 			ctx.fillStyle = "black";
 			ctx.save();
 			ctx.textAlign = "center";
-			ctx.translate(xy + (xyy - xy) / 2, yy + ((layerLeftSize / maxSize) * scale * 6) / 2);
+			ctx.translate(xy + (xyy - xy) / 2, yyy + layerRightSize * scale * 3);
 			ctx.rotate(-Math.PI / 2);
 			ctx.fillText(layer.constructor.name, 0, 0);
-			ctx.font = `${((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 2}px serif`;
+			ctx.font = `${(layerSize * scale) / 3}px serif`;
 			ctx.fillText(
 				`(${layer.inSizeDimensions ? layer.inSizeDimensions() : layer.inSize()})(${
 					layer.outSizeDimensions ? layer.outSizeDimensions() : layer.outSize()
 				})`,
 				0,
-				((layerSize / maxSize) * scale * (5 / layer.constructor.name.length)) / 1.5
+				scale / 3
 			);
 			ctx.restore();
 			if (layer.outSizeDimensions && options.showAsImage) {
@@ -181,14 +186,14 @@ var Ment = Ment || {};
 				for (var g = 0; g < dep; g++) {
 					for (var h = 0; h < hei; h++) {
 						for (var j = 0; j < wid; j++) {
-							let row = 6 + scale * 6 + y + (scale / (maxSize * 0.02)) * h;
+							let row = scale * 6 + y + (scale / 25) * h;
 							c = layer.outData[h * wid + j + g * (wid * hei)] * 255;
 							ctx.fillStyle = "rgb(" + c + "," + c + "," + c + ")";
 							ctx.fillRect(
-								xy + -((hei * scale) / (maxSize * 0.02) - scale) / 2 + (scale / (maxSize * 0.02)) * j,
-								row + ((scale * hei) / (maxSize * 0.019)) * g,
-								scale / (maxSize * 0.019),
-								scale / (maxSize * 0.019)
+								xy + -((hei * scale) / 25 - scale) / 2 + (scale / 25) * j,
+								row + ((scale * hei) / 25) * g,
+								scale / 25,
+								scale / 25
 							);
 						}
 					}

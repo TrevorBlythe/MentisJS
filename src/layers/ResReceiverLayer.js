@@ -2,7 +2,7 @@
 	class ResReceiverLayer {
 		//this layer outputs the inputs with no changes
 		constructor(id, mode = "concat") {
-			//mode can be concat or add
+			//mode can be concat or add or average
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -25,7 +25,7 @@
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
-			let currentLayer = layer; //start at this layer go forward until find a reciever with the same ID
+			let currentLayer = layer; //start at this layer go backward until find a emitter with the same ID
 			while (!found) {
 				if (currentLayer.id == this.id && currentLayer.constructor == Ment.ResEmitter) {
 					found = true;
@@ -36,10 +36,10 @@
 					}
 				}
 			}
-			this.emitter = currentLayer;
+			this.emitter = currentLayer; //so they can find each other again :)
 			this.inDataFromEmitter = this.emitter.outData;
-			currentLayer.receiver = this; //so they can find each other again :)
-			if (this.mode == "add") {
+			currentLayer.receiver = this;
+			if (this.mode == "add" || this.mode == "average") {
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
@@ -73,6 +73,10 @@
 				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
 				}
+			} else if (this.mode == "average") {
+				for (var i = 0; i < this.outData.length; i++) {
+					this.outData[i] = (this.inData[i] + this.inDataFromEmitter[i]) / 2;
+				}
 			}
 		}
 
@@ -105,6 +109,12 @@
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
 					this.costsForEmitter[i] = getErr(i);
+					loss += Math.pow(this.costs[i], 2);
+				}
+			} else if (this.mode == "average") {
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = getErr(i) * 2;
+					this.costsForEmitter[i] = getErr(i) * 2;
 					loss += Math.pow(this.costs[i], 2);
 				}
 			}
