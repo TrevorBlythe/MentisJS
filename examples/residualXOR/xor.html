@@ -103,8 +103,6 @@ var net = new Ment.Net([
 	new Sig(),
 	new FC(3, 3),
 	new Sig(),
-	new FC(3, 3),
-	new Sig(),
 	new ResReceiver("id"),
 	new FC(6, 3),
 	new Sig(),
@@ -113,7 +111,7 @@ var net = new Ment.Net([
 net.learningRate = 0.3;
         </textarea>
 				<br />
-				<button onclick="eval.call(window,document.getElementById('textinput').value);render();">Reload Network</button>
+				<button onclick="eval.call(window,document.getElementById('textinput').value);render();examplesSeen=0;">Reload Network</button>
 			</div>
 			<p id="lr">learning rate: 0.01</p>
 			<input
@@ -124,7 +122,7 @@ net.learningRate = 0.3;
 				oninput="net.learningRate = this.value/1000;document.getElementById('lr').innerHTML = 'learning rate: ' + net.learningRate;"
 			/>
 			<p id="es">examples seen: 0</p>
-			<button onclick="clearInterval(loop); clearInterval(loopTwo)">Stop</button>
+			<button onclick="clearInterval(loop);">Stop</button>
 			<button onclick="go();">Go</button><br />
 			<br /><br />
 			<br /><br />

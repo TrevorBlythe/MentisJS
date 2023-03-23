@@ -37,9 +37,14 @@ var go = function () {
 	window.loop = setInterval(function () {
 		let loss = 0;
 		let outputText = "Network outputs: ";
+		let renderWhenCounterIs = Math.random() * 100; //4% chance it even renderes. Made it like this cuz rendering is cpu heavy.
 		for (var i = 0; i < 100; i++) {
 			loss += net.train(inputs[i % 4], outputs[i % 4]);
 			if (i < 4) {
+				if (i > renderWhenCounterIs) {
+					renderWhenCounterIs = 69;
+					renderTwo();
+				}
 				outputText += Math.round(10 * net.outData[0]) / 10 + ", ";
 			}
 		}
@@ -51,9 +56,6 @@ var go = function () {
 		document.getElementById("es").innerHTML = "examples seen:" + examplesSeen;
 		examplesSeen++;
 	}, 0);
-	window.loopTwo = setInterval(() => {
-		render();
-	}, 1000);
 };
 
 var render = function () {
@@ -62,12 +64,29 @@ var render = function () {
 		.getContext("2d")
 		.clearRect(0, 0, document.getElementById("canvasNet").width, document.getElementById("canvasNet").height);
 	Ment.renderBox({
+		//renders the diagram
 		net: net,
 		ctx: document.getElementById("canvasNet").getContext("2d"),
 		x: 0,
 		y: 0,
 		scale: 50,
 		spread: 20,
+		background: false,
+	});
+};
+var renderTwo = function () {
+	//renderes the neurons
+	document
+		.getElementById("canvasNet")
+		.getContext("2d")
+		.clearRect(0, 50 * 6 + 50, document.getElementById("canvasNet").width, document.getElementById("canvasNet").height);
+	Ment.render({
+		net: net,
+		ctx: document.getElementById("canvasNet").getContext("2d"),
+		x: 0,
+		y: 50 * 6 + 50,
+		scale: 10,
+		spread: 67,
 		background: false,
 	});
 };
