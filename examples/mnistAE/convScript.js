@@ -78,3 +78,4 @@ var render = function () {
 	});
 };
 go();
+render();

@@ -53,26 +53,19 @@
 				height:10vh;
 				background-color: grey;
 			}
-			.showcaseF canvas {
-				border: 1px solid black;
-				width: 25vh;
-				height:5vh;
-				margin-right: 3%;
-			}
+
 
 			.showcasenet {
 				align-items: center;
 				display: flex;
 				width: 100%;
-				border: 5px solid black;
-				height:35vw;
+				height:30vw;
 				background: grey;
 			}
 			.showcasenet canvas {
 				margin-left: auto;
-				border: 1px solid black;
 				width: 69vw;
-				height:35vw;
+				height:30vw;
 				margin-right: auto;
 			}
 		</style>
@@ -84,7 +77,7 @@
 		</div>
 		<!-- End of topbar -->
 		<div class="showcaseTitle">
-			<h1>XOR with a residual network (not done)</h1>
+			<h1>long xor with residual layers</h1>
 		</div>
 		<div class="wrapper">
 			<div class="showcasenet">
@@ -93,11 +86,31 @@
 			<div class="showcase">
 				<h5 style="margin-left: 3%" id="err">Total Error:</h5>
 			</div>
-
+			<h2 id="message">Ain't gonna work. The network is to long 😭.</h2>
+			<h2>Press Reload Network to add residual layers...</h2>
 			<br /><br />
 			<div style="float: right">
 				<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-					
+var net = new Ment.Net([
+	new FC(2, 3),
+	new Sig(),
+	new ResEmitter("id"),
+	new FC(3, 3),
+	new Sig(),
+	new FC(3, 3),
+	new Sig(),
+	new FC(3, 3),
+	new Sig(),
+	new FC(3, 3),
+	new Sig(),
+	new FC(3, 3),
+	new Sig(),
+	new ResReceiver("id"),
+	new FC(6, 3),
+	new Sig(),
+	new FC(3, 1),
+]);
+net.learningRate = 0.3;
         </textarea>
 				<br />
 				<button onclick="eval.call(window,document.getElementById('textinput').value);render();">Reload Network</button>
@@ -113,10 +126,6 @@
 			<p id="es">examples seen: 0</p>
 			<button onclick="clearInterval(loop); clearInterval(loopTwo)">Stop</button>
 			<button onclick="go();">Go</button><br />
-			<button onclick="net = Ment.Net.load(model);render();">Load pre-trained model</button>
-			<br /><br />
-			<br /><br />
-			<br /><br />
 			<br /><br />
 			<br /><br />
 			<br /><br />
@@ -124,8 +133,8 @@
 			<h1>Explanation</h1>
 		</div>
 			<p>
-				Yeah dont open this file its not done
-				Really long models and RNNS have a diminishing gradient problem or exploding gradient problem. You can use Residual Layers to prevent this problem.
+							Really long models and RNNS have a diminishing gradient problem or exploding gradient problem. You can use Residual Layers to prevent this problem. Using residual layers, you can skip data past layers untouched. This makes it work. Try it by pressing the button. Sorry this ain't 
+							nothing flashy but its a good test to make sure residual layers work.
 			</p>
 			<br>
 			<br>

@@ -32,24 +32,24 @@ let doit = function () {
 	let r = Math.random();
 	totalCost += getLoss(net.forward(inputs[0]), outputs[0]);
 	if (r < 0.25) {
-		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10 });
+		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10, spread: 50 });
 	}
 	r -= 0.25;
 	totalCost += getLoss(net.forward(inputs[1]), outputs[1]);
 	if (r < 0.25) {
-		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10 });
+		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10, spread: 50 });
 	}
 	r -= 0.25;
 
 	totalCost += getLoss(net.forward(inputs[2]), outputs[2]);
 	if (r > 0.25) {
-		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10 });
+		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10, spread: 50 });
 	}
 	r -= 0.25;
 
 	totalCost += getLoss(net.forward(inputs[3]), outputs[3]);
 	if (r > 0.25) {
-		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10 });
+		render({ net: net, ctx: ctx, x: 10, y: 10, scale: 10, spread: 50 });
 	}
 	r -= 0.25;
 

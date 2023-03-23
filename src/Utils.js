@@ -108,13 +108,24 @@ var Ment = Ment || {};
 		return min + rnd * (max - min);
 	};
 
+	Ment.seededRandomSP = function (min, max, seed) {
+		//seeded random with seed as param
+		max = max || 1;
+		min = min || 0;
+
+		Ment.seed = (Ment.seed * 9301 + 49297) % 233280;
+		var rnd = Ment.seed / 233280;
+
+		return min + rnd * (max - min);
+	};
+
 	let renderBox = function (options) {
-		let net = options.net;
-		let ctx = options.ctx;
-		let x = options.x;
-		let y = options.y;
-		let scale = options.scale;
-		let spread = options.spread;
+		const net = options.net;
+		const ctx = options.ctx;
+		const x = options.x;
+		const y = options.y;
+		const scale = options.scale | 20;
+		const spread = options.spread | 3;
 		let background = options.background;
 		if (background == undefined) {
 			background = "white";
@@ -122,7 +133,6 @@ var Ment = Ment || {};
 		if (background == false) {
 			background = "rgba(0,0,0,0)";
 		}
-		const SPREAD = spread || 3;
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
 			if (net.layers[i].inSize() > maxSize) {
@@ -161,7 +171,42 @@ var Ment = Ment || {};
 			ctx.lineTo(xy, yy + layerLeftSize * scale * 6);
 			ctx.lineTo(xy, yy);
 			ctx.fill();
+			ctx.closePath();
+			if (layer.constructor.name == "ResEmitterLayer" && layer.receiver) {
+				ctx.fillStyle = `rgb(${Ment.seededRandomSP(0, 1, i * layerSize)},${Ment.seededRandomSP(
+					0,
+					255,
+					i * layerRightSize * 69
+				)},${Ment.seededRandomSP(0, 255, i * layerLeftSize * 420)})`;
 
+				const heightVariance = Ment.seededRandomSP(2, 4, i * layerSize); // a random change in height so that hopefully arrows dont run into each other
+				const height = scale / heightVariance + (1 - layerSize * 1) * scale * 3;
+				const width = scale / 10;
+				const st = scale / 2; //half of a scale
+				ctx.fillRect(xy + st, yy - height, width, height);
+				ctx.fillRect(xy + st, yy - height, scale + spread, width);
+				for (var j = i; net.layers[j + 1].id != layer.id; j++) {
+					ctx.fillRect(xy + (j - i + 1) * (scale + spread) + st, yy - height, scale + spread, width);
+				}
+
+				const receiverHeight =
+					scale / heightVariance +
+					(1 -
+						(layer.receiver.inSize() > layer.receiver.outSize() ? layer.receiver.inSize() : layer.receiver.outSize()) / maxSize) *
+						scale *
+						3; // height of the line from the receiver box that was rendered to the top of the line
+				//draw the arrow head
+				const abovereceiver = yy - height + receiverHeight;
+				const goofahh = (j - i + 1) * (scale + spread); //this made sense when I wrote it.
+				ctx.fillRect(xy + goofahh + st, yy - height, width, receiverHeight - scale / 20);
+				ctx.beginPath();
+				ctx.moveTo(xy + goofahh + st + scale / 20, abovereceiver);
+				ctx.lineTo(xy + goofahh + st / 1.5 + st + scale / 20, abovereceiver - scale / 4);
+				ctx.lineTo(xy + goofahh - st / 1.5 + st + scale / 20, abovereceiver - scale / 4);
+				ctx.moveTo(xy + goofahh + st + scale / 20, abovereceiver);
+				ctx.fill();
+				ctx.closePath();
+			}
 			layerSize = Math.max(0.5, layerSize);
 			ctx.font = `${(layerSize * scale) / 2}px Arial`;
 			ctx.fillStyle = "black";
@@ -208,28 +253,25 @@ var Ment = Ment || {};
 		let x = options.x;
 		let y = options.y;
 		let scale = options.scale;
-		let spread = options.spread;
+		let spread = options.spread | 3; //pixel space between layers default is 3 pixels
 		let background = options.background;
-		// a built in network renderer
-		if (background == undefined) {
-			background = true;
-		}
-		const SPREAD = spread || 10;
-		const DRAWBACKGROUND = background;
+
 		let maxSize = 1;
 		for (var i = 0; i < net.layers.length; i++) {
-			if (net.layers[i].constructor.name != "ConvLayer" && net.layers[i].constructor.name != "MaxPoolLayer") {
-				if (net.layers[i].inSize() > maxSize) {
-					maxSize = net.layers[i].inSize();
-				} //end of if
-				if (net.layers[i].outSize() > maxSize) {
-					maxSize = net.layers[i].outSize();
-				} //end of if
-			} //end of for
-			if (DRAWBACKGROUND) {
-				ctx.fillStyle = "grey";
-				ctx.fillRect(x, y, 5 + net.layers.length * scale * SPREAD + scale, 5 + maxSize * scale * 2);
-			}
+			if (net.layers[i].inSize() > maxSize) {
+				maxSize = net.layers[i].inSize();
+			} //end of if
+			if (net.layers[i].outSize() > maxSize) {
+				maxSize = net.layers[i].outSize();
+			} //end of if
+		}
+
+		if (background == undefined || background == true) {
+			background = "gray"; //default color
+		}
+		if (background) {
+			ctx.fillStyle = background;
+			ctx.fillRect(x, y, net.layers.length * (spread + scale) + scale, maxSize * scale * 2);
 		}
 
 		//render the neurons in each layer...
@@ -237,23 +279,24 @@ var Ment = Ment || {};
 			let layer = net.layers[i];
 			if (layer.constructor.name != "ConvLayer" && layer.constructor.name != "MaxPoolLayer") {
 				for (var h = 0; h < layer.outSize(); h++) {
-					ctx.fillStyle = "rgb(" + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + "," + layer.outData[j] * 255 + ")";
+					ctx.fillStyle = "rgb(" + layer.outData[h] * 255 + "," + layer.outData[h] * 255 + "," + layer.outData[h] * 255 + ")";
 					ctx.fillRect(
-						x + 5 + (i + 1) * scale * SPREAD,
-						y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
+						x + (i + 1) * (scale + spread),
+						y + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2),
 						scale,
 						scale
 					);
 				}
-
-				for (var j = 0; j < layer.inSize(); j++) {
-					ctx.fillStyle = "rgb(" + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + ")";
-					ctx.fillRect(
-						x + 5 + i * scale * SPREAD,
-						y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
-						scale,
-						scale
-					);
+				if (i == 0) {
+					for (var j = 0; j < layer.inSize(); j++) {
+						ctx.fillStyle = "rgb(" + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + "," + layer.inData[j] * 255 + ")";
+						ctx.fillRect(
+							x + i * (scale + spread),
+							y + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2),
+							scale,
+							scale
+						);
+					}
 				}
 				//end of render neurons for each layer
 			}
@@ -266,34 +309,23 @@ var Ment = Ment || {};
 							"rgb(" + -(layer.w[j * layer.outSize() + h] * 255) + "," + layer.w[j * layer.outSize() + h] * 255 + ",0)";
 						ctx.beginPath();
 						ctx.moveTo(
-							x + 5 + i * scale * SPREAD + scale / 2,
-							scale / 2 + y + 5 + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2)
+							x + (i + 1) * (scale + spread) + scale / 2,
+							y + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2) + scale / 2
 						);
 						ctx.lineTo(
-							x + 5 + (i + 1) * scale * SPREAD + scale / 2,
-							scale / 2 + y + 5 + h * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.outSize() * scale * 2) / 2)
+							x + i * (scale + spread) + scale / 2,
+							y + j * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2) + scale / 2
 						);
 						ctx.stroke();
 					} //end of foor loop each outSize
 				} //end of for loop each inSize
 			} //end of if layer is fc
-			if (
-				layer.constructor.name == "SigmoidLayer" ||
-				layer.constructor.name == "SineLayer" ||
-				layer.constructor.name == "TanhLayer" ||
-				layer.constructor.name == "ReluLayer"
-			) {
-				//render the word sigmoid in between the nodes
+
+			if (layer.constructor.name != "FCLayer") {
+				//render the layer name
 				ctx.fillStyle = "white";
 				ctx.font = scale + "px serif";
-				ctx.fillText(
-					layer.constructor.name.slice(0, -5),
-					x + 5 + (i + 0.4) * scale * SPREAD,
-					y + 5 + (layer.inSize() / 2) * scale * 2 + ((maxSize * scale * 2) / 2 - (layer.inSize() * scale * 2) / 2)
-				);
-			}
-
-			if ((layer.constructor.name = "ConvLayer")) {
+				ctx.fillText(layer.constructor.name.slice(0, -5), x + i * (scale + spread) + scale * 1.5, y + (maxSize * scale * 2) / 2);
 			}
 		} //end of for loop each layer
 	};
