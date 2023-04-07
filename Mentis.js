@@ -55,21 +55,19 @@ var Ment = Ment || {};
 				this.layers[i].nextLayer = this.layers[i + 1];
 			}
 
-			for (var i = 0; i < this.layers.length; i++) {
-				if (i < this.layers.length - 1) {
-					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
-						throw `Failure connecting ${
-							this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
-						} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
-							i
-						].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
-							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${
-							this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
-						}`;
-					}
-					this.layers[i + 1].inData = this.layers[i].outData;
+			for (var i = 0; i < this.layers.length - 1; i++) {
+				if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+					throw `Failure connecting ${
+						this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
+					} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
+						i
+					].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
+						this.layers[i + 1].constructor.name
+					} input size: ${this.layers[i + 1].inSize()}${
+						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
+					}`;
 				}
+				this.layers[i + 1].inData = this.layers[i].outData;
 			}
 		}
 
@@ -290,6 +288,22 @@ var Ment = Ment || {};
 var Ment = Ment || {};
 {
 	class Rnn extends Ment.Net {
+		/*
+			EXPLANATION
+
+			Everytime you forward something through this it will take a "snapshot"
+			of all of the activations and store them. Ive called this a "state." (2 dim array savedStates[layer index][activation])
+
+			Once your done forwarding and you begin backpropping in reverse order,
+			the network will go back in time through its saved snapshots and will perform backpropagation
+			as if it was still its old self. (look up backprop through time.)  The state will then be popped off.
+
+			calling "backward()" without parameter will allow you to backprop the error from 
+			the n+1th state to the nth state.
+
+			Hidden layer magic happens in the reccurentReceiver and reccurrentEmitter layers.
+
+		*/
 		constructor(layers, optimizer) {
 			super(layers, optimizer);
 			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
@@ -343,17 +357,26 @@ var Ment = Ment || {};
 			}
 		}
 
-		forward(data) {
-			if (data == undefined) {
-				data = new Float32Array(this.layers[this.layers.length - 1].outData);
-			}
-			let ret = super.forward(data);
-			//save the state
+		appendCurrentState() {
+			//stores all current activations in a list formatted like this [[layer1 in activations], [layer2 in activations], .... [layer nth out activations]]
+			//then it appends that array to 'savedStates'
+
+			//could be optimized by just copying instead of straight up replacing the arrays? (both slow options)
 			let state = this.savedStates[this.savedStates.push([]) - 1];
 			for (var i = 0; i < this.layers.length; i++) {
 				state.push(new Float32Array(this.layers[i].inData));
 			}
 			state.push(new Float32Array(this.layers[this.layers.length - 1].outData));
+		}
+
+		forward(data) {
+			if (data == undefined) {
+				//todo you dont need to make a whole new array here it should get copied by the layers forward function
+				data = new Float32Array(this.layers[this.layers.length - 1].outData);
+			}
+			let ret = super.forward(data);
+			//save the state
+			this.appendCurrentState();
 			return ret;
 		}
 
@@ -371,7 +394,7 @@ var Ment = Ment || {};
 		}
 
 		train(input, expectedOut) {
-			console.log("dont");
+			console.log("If your gonna use this method you might as well use a normal network");
 			this.forward(input);
 
 			let loss = this.backward(expectedOut);
@@ -381,31 +404,24 @@ var Ment = Ment || {};
 
 		backward(expected) {
 			//in rnns we might not have an expected array.. in this case..
-			//backprop the error from the sequence.. yknow like how an rnn works.
+			//backprop the error (first layers costs) from the "next iteration" (n+1).
 			//this will only work if the indata and outdata of the network are the same.
-
+			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
 			//the expected input and output at each step. - Trevor
 			if (expected == undefined) {
 				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
-					throw (
-						"uh oh, you made a FUCKY WUCKY. if your gonna train like that mister..." +
-						"Then you better make sure the in size of your network is the same as the outsize!" +
-						"or else daddy is gonna be extra mad! Now go ahead and search up how an RNN works buddy. Then we will talk"
-					);
+					throw "Size Mismatch in RNN. In data and out data are different dimensions.";
 				}
 				expected = new Float32Array(this.layers[0].inSize());
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i];
-				} //rip slow ass copy
+					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i]; //error plus output = expected
+				}
 			}
-			this.setState();
-			//custom code:
-			this.layers[this.layers.length - 1].b = this.layers[0].inData;
-
-			let ret = super.backward(expected);
-			this.savedStates.pop();
-			return ret;
+			this.setState(); //this basically goes back in time by 1 step, search up backpropagation through time or something.
+			this.savedStates.pop(); //we wont need this saved state anymore
+			let loss = super.backward(expected);
+			return loss;
 		}
 
 		static load(json) {
@@ -2557,7 +2573,7 @@ Im sorry but I had to choose one
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.savedOutData;
-			this.pl = undefined;
+			this.pl = undefined; //the previous layer except interally its called "pl" so i can set getters and setters for the value "previousLayer"
 		}
 
 		get previousLayer() {
@@ -2566,7 +2582,7 @@ Im sorry but I had to choose one
 
 		set previousLayer(layer) {
 			if (layer.constructor.name == "RecReceiverLayer" && layer.id == this.id) {
-				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween)";
+				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween and giving it a size)";
 			}
 			this.inData = new Float32Array(layer.outSize());
 			this.costs = new Float32Array(layer.outSize());
@@ -2684,7 +2700,7 @@ Im sorry but I had to choose one
 	class RecReceiverLayer {
 		//Recurrent Receiver
 		constructor(id, mode = "concat") {
-			//mode can be concat or add
+			//mode can be concat or add or average
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -2770,7 +2786,7 @@ Im sorry but I had to choose one
 			this.emitter.where = "in front";
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if (this.mode == "add") {
+			if (this.mode == "add" || this.mode == "average") {
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
@@ -2802,6 +2818,10 @@ Im sorry but I had to choose one
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
+				}
+			} else if (this.mode == "average") {
+				for (var i = 0; i < this.outData.length; i++) {
+					this.outData[i] = (this.inData[i] + this.inDataFromEmitter[i]) / 2;
 				}
 			}
 		}
@@ -2841,6 +2861,13 @@ Im sorry but I had to choose one
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i);
 					this.costsForEmitter[i] = getErr(i);
+					loss += Math.pow(this.costs[i], 2);
+				}
+			} else if (this.mode == "average") {
+				//proud of this mode because I didn't look anything up just used my big brain to figure it out.
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = getErr(i) * 2;
+					this.costsForEmitter[i] = getErr(i) * 2;
 					loss += Math.pow(this.costs[i], 2);
 				}
 			}
@@ -3186,6 +3213,7 @@ Im sorry but I had to choose one
 					loss += Math.pow(this.costs[i], 2);
 				}
 			} else if (this.mode == "average") {
+				//proud of this mode because I didn't look anything up just used my big brain to figure it out.
 				for (var i = 0; i < this.inData.length; i++) {
 					this.costs[i] = getErr(i) * 2;
 					this.costsForEmitter[i] = getErr(i) * 2;
