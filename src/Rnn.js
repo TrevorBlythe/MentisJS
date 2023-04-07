@@ -82,7 +82,7 @@ var Ment = Ment || {};
 		}
 
 		train(input, expectedOut) {
-			console.log("dont");
+			console.log("If your gonna use this method you might as well use a normal network");
 			this.forward(input);
 
 			let loss = this.backward(expectedOut);
@@ -107,12 +107,10 @@ var Ment = Ment || {};
 				}
 				expected = new Float32Array(this.layers[0].inSize());
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i];
+					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i]; //error plus output = expected
 				} //rip slow ass copy
 			}
 			this.setState();
-			//custom code:
-			this.layers[this.layers.length - 1].b = this.layers[0].inData;
 
 			let ret = super.backward(expected);
 			this.savedStates.pop();
