@@ -126,6 +126,7 @@
 							const jGAIWBA = (j + ga) * this.inWidth + hWIH;
 							for (var k = 0; k < this.filterWidth; k++) {
 								this.costs[k + jGAIWBA] += err[odi];
+								this.accessed[k + jGAIWBA] += 1;
 							}
 						}
 					}
