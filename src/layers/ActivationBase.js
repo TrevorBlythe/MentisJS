@@ -48,24 +48,14 @@
 			//Oh the misery
 		}
 
-		backward(expected, actFunctionPrime) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
-				}
+		backward(err, actFunctionPrime) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = expected[j] - this.outData[j];
-				loss += Math.pow(err, 2);
-				this.costs[j] = err * actFunctionPrime(this.inData[j]);
+				this.costs[j] = err[j] * actFunctionPrime(this.inData[j]);
 			}
-			return loss / this.outSize();
 		}
 
 		save() {

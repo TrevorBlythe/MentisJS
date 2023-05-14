@@ -67,40 +67,28 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-
-			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
+			this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {
 					for (var h = 0; h < this.inWidth; h++) {
 						let prop = i * this.inHeight * this.inWidth + j * this.inWidth + h;
-						let err = geterr(
-							(j + 1) * this.pad * 2 +
-								-this.pad +
-								this.pad * (this.inWidth + this.pad * 2) +
-								prop +
-								i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
-								i * (this.inHeight * this.pad) * 2
-						);
-						loss += Math.pow(err, 2);
-						this.costs[prop] = err;
+						this.costs[prop] =
+							err[
+								(j + 1) * this.pad * 2 +
+									-this.pad +
+									this.pad * (this.inWidth + this.pad * 2) +
+									prop +
+									i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
+									i * (this.inHeight * this.pad) * 2
+							];
 					}
 				}
 			}
-			return loss;
 		}
 
 		inSize() {

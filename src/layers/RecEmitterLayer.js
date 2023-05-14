@@ -10,7 +10,7 @@
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.savedOutData;
-			this.pl = undefined;
+			this.pl = undefined; //the previous layer except interally its called "pl" so i can set getters and setters for the value "previousLayer"
 		}
 
 		get previousLayer() {
@@ -19,7 +19,7 @@
 
 		set previousLayer(layer) {
 			if (layer.constructor.name == "RecReceiverLayer" && layer.id == this.id) {
-				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween)";
+				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween and giving it a size)";
 			}
 			this.inData = new Float32Array(layer.outSize());
 			this.costs = new Float32Array(layer.outSize());
@@ -33,6 +33,7 @@
 		forward(inData) {
 			//first save what was last outputted for the receiver
 			if (this.where == "behind") {
+				//this layer is to the left of receiver
 				for (var i = 0; i < this.outSize(); i++) {
 					this.savedOutData[i] = this.outData[i];
 				}
@@ -51,35 +52,21 @@
 				this.outData[h] = this.inData[h];
 			}
 			if (this.where == "in front") {
+				//this layer is to the right
 				for (var i = 0; i < this.outSize(); i++) {
 					this.savedOutData[i] = this.outData[i];
 				}
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.costsFromReceiver[i];
-					this.costs[i] /= 2;
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] += (err + this.costsFromReceiver[i]) / 2;
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
-			return loss / this.inSize();
+			for (var j = 0; j < this.outData.length; j++) {
+				this.costs[j] = (err[j] + this.costsFromReceiver[j]) / 2;
+			}
 		}
 
 		inSize() {
@@ -115,6 +102,7 @@
 			});
 
 			//This is how you delete object properties btw.
+			//todo check if this is needed
 			delete this.savedInSize;
 			delete this.savedOutSize;
 

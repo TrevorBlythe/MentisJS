@@ -35,9 +35,8 @@
 			this.outData.fill(0);
 		}
 
-		backward(expected) {
-			this.costs.fill(0);
-			return 0; //best layer
+		backward(err) {
+			this.costs.fill(0); //best layer
 		}
 
 		inSize() {

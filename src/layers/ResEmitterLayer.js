@@ -40,30 +40,17 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.receiver.costsForEmitter[i];
-					this.costs[i] /= 2;
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				//this code should never run tbh
-				console.log("somethings a little weird about your network bud....");
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] += err;
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-			return loss / this.inSize();
+			this.costs.fill(0);
+
+			for (var i = 0; i < this.outData.length; i++) {
+				this.costs[i] += err[i];
+				this.costs[i] += this.receiver.costsForEmitter[i];
+				this.costs[i] /= 2;
+			}
 		}
 
 		inSize() {

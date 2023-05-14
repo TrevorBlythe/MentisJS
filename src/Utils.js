@@ -20,9 +20,9 @@ var Ment = Ment || {};
 		for (var i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
 
-			text += `	${net.layers[i].constructor.name} (${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()},${
-				layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize()
-			})${layer.id ? ` id:${layer.id}` : ""}\n`;
+			text += `${i} ${net.layers[i].constructor.name} (${
+				layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()
+			},${layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize()})${layer.id ? ` id:${layer.id}` : ""}\n`;
 		}
 		text += "STATS:\n";
 		Object.keys(net).forEach(function (key, index) {

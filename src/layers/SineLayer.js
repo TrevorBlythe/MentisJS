@@ -1,5 +1,7 @@
 {
 	class SineLayer extends Ment.ActivationBase {
+		//worst.. most useless layer ever.
+		// :(
 		sine(z) {
 			return Math.sin(z);
 		}

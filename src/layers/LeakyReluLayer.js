@@ -17,33 +17,22 @@
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] =
-					this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
+				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = expected[j] - this.outData[j];
-				loss += Math.pow(err, 2);
 				if (this.outData[j] >= 0) {
-					this.costs[j] = err;
+					this.costs[j] = err[j];
 				} else {
-					this.costs[j] = err * LeakyReluLayer.leakySlope;
+					this.costs[j] = err[j] * LeakyReluLayer.leakySlope;
 				}
 			}
-			return loss / this.outSize();
 		}
 
 		static load(json) {

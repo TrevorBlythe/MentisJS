@@ -9,6 +9,29 @@ your first one.
 
 To use this library just copy the file "Mentis.js" which contains everything.
 
+# Newest Update
+
+If you feel like this library hasnt been working as fast/good as it should, its because it didnt. Thankfully ive tuned it to
+be at maximum speed. Ive gone through it all and fixed and optimized pretty much all of the code and am far more confident in it
+working perfectly. Ive made a lot of changes I'll list below
+
+0. Lots of tiny optimizations all around the library.
+1. the "backwards" function in layer objects now takes error as a parameter instead of expected values
+2. layer objects dont calculuate loss, it gets done by the network object.
+3. Added a clearGrad() method in case you need to clear gradients. (doesnt reset iteration counter)
+4. made saving all the activations in an rnn to a function "appendCurrentState" explanation in the function.
+5. Got rid of weird error messages
+6. Got rid of big error that made conv layers train disproportionately slow
+7. Upscaling layers didnt work, now they do.
+8. Deconv layers average out their gradients. (trains better)
+9. A couple errors where i forgot to index an object or used the wrong counter.
+10. Added a new Layer to insert Input whereever you want in a network.
+11. Deleted useless files
+
+Making the backward function in Layers take "error" as a paremeter instead of "expected output," is the biggest change and could be breaking change.
+It needed to be done though as it optimizes things a lot and lets a lot of code be cleared out. If you have the old library update it because it
+is much better now.
+
 # Tutorial
 
 <h2>How to make a Neural Network</h2>

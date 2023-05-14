@@ -19,7 +19,7 @@ Im sorry but I had to choose one
 
 	class ConvLayer {
 		static averageOutCosts = true; //probs
-		static averageOutGrads = false; //ehhh
+		static averageOutGrads = true; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -145,23 +145,11 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
-			}
-			let getErr = (ind) => (expected[ind] - this.outData[ind]) / this.outData.length;
-
-			if (!expected) {
-				getErr = (ind) => this.nextLayer.costs[ind];
-			}
+			this.costs.fill(0); //reset the costs
 
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
@@ -173,8 +161,6 @@ Im sorry but I had to choose one
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * this.stride;
-						let err = getErr(odi);
-						loss += Math.pow(err, 2);
 						for (var h = 0; h < this.inDepth; h++) {
 							const hWIH = h * this.wIH;
 							const hFWIH = h * this.fWIH + iFWIHID;
@@ -182,9 +168,9 @@ Im sorry but I had to choose one
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
+									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err[odi];
 									this.accessed[k + jGAIWBA]++;
-									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
+									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err[odi];
 								}
 							}
 						}
@@ -193,7 +179,7 @@ Im sorry but I had to choose one
 			}
 			//---------------------------------End of monstrosity-----------------
 			for (var i = 0; i < this.outData.length; i++) {
-				this.bs[i] += getErr(i);
+				this.bs[i] += err[i];
 			}
 			if (ConvLayer.averageOutCosts) {
 				for (var i = 0; i < this.costs.length; i++) {
@@ -201,14 +187,13 @@ Im sorry but I had to choose one
 					this.accessed[i] = 0;
 				}
 			}
-			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		getParamsAndGrads(forUpdate = true) {
 			if (forUpdate) {
-				for (var i = 0; i < this.filterws.length; i++) {
-					if (ConvLayer.averageOutGrads) {
-						this.filterws[i] /= this.outSize() / this.filters;
+				if (ConvLayer.averageOutGrads) {
+					for (var i = 0; i < this.filterws.length; i++) {
+						this.filterws[i] /= this.filters;
 					}
 				}
 			}
@@ -265,7 +250,7 @@ Im sorry but I had to choose one
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			if (saveObject.b) {
+			if (saveObject.useBias) {
 				for (var i = 0; i < layer.b.length; i++) {
 					layer.b[i] = saveObject.b[i];
 				}

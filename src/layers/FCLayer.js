@@ -110,40 +110,27 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
+			}
 
-			let geterr = (ind) => {
-				return (expected[ind] - this.outData[ind]) / this.outData.length;
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
+			for (var i = 0; i < this.inSize(); i++) {
+				this.costs[i] = 0;
+				for (var j = 0; j < this.outSize(); j++) {
+					//activation times error = change to the weight.
+					this.ws[j + i * this.outSize()] += this.inData[i] * err[j] * 2;
+					this.costs[i] += this.w[j + i * this.outSize()] * err[j] * 2;
 				}
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = geterr(j);
-				loss += Math.pow(err, 2);
-				for (var i = 0; i < this.inSize(); i++) {
-					//activation times error = change to the weight.
-					this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-					this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-				}
-				//bias grad is real simple :)
-				this.bs[j] += err;
+				this.bs[j] += err[j]; //bias grad so easy
 			}
-
-			//finish averaging the costs
+			//finish averaging the costs : required code
 			for (var i = 0; i < this.inSize(); i++) {
 				this.costs[i] = this.costs[i] / this.outSize();
 			}
-
-			return loss / this.outSize();
 		}
 
 		inSize() {

@@ -80,46 +80,30 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-
-			let getErr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				getErr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			if (this.mode == "concat") {
-				for (var i = 0; i < this.inData.length - this.inDataFromEmitter; i++) {
-					this.costs[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+				//fixed a very atrocious error
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = err[i] / 2;
 				}
-				for (var i = this.inData.length - this.inDataFromEmitter; i < this.inData.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
+				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
+					this.costsForEmitter[i - this.inData.length] = err[i] / 2;
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					this.costsForEmitter[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i] / 2;
+					this.costsForEmitter[i] = err[i] / 2;
 				}
 			} else if (this.mode == "average") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i) * 2;
-					this.costsForEmitter[i] = getErr(i) * 2;
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i] * 2;
+					this.costsForEmitter[i] = err[i] * 2;
 				}
 			}
-
-			return loss / this.inSize();
 		}
 
 		inSize() {

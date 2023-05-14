@@ -2,7 +2,7 @@
 	class RecReceiverLayer {
 		//Recurrent Receiver
 		constructor(id, mode = "concat") {
-			//mode can be concat or add
+			//mode can be concat or add or average
 			this.mode = mode;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
@@ -47,8 +47,8 @@
 
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if (this.mode == "add") {
-				if (layer.outSize() != this.emitter.outSize()) {
+			if (this.mode == "add" || this.mode == "average") {
+				if (this.pl.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
 				this.outData = new Float32Array(layer.outSize());
@@ -88,7 +88,7 @@
 			this.emitter.where = "in front";
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if (this.mode == "add") {
+			if (this.mode == "add" || this.mode == "average") {
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
@@ -121,23 +121,16 @@
 				for (var i = 0; i < this.outData.length; i++) {
 					this.outData[i] = this.inData[i] + this.inDataFromEmitter[i];
 				}
+			} else if (this.mode == "average") {
+				for (var i = 0; i < this.outData.length; i++) {
+					this.outData[i] = (this.inData[i] + this.inDataFromEmitter[i]) / 2;
+				}
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-
-			let getErr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				getErr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			if (this.emitter.where == "behind") {
@@ -145,21 +138,22 @@
 					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
 				}
 			}
-
 			if (this.mode == "concat") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
+					this.costsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					this.costsForEmitter[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i];
+					this.costsForEmitter[i] = err[i];
+				}
+			} else if (this.mode == "average") {
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = err[i] * 2;
+					this.costsForEmitter[i] = err[i] * 2;
 				}
 			}
 
@@ -168,8 +162,6 @@
 					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
 				}
 			}
-
-			return loss / this.inSize();
 		}
 
 		inSize() {

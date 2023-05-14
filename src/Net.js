@@ -55,21 +55,19 @@ var Ment = Ment || {};
 				this.layers[i].nextLayer = this.layers[i + 1];
 			}
 
-			for (var i = 0; i < this.layers.length; i++) {
-				if (i < this.layers.length - 1) {
-					if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
-						throw `Failure connecting ${
-							this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
-						} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
-							i
-						].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
-							this.layers[i + 1].constructor.name
-						} input size: ${this.layers[i + 1].inSize()}${
-							this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
-						}`;
-					}
-					this.layers[i + 1].inData = this.layers[i].outData;
+			for (var i = 0; i < this.layers.length - 1; i++) {
+				if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+					throw `Failure connecting ${
+						this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
+					} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
+						i
+					].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
+						this.layers[i + 1].constructor.name
+					} input size: ${this.layers[i + 1].inSize()}${
+						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
+					}`;
 				}
+				this.layers[i + 1].inData = this.layers[i].outData;
 			}
 		}
 
@@ -170,9 +168,38 @@ var Ment = Ment || {};
 			return loss;
 		}
 
-		backward(expected) {
-			let loss = this.layers[this.layers.length - 1].backward(expected);
+		backward(expected, calcLoss = true, backPropErrorInstead = false) {
+			//returns the loss of the last layer only cuz im actually such a lazy lard
+			let loss = 0;
+			if (expected.length != this.layers[this.layers.length - 1].outData.length) {
+				throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${
+					this.layers[this.layers.length - 1].outData.length
+				}`;
+			}
+			//first calculate the error (expected - actual) and pass it to
+			//the last layer.
+			let lastlayer = this.layers[this.layers.length - 1];
+			let err;
+			if (!backPropErrorInstead) {
+				err = new Float32Array(lastlayer.outData.length);
+				for (var i = 0; i < lastlayer.outData.length; i++) {
+					//for every outAct in last layer
+					err[i] = expected[i] - lastlayer.outData[i];
+				}
+			} else {
+				err = expected;
+			}
+			if (calcLoss) {
+				for (var i = 0; i < err.length; i++) {
+					loss += Math.pow(err[i], 2); //always positive
+				}
+				loss /= expected.length; //average it
+			}
+			lastlayer.backward(err);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
+				//it automatically grabs the calcualted error from the layer ahead.
+				//Would work the same as if you did backward(nextlayer.costs)
+				//Costs represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;
@@ -198,6 +225,21 @@ var Ment = Ment || {};
 				}
 			}
 			return ret;
+		}
+
+		clearGrads() {
+			//clears the gradients
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let grads = pag[j + 1];
+						for (var k = 0; k < grads.length; k++) {
+							grads[k] = 0;
+						}
+					}
+				}
+			}
 		}
 
 		updateParams() {

@@ -1,7 +1,7 @@
 {
 	class DeconvLayer {
-		static averageOutCosts = true; //probs
-		static averageOutGrads = false; //eh
+		static averageOutCosts = true;
+		static averageOutGrads = true;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -134,27 +134,11 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input deconv layer";
-				}
-			}
-
-			let getCost = (ind) => {
-				return this.nextLayer.costs[ind];
-			};
-			if (expected) {
-				getCost = (ind) => {
-					return (expected[ind] - this.outData[ind]) / this.outData.length;
-				};
-			}
+			this.costs.fill(0); //reset the costs
 
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
@@ -172,14 +156,9 @@
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									let err = getCost(k + jGAIWBA);
-									loss += Math.pow(err, 2);
-
-									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
-
+									this.costs[odi] += this.filterw[k + jFWHFWIH] * err[k + jGAIWBA];
 									this.accessed[odi]++;
-
-									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
+									this.filterws[k + jFWHFWIH] += this.inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -188,7 +167,7 @@
 			}
 
 			for (var i = 0; i < this.outData.length; i++) {
-				this.bs[i] += getCost(i);
+				this.bs[i] += err[i];
 			}
 			if (DeconvLayer.averageOutCosts) {
 				for (var i = 0; i < this.inSize(); i++) {
@@ -196,11 +175,16 @@
 					this.accessed[i] = 0;
 				}
 			}
-
-			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
+				if (DeconvLayer.averageOutGrads) {
+					for (var i = 0; i < this.filterws.length; i++) {
+						this.filterws[i] /= this.filters;
+					}
+				}
+			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
 			} else {
@@ -255,7 +239,7 @@
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			if (saveObject.b) {
+			if (saveObject.useBias) {
 				for (var i = 0; i < layer.b.length; i++) {
 					layer.b[i] = saveObject.b[i];
 				}

@@ -47,7 +47,7 @@
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
 						this.outData[i * this.outHeight * this.outWidth + h * this.outWidth + j] =
 							this.inData[
-								Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+								Math.floor(i) * this.inHeight * this.inWidth +
 									Math.floor(h / this.scale) * this.inWidth +
 									Math.floor(j / this.scale)
 							];
@@ -56,40 +56,28 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
+			this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				//this can be optimized
 				for (var h = 0; h < this.inHeight * this.scale; h++) {
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
-						let t = geterr(i * this.outHeight * this.outWidth + h * this.outWidth + j);
+						let t = err[i * this.outHeight * this.outWidth + h * this.outWidth + j];
 						this.costs[
-							Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+							Math.floor(i) * this.inHeight * this.inWidth +
 								Math.floor(h / this.scale) * this.inWidth +
 								Math.floor(j / this.scale)
 						] += t;
-						loss += Math.pow(t, 2);
 					}
 				}
 			}
 			// for(var i = 0;i<this.costs.length;i++){
 			// 	this.costs[i] /= this.scale;
 			// }
-
-			return loss / this.outSize();
 		}
 
 		inSize() {

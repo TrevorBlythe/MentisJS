@@ -47,28 +47,14 @@
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
-					this.bs[i] += this.nextLayer.costs[i];
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					this.bs[i] += err;
-
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-			return loss / this.inSize();
+			for (var j = 0; j < this.outData.length; j++) {
+				this.costs[j] = err[j];
+				this.bs[j] += err[j];
+			}
 		}
 
 		inSize() {

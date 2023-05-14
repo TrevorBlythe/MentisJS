@@ -1,6 +1,22 @@
 var Ment = Ment || {};
 {
 	class Rnn extends Ment.Net {
+		/*
+			EXPLANATION
+
+			Everytime you forward something through this it will take a "snapshot"
+			of all of the activations and store them. Ive called this a "state." (2 dim array savedStates[layer index][activation])
+
+			Once your done forwarding and you begin backpropping in reverse order,
+			the network will go back in time through its saved snapshots and will perform backpropagation
+			as if it was still its old self. (look up backprop through time.)  The state will then be popped off.
+
+			calling "backward()" without parameter will allow you to backprop the error from 
+			the n+1th state to the nth state.
+
+			Hidden state magic happens in the reccurentReceiver and reccurrentEmitter layers.
+
+		*/
 		constructor(layers, optimizer) {
 			super(layers, optimizer);
 			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
@@ -54,17 +70,26 @@ var Ment = Ment || {};
 			}
 		}
 
-		forward(data) {
-			if (data == undefined) {
-				data = new Float32Array(this.layers[this.layers.length - 1].outData);
-			}
-			let ret = super.forward(data);
-			//save the state
+		appendCurrentState() {
+			//stores all current activations in a list formatted like this [[layer1 in activations], [layer2 in activations], .... [layer nth out activations]]
+			//then it appends that array to 'savedStates'
+
+			//could be optimized by just copying instead of straight up replacing the arrays? (both slow options)
 			let state = this.savedStates[this.savedStates.push([]) - 1];
 			for (var i = 0; i < this.layers.length; i++) {
 				state.push(new Float32Array(this.layers[i].inData));
 			}
 			state.push(new Float32Array(this.layers[this.layers.length - 1].outData));
+		}
+
+		forward(data) {
+			if (data == undefined) {
+				//todo you dont need to make a whole new array here it should get copied by the layers forward function
+				data = new Float32Array(this.layers[this.layers.length - 1].outData);
+			}
+			let ret = super.forward(data);
+			//save the state
+			this.appendCurrentState();
 			return ret;
 		}
 
@@ -90,31 +115,29 @@ var Ment = Ment || {};
 			return loss;
 		}
 
-		backward(expected) {
-			//in rnns we might not have an expected array.. in this case..
-			//backprop the error from the sequence.. yknow like how an rnn works.
-			//this will only work if the indata and outdata of the network are the same.
+		backward(expected, calcLoss = true, backPropErrorInstead = false) {
+			//expected represents error if backProperrorInstead == true
 
+			//in rnns we might not have an expected array.. in this case..
+			//backprop the error (first layers costs) from the "next iteration" (n+1).
+			//this will only work if the indata and outdata of the network are the same size.
+			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
 			//the expected input and output at each step. - Trevor
 			if (expected == undefined) {
 				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
-					throw (
-						"uh oh, you made a FUCKY WUCKY. if your gonna train like that mister..." +
-						"Then you better make sure the in size of your network is the same as the outsize!" +
-						"or else daddy is gonna be extra mad! Now go ahead and search up how an RNN works buddy. Then we will talk"
-					);
+					throw "Size Mismatch in RNN. In data and out data are different dimensions.";
 				}
-				expected = new Float32Array(this.layers[0].inSize());
+				expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i]; //error plus output = expected
-				} //rip slow ass copy
+					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
+				}
+				backPropErrorInstead = true;
 			}
-			this.setState();
-
-			let ret = super.backward(expected);
-			this.savedStates.pop();
-			return ret;
+			this.setState(); //this basically goes back in time by 1 step, search up backpropagation through time or something.
+			this.savedStates.pop(); //we wont need this saved state anymore
+			let loss = super.backward(expected, calcLoss, backPropErrorInstead);
+			return loss;
 		}
 
 		static load(json) {

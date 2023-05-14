@@ -168,9 +168,38 @@ var Ment = Ment || {};
 			return loss;
 		}
 
-		backward(expected) {
-			let loss = this.layers[this.layers.length - 1].backward(expected);
+		backward(expected, calcLoss = true, backPropErrorInstead = false) {
+			//returns the loss of the last layer only cuz im actually such a lazy lard
+			let loss = 0;
+			if (expected.length != this.layers[this.layers.length - 1].outData.length) {
+				throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${
+					this.layers[this.layers.length - 1].outData.length
+				}`;
+			}
+			//first calculate the error (expected - actual) and pass it to
+			//the last layer.
+			let lastlayer = this.layers[this.layers.length - 1];
+			let err;
+			if (!backPropErrorInstead) {
+				err = new Float32Array(lastlayer.outData.length);
+				for (var i = 0; i < lastlayer.outData.length; i++) {
+					//for every outAct in last layer
+					err[i] = expected[i] - lastlayer.outData[i];
+				}
+			} else {
+				err = expected;
+			}
+			if (calcLoss) {
+				for (var i = 0; i < err.length; i++) {
+					loss += Math.pow(err[i], 2); //always positive
+				}
+				loss /= expected.length; //average it
+			}
+			lastlayer.backward(err);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
+				//it automatically grabs the calcualted error from the layer ahead.
+				//Would work the same as if you did backward(nextlayer.costs)
+				//Costs represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;
@@ -196,6 +225,21 @@ var Ment = Ment || {};
 				}
 			}
 			return ret;
+		}
+
+		clearGrads() {
+			//clears the gradients
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let grads = pag[j + 1];
+						for (var k = 0; k < grads.length; k++) {
+							grads[k] = 0;
+						}
+					}
+				}
+			}
 		}
 
 		updateParams() {
@@ -301,7 +345,7 @@ var Ment = Ment || {};
 			calling "backward()" without parameter will allow you to backprop the error from 
 			the n+1th state to the nth state.
 
-			Hidden layer magic happens in the reccurentReceiver and reccurrentEmitter layers.
+			Hidden state magic happens in the reccurentReceiver and reccurrentEmitter layers.
 
 		*/
 		constructor(layers, optimizer) {
@@ -402,10 +446,12 @@ var Ment = Ment || {};
 			return loss;
 		}
 
-		backward(expected) {
+		backward(expected, calcLoss = true, backPropErrorInstead = false) {
+			//expected represents error if backProperrorInstead == true
+
 			//in rnns we might not have an expected array.. in this case..
 			//backprop the error (first layers costs) from the "next iteration" (n+1).
-			//this will only work if the indata and outdata of the network are the same.
+			//this will only work if the indata and outdata of the network are the same size.
 			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
 			//the expected input and output at each step. - Trevor
@@ -413,14 +459,15 @@ var Ment = Ment || {};
 				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
 					throw "Size Mismatch in RNN. In data and out data are different dimensions.";
 				}
-				expected = new Float32Array(this.layers[0].inSize());
+				expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].inData[i] + this.layers[0].costs[i]; //error plus output = expected
+					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
 				}
+				backPropErrorInstead = true;
 			}
 			this.setState(); //this basically goes back in time by 1 step, search up backpropagation through time or something.
 			this.savedStates.pop(); //we wont need this saved state anymore
-			let loss = super.backward(expected);
+			let loss = super.backward(expected, calcLoss, backPropErrorInstead);
 			return loss;
 		}
 
@@ -463,9 +510,9 @@ var Ment = Ment || {};
 		for (var i = 0; i < net.layers.length; i++) {
 			let layer = net.layers[i];
 
-			text += `	${net.layers[i].constructor.name} (${layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()},${
-				layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize()
-			})${layer.id ? ` id:${layer.id}` : ""}\n`;
+			text += `${i} ${net.layers[i].constructor.name} (${
+				layer.inSizeDimensions ? "," + layer.inSizeDimensions() : layer.inSize()
+			},${layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize()})${layer.id ? ` id:${layer.id}` : ""}\n`;
 		}
 		text += "STATS:\n";
 		Object.keys(net).forEach(function (key, index) {
@@ -852,24 +899,14 @@ var Ment = Ment || {};
 			//Oh the misery
 		}
 
-		backward(expected, actFunctionPrime) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
-				}
+		backward(err, actFunctionPrime) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = expected[j] - this.outData[j];
-				loss += Math.pow(err, 2);
-				this.costs[j] = err * actFunctionPrime(this.inData[j]);
+				this.costs[j] = err[j] * actFunctionPrime(this.inData[j]);
 			}
-			return loss / this.outSize();
 		}
 
 		save() {
@@ -950,28 +987,14 @@ var Ment = Ment || {};
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
-					this.bs[i] += this.nextLayer.costs[i];
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					this.bs[i] += err;
-
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-			return loss / this.inSize();
+			for (var j = 0; j < this.outData.length; j++) {
+				this.costs[j] = err[j];
+				this.bs[j] += err[j];
+			}
 		}
 
 		inSize() {
@@ -1046,7 +1069,7 @@ Im sorry but I had to choose one
 
 	class ConvLayer {
 		static averageOutCosts = true; //probs
-		static averageOutGrads = false; //ehhh
+		static averageOutGrads = true; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -1172,23 +1195,11 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
-			}
-			let getErr = (ind) => (expected[ind] - this.outData[ind]) / this.outData.length;
-
-			if (!expected) {
-				getErr = (ind) => this.nextLayer.costs[ind];
-			}
+			this.costs.fill(0); //reset the costs
 
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
@@ -1200,8 +1211,6 @@ Im sorry but I had to choose one
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * this.stride;
-						let err = getErr(odi);
-						loss += Math.pow(err, 2);
 						for (var h = 0; h < this.inDepth; h++) {
 							const hWIH = h * this.wIH;
 							const hFWIH = h * this.fWIH + iFWIHID;
@@ -1209,9 +1218,9 @@ Im sorry but I had to choose one
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err;
+									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err[odi];
 									this.accessed[k + jGAIWBA]++;
-									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err;
+									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err[odi];
 								}
 							}
 						}
@@ -1220,7 +1229,7 @@ Im sorry but I had to choose one
 			}
 			//---------------------------------End of monstrosity-----------------
 			for (var i = 0; i < this.outData.length; i++) {
-				this.bs[i] += getErr(i);
+				this.bs[i] += err[i];
 			}
 			if (ConvLayer.averageOutCosts) {
 				for (var i = 0; i < this.costs.length; i++) {
@@ -1228,14 +1237,13 @@ Im sorry but I had to choose one
 					this.accessed[i] = 0;
 				}
 			}
-			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		getParamsAndGrads(forUpdate = true) {
 			if (forUpdate) {
-				for (var i = 0; i < this.filterws.length; i++) {
-					if (ConvLayer.averageOutGrads) {
-						this.filterws[i] /= this.outSize() / this.filters;
+				if (ConvLayer.averageOutGrads) {
+					for (var i = 0; i < this.filterws.length; i++) {
+						this.filterws[i] /= this.filters;
 					}
 				}
 			}
@@ -1292,7 +1300,7 @@ Im sorry but I had to choose one
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			if (saveObject.b) {
+			if (saveObject.useBias) {
 				for (var i = 0; i < layer.b.length; i++) {
 					layer.b[i] = saveObject.b[i];
 				}
@@ -1342,9 +1350,8 @@ Im sorry but I had to choose one
 			this.outData.fill(0);
 		}
 
-		backward(expected) {
-			this.costs.fill(0);
-			return 0; //best layer
+		backward(err) {
+			this.costs.fill(0); //best layer
 		}
 
 		inSize() {
@@ -1395,8 +1402,8 @@ Im sorry but I had to choose one
 
 {
 	class DeconvLayer {
-		static averageOutCosts = true; //probs
-		static averageOutGrads = false; //eh
+		static averageOutCosts = true;
+		static averageOutGrads = true;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -1529,27 +1536,11 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			for (var i = 0; i < this.inSize(); i++) {
-				//reset the costs
-				this.costs[i] = 0;
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input deconv layer";
-				}
-			}
-
-			let getCost = (ind) => {
-				return this.nextLayer.costs[ind];
-			};
-			if (expected) {
-				getCost = (ind) => {
-					return (expected[ind] - this.outData[ind]) / this.outData.length;
-				};
-			}
+			this.costs.fill(0); //reset the costs
 
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
@@ -1567,14 +1558,9 @@ Im sorry but I had to choose one
 								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
 								const jFWHFWIH = j * this.filterWidth + hFWIH;
 								for (var k = 0; k < this.filterWidth; k++) {
-									let err = getCost(k + jGAIWBA);
-									loss += Math.pow(err, 2);
-
-									this.costs[odi] += this.filterw[k + jFWHFWIH] * err;
-
+									this.costs[odi] += this.filterw[k + jFWHFWIH] * err[k + jGAIWBA];
 									this.accessed[odi]++;
-
-									this.filterws[k + jFWHFWIH] += this.inData[odi] * err;
+									this.filterws[k + jFWHFWIH] += this.inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -1583,7 +1569,7 @@ Im sorry but I had to choose one
 			}
 
 			for (var i = 0; i < this.outData.length; i++) {
-				this.bs[i] += getCost(i);
+				this.bs[i] += err[i];
 			}
 			if (DeconvLayer.averageOutCosts) {
 				for (var i = 0; i < this.inSize(); i++) {
@@ -1591,11 +1577,16 @@ Im sorry but I had to choose one
 					this.accessed[i] = 0;
 				}
 			}
-
-			return loss / (this.wMFWPO * this.hMFHPO * this.filters);
 		}
 
 		getParamsAndGrads(forUpdate = true) {
+			if (forUpdate) {
+				if (DeconvLayer.averageOutGrads) {
+					for (var i = 0; i < this.filterws.length; i++) {
+						this.filterws[i] /= this.filters;
+					}
+				}
+			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
 			} else {
@@ -1650,7 +1641,7 @@ Im sorry but I had to choose one
 			for (var i = 0; i < layer.filterw.length; i++) {
 				layer.filterw[i] = saveObject.filterw[i];
 			}
-			if (saveObject.b) {
+			if (saveObject.useBias) {
 				for (var i = 0; i < layer.b.length; i++) {
 					layer.b[i] = saveObject.b[i];
 				}
@@ -1723,28 +1714,15 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-
-			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
+			this.costs.fill(0);
 			for (var i = 0; i < this.outDepth; i++) {
 				for (var j = 0; j < this.outHeight; j++) {
 					for (var h = 0; h < this.outWidth; h++) {
 						let prop = i * this.outHeight * this.outWidth + j * this.outWidth + h;
-						let err = geterr(prop);
-						loss += Math.pow(err, 2);
 						this.costs[
 							(j + 1) * this.pad * 2 +
 								-this.pad +
@@ -1752,11 +1730,10 @@ Im sorry but I had to choose one
 								prop +
 								i * ((this.outWidth + this.pad * 2) * this.pad) * 2 +
 								i * (this.outHeight * this.pad) * 2
-						] = err;
+						] = err[prop];
 					}
 				}
 			}
-			return loss;
 		}
 
 		inSize() {
@@ -1925,40 +1902,27 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
+			}
 
-			let geterr = (ind) => {
-				return (expected[ind] - this.outData[ind]) / this.outData.length;
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
+			for (var i = 0; i < this.inSize(); i++) {
+				this.costs[i] = 0;
+				for (var j = 0; j < this.outSize(); j++) {
+					//activation times error = change to the weight.
+					this.ws[j + i * this.outSize()] += this.inData[i] * err[j] * 2;
+					this.costs[i] += this.w[j + i * this.outSize()] * err[j] * 2;
 				}
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = geterr(j);
-				loss += Math.pow(err, 2);
-				for (var i = 0; i < this.inSize(); i++) {
-					//activation times error = change to the weight.
-					this.ws[j + i * this.outSize()] += this.inData[i] * err * 2;
-					this.costs[i] += this.w[j + i * this.outSize()] * err * 2;
-				}
-				//bias grad is real simple :)
-				this.bs[j] += err;
+				this.bs[j] += err[j]; //bias grad so easy
 			}
-
-			//finish averaging the costs
+			//finish averaging the costs : required code
 			for (var i = 0; i < this.inSize(); i++) {
 				this.costs[i] = this.costs[i] / this.outSize();
 			}
-
-			return loss / this.outSize();
 		}
 
 		inSize() {
@@ -2107,25 +2071,14 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] = this.nextLayer.costs[i];
-					loss += this.costs[i];
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] = err;
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-			return loss / this.inSize();
+
+			for (var j = 0; j < this.outData.length; j++) {
+				this.costs[j] = err[j];
+			}
 		}
 
 		inSize() {
@@ -2179,6 +2132,124 @@ Im sorry but I had to choose one
 }
 
 {
+	class InputInsertionLayer {
+		//this layer allows you to add input to the data flow of the model at any
+		//place in the layers of the model. By calling "setInput" before each
+		//forward call, you can have two inputs. This can be useful for situations
+		//where you wanna input an image AND maybe also a latent vector somewhere
+		//in the middle of the model. Or if you wanna add some kind of time vector
+		//All this layer does is take the current input and adds it to the activations
+		//of the last layer.
+		constructor(size, inputSize) {
+			if (size == undefined || inputSize == undefined) {
+				throw "You need to define size and input size for InputInsertionLayer";
+			}
+			this.nextLayer; //the connected layer
+			this.inData = new Float32Array(size); //the inData
+			this.outData = new Float32Array(size + inputSize); //will be init when "connect" is called.
+			this.costs = new Float32Array(size); //costs for each neuron
+			this.currentInput = new Float32Array(inputSize);
+			this.pl; //reference to previous layer
+		}
+
+		setInput(input) {
+			for (var i = 0; i < input.length; i++) {
+				this.currentInput[i] = input[i];
+			}
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+		set previousLayer(layer) {
+			// try to connect to it
+			// if (this.inData.length == 0) {
+			// 	//if not already initialized
+			// 	this.inData = new Float32Array(layer.outSize());
+			// 	this.outData = new Float32Array(layer.outSize());
+			// 	this.costs = new Float32Array(layer.outSize());
+			// }
+			this.pl = layer;
+		}
+		forward(inData) {
+			if (inData) {
+				if (inData.length != this.inSize()) {
+					throw Ment.inputError(this, inData);
+				}
+				for (var i = 0; i < inData.length; i++) {
+					this.inData[i] = inData[i];
+				}
+			}
+
+			for (var h = 0; h < this.inSize(); h++) {
+				this.outData[h] = this.inData[h];
+			}
+
+			for (var h = 0; h < this.currentInput.length; h++) {
+				this.outData[this.inSize() + h] = this.currentInput[h];
+			}
+		}
+
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
+			}
+
+			//the currentInput is not something trainable so we just ignore
+			//the error it causes and backprop everything else
+			for (var j = 0; j < this.inData.length; j++) {
+				this.costs[j] = err[j];
+			}
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+			this.savedInputSize = this.currentInput.length;
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "currentInput"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+			delete this.savedInputSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new InputInsertionLayer(saveObject.savedSize, saveObject.savedInputSize);
+			return layer;
+		}
+	}
+
+	Ment.InputInsertionLayer = InputInsertionLayer;
+	Ment.InputInsertion = InputInsertionLayer;
+	Ment.ActivationInsertion = InputInsertionLayer;
+}
+
+{
 	class LeakyReluLayer extends Ment.ActivationBase {
 		static leakySlope = 0.25;
 
@@ -2197,33 +2268,22 @@ Im sorry but I had to choose one
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] =
-					this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
+				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = expected[j] - this.outData[j];
-				loss += Math.pow(err, 2);
 				if (this.outData[j] >= 0) {
-					this.costs[j] = err;
+					this.costs[j] = err[j];
 				} else {
-					this.costs[j] = err * LeakyReluLayer.leakySlope;
+					this.costs[j] = err[j] * LeakyReluLayer.leakySlope;
 				}
 			}
-			return loss / this.outSize();
 		}
 
 		static load(json) {
@@ -2240,17 +2300,23 @@ Im sorry but I had to choose one
 {
 	class MaxPoolLayer {
 		constructor(inDim, filterDim, stride = 1) {
-			if(inDim.length != 3){
-				throw this.constructor.name + " parameter error: Missing dimensions parameter. \n"
-				+ "First parameter in layer must be an 3 length array, width height and depth";
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
 			}
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
 
-			if(filterDim.length != 2){
-				throw this.constructor.name + " parameter error: Missing filter dimensions parameter. \n"
-				+ "First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)";
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
 			}
 			let filterWidth = filterDim[0];
 			let filterHeight = filterDim[1];
@@ -2261,13 +2327,15 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth);
+			this.outData = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
+			);
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.costs = new Float32Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw 'Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)';
+				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
 
 			//Everything below here is precalculated constants used in forward/backward
@@ -2292,7 +2360,11 @@ Im sorry but I had to choose one
 		}
 
 		outSizeDimensions() {
-			return [Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride), Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride), this.inDepth];
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + +1) / this.stride),
+				this.inDepth,
+			];
 		}
 
 		forward(inData) {
@@ -2330,46 +2402,40 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
+		backward(err) {
 			this.costs.fill(0);
-			let loss = 0;
-
-			if (!expected) {
-				// -- sometimes the most effiecant way is the least elagant one...
-				if (this.nextLayer == undefined) {
-					throw 'error backproping on an unconnected layer with no expected parameter input';
-				}
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-
 			for (var g = 0; g < this.hMFHPO; g++) {
-				const ga = g * this.stride;
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
-					const ba = b * this.stride;
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						let err = !expected ? this.nextLayer.costs[odi] : expected[odi] - this.outData[odi];
-						loss += Math.pow(err, 2);
-						this.costs[this.maxIndexes[odi]] += err;
+						this.costs[this.maxIndexes[odi]] += err[odi];
 						this.accessed[this.maxIndexes[odi]]++;
 					}
 				}
 			}
-
-			return loss / (this.hMFHPO * this.wMFWPO * this.inDepth);
+			for (var i = 0; i < this.accessed.length; i++) {
+				if (this.accessed[i] != 0) {
+					this.costs[i] /= this.accessed[i]; //Average it yeah!!!
+					this.accessed[i] = 0;
+				}
+			}
 		}
 
 		save() {
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
-					key == 'inData' ||
-					key == 'outData' ||
-					key == 'costs' ||
-					key == 'gpuEnabled' ||
-					key == 'trainIterations' ||
-					key == 'nextLayer' ||
-					key == 'previousLayer' ||
-					key == 'pl'
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
 				) {
 					return undefined;
 				}
@@ -2384,11 +2450,8 @@ Im sorry but I had to choose one
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
 			let layer = new MaxPoolLayer(
-				[saveObject.inWidth,
-				saveObject.inHeight,
-				saveObject.inDepth],
-				[saveObject.filterWidth,
-				saveObject.filterHeight],
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.stride
 			);
 			return layer;
@@ -2468,40 +2531,28 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-
-			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
+			this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {
 					for (var h = 0; h < this.inWidth; h++) {
 						let prop = i * this.inHeight * this.inWidth + j * this.inWidth + h;
-						let err = geterr(
-							(j + 1) * this.pad * 2 +
-								-this.pad +
-								this.pad * (this.inWidth + this.pad * 2) +
-								prop +
-								i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
-								i * (this.inHeight * this.pad) * 2
-						);
-						loss += Math.pow(err, 2);
-						this.costs[prop] = err;
+						this.costs[prop] =
+							err[
+								(j + 1) * this.pad * 2 +
+									-this.pad +
+									this.pad * (this.inWidth + this.pad * 2) +
+									prop +
+									i * ((this.inWidth + this.pad * 2) * this.pad) * 2 +
+									i * (this.inHeight * this.pad) * 2
+							];
 					}
 				}
 			}
-			return loss;
 		}
 
 		inSize() {
@@ -2596,6 +2647,7 @@ Im sorry but I had to choose one
 		forward(inData) {
 			//first save what was last outputted for the receiver
 			if (this.where == "behind") {
+				//this layer is to the left of receiver
 				for (var i = 0; i < this.outSize(); i++) {
 					this.savedOutData[i] = this.outData[i];
 				}
@@ -2614,35 +2666,21 @@ Im sorry but I had to choose one
 				this.outData[h] = this.inData[h];
 			}
 			if (this.where == "in front") {
+				//this layer is to the right
 				for (var i = 0; i < this.outSize(); i++) {
 					this.savedOutData[i] = this.outData[i];
 				}
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.costsFromReceiver[i];
-					this.costs[i] /= 2;
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] += (err + this.costsFromReceiver[i]) / 2;
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
-			return loss / this.inSize();
+			for (var j = 0; j < this.outData.length; j++) {
+				this.costs[j] = (err[j] + this.costsFromReceiver[j]) / 2;
+			}
 		}
 
 		inSize() {
@@ -2678,6 +2716,7 @@ Im sorry but I had to choose one
 			});
 
 			//This is how you delete object properties btw.
+			//todo check if this is needed
 			delete this.savedInSize;
 			delete this.savedOutSize;
 
@@ -2745,8 +2784,8 @@ Im sorry but I had to choose one
 
 			this.inDataFromEmitter = this.emitter.savedOutData;
 			currentLayer.receiver = this; //so they can find each other again :)
-			if (this.mode == "add") {
-				if (layer.outSize() != this.emitter.outSize()) {
+			if (this.mode == "add" || this.mode == "average") {
+				if (this.pl.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
 				this.outData = new Float32Array(layer.outSize());
@@ -2826,20 +2865,9 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-
-			let getErr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				getErr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			if (this.emitter.where == "behind") {
@@ -2847,28 +2875,22 @@ Im sorry but I had to choose one
 					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
 				}
 			}
-
 			if (this.mode == "concat") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
+					this.costsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					this.costsForEmitter[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i];
+					this.costsForEmitter[i] = err[i];
 				}
 			} else if (this.mode == "average") {
-				//proud of this mode because I didn't look anything up just used my big brain to figure it out.
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i) * 2;
-					this.costsForEmitter[i] = getErr(i) * 2;
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i] * 2;
+					this.costsForEmitter[i] = err[i] * 2;
 				}
 			}
 
@@ -2877,8 +2899,6 @@ Im sorry but I had to choose one
 					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
 				}
 			}
-
-			return loss / this.inSize();
 		}
 
 		inSize() {
@@ -2951,26 +2971,16 @@ Im sorry but I had to choose one
 			//Oh the misery
 		}
 
-		backward(expected) {
-			let loss = 0;
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw 'nothing to backpropagate!';
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					expected.push(this.nextLayer.costs[i] + this.nextLayer.inData[i]);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				let err = expected[j] - this.outData[j];
-				loss += Math.pow(err, 2);
 				if (this.outData[j] >= 0) {
-					this.costs[j] = err;
+					this.costs[j] = err[j];
 				}
 			}
-			return loss / this.outSize();
 		}
 		static load(json) {
 			let saveObject = JSON.parse(json);
@@ -3025,30 +3035,17 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				expected = [];
-				for (var i = 0; i < this.outData.length; i++) {
-					this.costs[i] += this.nextLayer.costs[i];
-					this.costs[i] += this.receiver.costsForEmitter[i];
-					this.costs[i] /= 2;
-					loss += Math.pow(this.costs[i], 2);
-				}
-			} else {
-				//this code should never run tbh
-				console.log("somethings a little weird about your network bud....");
-				for (var j = 0; j < this.outData.length; j++) {
-					let err = expected[j] - this.outData[j];
-					this.costs[j] += err;
-					loss += Math.pow(err, 2);
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
-			return loss / this.inSize();
+			this.costs.fill(0);
+
+			for (var i = 0; i < this.outData.length; i++) {
+				this.costs[i] += err[i];
+				this.costs[i] += this.receiver.costsForEmitter[i];
+				this.costs[i] /= 2;
+			}
 		}
 
 		inSize() {
@@ -3181,47 +3178,30 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-
-			let getErr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-
-			if (!expected) {
-				if (this.nextLayer == undefined) {
-					throw "nothing to backpropagate!";
-				}
-				getErr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
 
 			if (this.mode == "concat") {
-				for (var i = 0; i < this.inData.length - this.inDataFromEmitter; i++) {
-					this.costs[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+				//fixed a very atrocious error
+				for (var i = 0; i < this.inData.length; i++) {
+					this.costs[i] = err[i] / 2;
 				}
-				for (var i = this.inData.length - this.inDataFromEmitter; i < this.inData.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = getErr(i);
-					loss += Math.pow(this.costsForEmitter[i - this.inData.length], 2);
+				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
+					this.costsForEmitter[i - this.inData.length] = err[i] / 2;
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i);
-					this.costsForEmitter[i] = getErr(i);
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i] / 2;
+					this.costsForEmitter[i] = err[i] / 2;
 				}
 			} else if (this.mode == "average") {
-				//proud of this mode because I didn't look anything up just used my big brain to figure it out.
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = getErr(i) * 2;
-					this.costsForEmitter[i] = getErr(i) * 2;
-					loss += Math.pow(this.costs[i], 2);
+					this.costs[i] = err[i] * 2;
+					this.costsForEmitter[i] = err[i] * 2;
 				}
 			}
-
-			return loss / this.inSize();
 		}
 
 		inSize() {
@@ -3318,6 +3298,8 @@ Im sorry but I had to choose one
 
 {
 	class SineLayer extends Ment.ActivationBase {
+		//worst.. most useless layer ever.
+		// :(
 		sine(z) {
 			return Math.sin(z);
 		}
@@ -3447,7 +3429,7 @@ Im sorry but I had to choose one
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
 						this.outData[i * this.outHeight * this.outWidth + h * this.outWidth + j] =
 							this.inData[
-								Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+								Math.floor(i) * this.inHeight * this.inWidth +
 									Math.floor(h / this.scale) * this.inWidth +
 									Math.floor(j / this.scale)
 							];
@@ -3456,40 +3438,28 @@ Im sorry but I had to choose one
 			}
 		}
 
-		backward(expected) {
-			let loss = 0;
-			this.costs.fill(0);
-			let geterr = (ind) => {
-				return expected[ind] - this.outData[ind];
-			};
-			if (!expected) {
-				geterr = (ind) => {
-					return this.nextLayer.costs[ind];
-				};
-				if (this.nextLayer == undefined) {
-					throw "error backproping on an unconnected layer with no expected parameter input";
-				}
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.costs;
 			}
+			this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				//this can be optimized
 				for (var h = 0; h < this.inHeight * this.scale; h++) {
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
-						let t = geterr(i * this.outHeight * this.outWidth + h * this.outWidth + j);
+						let t = err[i * this.outHeight * this.outWidth + h * this.outWidth + j];
 						this.costs[
-							Math.floor(i / this.scale) * this.inHeight * this.inWidth +
+							Math.floor(i) * this.inHeight * this.inWidth +
 								Math.floor(h / this.scale) * this.inWidth +
 								Math.floor(j / this.scale)
 						] += t;
-						loss += Math.pow(t, 2);
 					}
 				}
 			}
 			// for(var i = 0;i<this.costs.length;i++){
 			// 	this.costs[i] /= this.scale;
 			// }
-
-			return loss / this.outSize();
 		}
 
 		inSize() {

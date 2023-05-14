@@ -99,61 +99,70 @@ var go = function () {
 			let c = Array(10).fill(0);
 			c[i] = 5; //its 5 instead of one to make it more important to get it right
 			let err = net.train(getDigit(names[i]), c);
-			document.getElementById("err" + names[i]).innerHTML = "Total Error: " + parseInt(err * 100) + "%";
-			document.getElementById(names[i] + "out").innerHTML = "";
 			fullerr += err * 100;
 			let max = 0;
 			let ind = 0;
-			for (var j = 0; j < 10; j++) {
-				if (net.layers[net.layers.length - 1].outData[j] > max) {
-					// console.log(max);
-					max = net.layers[net.layers.length - 1].outData[j];
-					ind = j;
+
+			if (Math.random() > 0.9) {
+				//just make it render less save cpu
+				document.getElementById("err" + names[i]).innerHTML = "Total Error: " + parseInt(err * 100) + "%";
+
+				drawFromArr(getDigit(names[i]), ctx[i]);
+				document.getElementById(names[i] + "out").innerHTML = "";
+
+				for (var j = 0; j < 10; j++) {
+					if (net.layers[net.layers.length - 1].outData[j] > max) {
+						// console.log(max);
+						max = net.layers[net.layers.length - 1].outData[j];
+						ind = j;
+					}
+					document.getElementById(names[i] + "out").innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
 				}
-				document.getElementById(names[i] + "out").innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
+
+				if (ind == i) {
+					document.getElementById(names[i] + "c").innerHTML = "Correct";
+				} else {
+					document.getElementById(names[i] + "c").innerHTML = "WRONG YOU IDIOT!";
+				}
 			}
-			if (ind == i) {
-				document.getElementById(names[i] + "c").innerHTML = "Correct";
-			} else {
-				document.getElementById(names[i] + "c").innerHTML = "WRONG YOU IDIOT!";
-			}
-			drawFromArr(getDigit(names[i]), ctx[i]);
 		}
 		//draw the filters
-		for (var i = 0; i < net.layers[0].filters; i++) {
-			ctxF.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
-			drawFromArrF(
-				net.layers[0].filterw.slice(
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight +
-						net.layers[0].filterWidth +
-						net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
-				),
-				ctxF,
-				5 + i * net.layers[0].filterWidth * 6,
-				5,
-				255
-			);
-		}
+		if (Math.random() > 0.9) {
+			for (var i = 0; i < net.layers[0].filters; i++) {
+				ctxF.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
+				drawFromArrF(
+					net.layers[0].filterw.slice(
+						i * net.layers[0].filterWidth * net.layers[0].filterHeight,
+						i * net.layers[0].filterWidth * net.layers[0].filterHeight +
+							net.layers[0].filterWidth +
+							net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
+					),
+					ctxF,
+					5 + i * net.layers[0].filterWidth * 6,
+					5,
+					255
+				);
+			}
 
-		for (var i = 0; i < net.layers[0].filters; i++) {
-			ctxFG.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
-			drawFromArrF(
-				net.layers[0].filterws.slice(
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight,
-					i * net.layers[0].filterWidth * net.layers[0].filterHeight +
-						net.layers[0].filterWidth +
-						net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
-				),
-				ctxFG,
-				5 + i * net.layers[0].filterWidth * 6,
-				5,
-				2550
-			);
+			for (var i = 0; i < net.layers[0].filters; i++) {
+				ctxFG.clearRect(i * net.layers[0].filterWidth * 20, 0, 100, 100);
+				drawFromArrF(
+					net.layers[0].filterws.slice(
+						i * net.layers[0].filterWidth * net.layers[0].filterHeight,
+						i * net.layers[0].filterWidth * net.layers[0].filterHeight +
+							net.layers[0].filterWidth +
+							net.layers[0].filterWidth * (net.layers[0].filterHeight - 1)
+					),
+					ctxFG,
+					5 + i * net.layers[0].filterWidth * 6,
+					5,
+					2550
+				);
+			}
 		}
-		examplesSeen++;
 		document.getElementById("es").innerHTML = "examples seen:" + examplesSeen;
 		document.getElementById("totserr").innerHTML = "Total Error:" + fullerr;
+		examplesSeen++;
 	}, 0);
 };
 go();
