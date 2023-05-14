@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../../index.css" />
+		<script src="../../Mentis.js"></script>
+		<title>MentisJS</title>
+		<style>
+			* {
+				margin: 0px;
+				border: 0px;
+			}
+			body {
+				font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+			}
+		
+			.wrapper {
+				margin-left: 15%;
+				width: 70%;
+				background-color: rgb(220, 225, 222);
+			}
+
+			
+			.showcase {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:17vw;
+			}
+		
+			.showcase canvas{
+				width:10vw;
+				height:10vw;
+				border:1px solid black;
+				margin-right:5%;
+			}
+
+			.showcaseSmall {
+				align-items: center;
+				display: flex;
+				width: 100%;
+				border: 5px solid black;
+				height:5vw;
+			}
+		
+			.showcaseSmall canvas{
+				width:2vw;
+				height:2vw;
+				border:1px solid black;
+				margin-right:5%;
+			}
+			
+		</style>
+	</head>
+	<body>
+		<div onclick="window.location = '../../index.html'" class="topbar">
+			<img src="../../images/logo.png" />
+			<h1>MentisJS</h1>
+		</div>
+		<!-- End of topbar -->
+		<div class="showcaseTitle">
+			<h1>Layers showcase / Testing </h1>
+			<h3>Feel free to edit the code and play around with what layers do!</h3>
+		</div>
+		<div class="wrapper">
+
+			<h2>Convolutional layers</h2>
+			<p>These layers are good at analysing images and extracting features from images.
+			They work on any 2D image. You input a one dimensional array formated like this:
+			[r,r,r,r,r,g,g,g,g,g,b,b,b,b,b], (r representing red pixel values, blue representing
+			blue pixel values, green representing green pixel values) (pixel values starting at
+			top left and going to bottom right. This Layer extracts red vertical lines
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Layer Input:</h3>
+				<canvas id="convCanvIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">Layer Output:</h3>
+				<canvas id="convCanvOut" width="30px" height="30px"></canvas>
+			</div>
+			<div class="showcaseSmall">
+				<h3 style="margin-right: 3%">Layer Weights:</h3>
+				<canvas id="convCanvWeights" width="10px" height="10px"></canvas>
+				<canvas id="convCanvWeightsTwo" width="10px" height="10px"></canvas>
+				<canvas id="convCanvWeightsThree" width="10px" height="10px"></canvas>
+			</div>
+			<br>
+			<br>
+			<h2>Deconvolutional layers "Transposed Convoloution"</h2>
+			<p>Deconvolutional layers basically just do the opposite of conv layers.
+			They arent magic though so they wont be able to recover lost data. These
+			are commonly used in models that are required to produce images.
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Layer Input:</h3>
+				<canvas id="deConvCanvIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">Layer Output:</h3>
+				<canvas id="deConvCanvOut" width="30px" height="30px"></canvas>
+			</div>
+			<div class="showcaseSmall">
+				<h3 style="margin-right: 3%">Layer Weights:</h3>
+				<canvas id="deConvCanvWeights" width="10px" height="10px"></canvas>
+				<canvas id="deConvCanvWeightsTwo" width="10px" height="10px"></canvas>
+				<canvas id="deConvCanvWeightsThree" width="10px" height="10px"></canvas>
+			</div>
+			<br>
+			<br>
+			<h2>Fully Connected / Dense Layers</h2>
+			<p>
+				These layers can create complex behaivor like brains. These are
+				the backbone to the intelligence of any AI model. Most common way 
+				to use these is to put a bunch of them in a row with an activation
+				Layer after each one.
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Layer Visual:</h3>
+				<canvas id="fcCanv" width="240px" height="120px" style="width:20vw;"></canvas>
+			</div>
+			
+		</div>
+		<script src="layerScript.js"></script>
+</html>
