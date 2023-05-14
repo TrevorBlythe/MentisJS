@@ -32,6 +32,9 @@ Making the backward function in Layers take "error" as a paremeter instead of "e
 It needed to be done though as it optimizes things a lot and lets a lot of code be cleared out. If you have the old library update it because it
 is much better now.
 
+Keep in mind that this only changed LAYERS and not the actual net object, so old code should work fine still as long as you didnt train layers
+individualy. Backward function in Net objects still take "expected output" as the parameter.
+
 # Tutorial
 
 <h2>How to make a Neural Network</h2>
