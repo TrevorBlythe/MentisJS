@@ -181,3 +181,97 @@ render({
 	background: "pink",
 	spread: 60,
 });
+
+//PADDING LAYER CODE -----------------------------------
+var pLayer = new PaddingLayer([6, 6, 3], 2, 0); //2 pixels of padding on each side, set the padding to 0
+var dPLayer = new DePaddingLayer([6, 6, 3], 2); //Take away 2 pixels of padding each side to make a [6,6,3] image
+
+// prettier-ignore
+var pLayerInput = [
+	//red pixel values
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1,
+
+	//green pixel values
+	1, 1, 1, 1, 1, 1, 
+	1, 0, 0, 0, 0, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1,
+
+	//blue pixel values
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 0, 0, 0, 0, 1, 
+	1, 1, 1, 1, 1, 1
+];
+
+pLayer.forward(pLayerInput);
+
+var padIn = document.getElementById("padIn").getContext("2d");
+var padOut = document.getElementById("padOut").getContext("2d");
+drawFromArr(pLayerInput, padIn, 6, 6, 3);
+drawFromArr(pLayer.outData, padOut, 10, 10, 3);
+
+dPLayer.forward(pLayer.outData);
+var dePadIn = document.getElementById("dePadIn").getContext("2d");
+var dePadOut = document.getElementById("dePadOut").getContext("2d");
+drawFromArr(pLayer.outData, dePadIn, 10, 10, 3);
+drawFromArr(dPLayer.outData, dePadOut, 6, 6, 3);
+
+//UPSCALING LAYER CODE----------------------------------
+var upLayer = new Upscale([2, 2, 3], 2);
+var upInput = [
+	1, 1, 0, 0,
+
+	0, 0, 0, 0,
+
+	0, 0, 1, 1,
+	//end of third filter
+];
+upLayer.forward(upInput);
+var upIn = document.getElementById("upIn").getContext("2d");
+var upOut = document.getElementById("upOut").getContext("2d");
+drawFromArr(upInput, upIn, 2, 2, 3);
+drawFromArr(upLayer.outData, upOut, 4, 4, 3);
+
+//MAX POOL CODE
+var mpLayer = new MaxPoolingLayer([6, 6, 3], [2, 2], 2);
+// prettier-ignore
+var mpLayerInput = [
+	//red pixel values
+	1, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	1, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	1, 0.6, 0, 0, 0, 0, 
+	0, 0.1, 0, 0, 0, 0,
+
+	//green pixel values
+	0.9, 0, 1, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	0, 0, 1, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	0.3, 0, 1, 0, 0, 0, 
+	0, 0.7, 0, 0, 0, 0,
+
+	//blue pixel values
+	0, 0, 0, 0, 1, 0, 
+	0, 0.9, 0, 0, 0, 0, 
+	0, 0, 0, 0, 1, 0, 
+	0, 0, 0, 0, 0, 0, 
+	0, 0.2, 0, 0, 1, 0, 
+	0.1, 0.5, 0, 0, 0, 0
+];
+mpLayer.forward(mpLayerInput);
+var mpIn = document.getElementById("mpIn").getContext("2d");
+var mpOut = document.getElementById("mpOut").getContext("2d");
+drawFromArr(mpLayerInput, mpIn, 6, 6, 3);
+drawFromArr(mpLayer.outData, mpOut, 3, 3, 3);

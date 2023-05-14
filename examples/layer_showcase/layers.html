@@ -20,6 +20,11 @@
 				margin-left: 15%;
 				width: 70%;
 				background-color: rgb(220, 225, 222);
+				
+			}
+			.wrapper p{
+				padding:1vw;
+				color: rgb(55, 55, 55);
 			}
 
 			
@@ -29,6 +34,7 @@
 				width: 100%;
 				border: 5px solid black;
 				height:17vw;
+				padding: 1vw;
 			}
 		
 			.showcase canvas{
@@ -118,7 +124,62 @@
 				<h3 style="margin-right: 3%">Layer Visual:</h3>
 				<canvas id="fcCanv" width="240px" height="120px" style="width:20vw;"></canvas>
 			</div>
-			
+			<br>
+			<br>
+			<h2>Activation Layers</h2>
+			<p>
+				These don't need a showcase all they do is make neural networks
+				nonlinear. These are basically required for any network to show some sort of 
+				intelligence. MentisJS has Tanh, Sigmoid, Relu, LeakyRelu, and Sine. I 
+				recommend Sigmoid.
+			</p>
+			<br>
+			<br>
+			<h2>Padding/Depadding Layers</h2>
+			<p>
+				These layers add empty space to the edges of image input. Some people
+				like to use these in the beginning of networks to prevent artifiacts 
+				forming on the edge of their outputs.
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">PaddingLayer Input:</h3>
+				<canvas id="padIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">PaddingLayer Output:</h3>
+				<canvas id="padOut" width="30px" height="30px"></canvas>
+			</div>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">DePaddingLayer Input:</h3>
+				<canvas id="dePadIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">DePaddingLayer Output:</h3>
+				<canvas id="dePadOut" width="30px" height="30px"></canvas>
+			</div>
+			<br>
+			<br>
+			<h2>Upscaling Layers</h2>
+			<p>Just upscales an image by a factor of your choosing. Can be used to 
+			make generating images faster by using less deconv layers. The opposite 
+			of this would probably be closest to max-pooling layer or average pooling( havent made yet).
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Upscale Input:</h3>
+				<canvas id="upIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">Upscale Output:</h3>
+				<canvas id="upOut" width="30px" height="30px"></canvas>
+			</div>
+			<br>
+			<br>
+			<h2>Max-Pooling Layers</h2>
+			<p>
+				This layer moves a filter across the image that takes the max pixel
+				value and outputs it. The top left pixel is white because it took the max
+				value of each color over a 2 by 2 square and put it together.
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">Max pool Input:</h3>
+				<canvas id="mpIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">Max pool Output:</h3>
+				<canvas id="mpOut" width="30px" height="30px"></canvas>
+			</div>
 		</div>
 		<script src="layerScript.js"></script>
 </html>

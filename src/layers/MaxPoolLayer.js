@@ -160,5 +160,6 @@
 	}
 
 	Ment.MaxPoolLayer = MaxPoolLayer;
+	Ment.MaxPoolingLayer = MaxPoolLayer;
 	Ment.MaxPool = MaxPoolLayer;
 }

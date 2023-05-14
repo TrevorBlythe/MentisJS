@@ -124,6 +124,7 @@
 		}
 	}
 
+	Ment.DePaddingLayer = DepaddingLayer;
 	Ment.DepaddingLayer = DepaddingLayer;
 	Ment.DepadLayer = DepaddingLayer;
 	Ment.Depadding = DepaddingLayer;

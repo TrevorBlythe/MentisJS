@@ -1784,6 +1784,7 @@ Im sorry but I had to choose one
 		}
 	}
 
+	Ment.DePaddingLayer = DepaddingLayer;
 	Ment.DepaddingLayer = DepaddingLayer;
 	Ment.DepadLayer = DepaddingLayer;
 	Ment.Depadding = DepaddingLayer;
@@ -2459,6 +2460,7 @@ Im sorry but I had to choose one
 	}
 
 	Ment.MaxPoolLayer = MaxPoolLayer;
+	Ment.MaxPoolingLayer = MaxPoolLayer;
 	Ment.MaxPool = MaxPoolLayer;
 }
 
