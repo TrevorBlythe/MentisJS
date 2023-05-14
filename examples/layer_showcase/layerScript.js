@@ -310,3 +310,37 @@ var avgIn = document.getElementById("avgIn").getContext("2d");
 var avgOut = document.getElementById("avgOut").getContext("2d");
 drawFromArr(avgLayerInput, avgIn, 6, 6, 3);
 drawFromArr(avgLayer.outData, avgOut, 3, 3, 3);
+
+//min POOL CODE
+var minpLayer = new MinPoolingLayer([6, 6, 3], [2, 2], 2);
+// prettier-ignore
+var minpLayerInput = [
+	//red pixel values
+	0.3, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	0.3, 1, 1, 1, 1, 1,
+
+	//green pixel values
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	0.3, 1, 1, 1, 1, 1,
+
+	//blue pixel values
+	0.2, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	1, 1, 1, 1, 1, 1, 
+	0.3, 1, 1, 1, 1, 1
+];
+minpLayer.forward(minpLayerInput);
+var minpIn = document.getElementById("minpIn").getContext("2d");
+var minpOut = document.getElementById("minpOut").getContext("2d");
+drawFromArr(minpLayerInput, minpIn, 6, 6, 3);
+drawFromArr(minpLayer.outData, minpOut, 3, 3, 3);

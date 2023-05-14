@@ -193,6 +193,20 @@
 				<h3 style="margin-right: 3%">Average pool Output:</h3>
 				<canvas id="avgOut" width="30px" height="30px"></canvas>
 			</div>
+			<br>
+			<br>
+			<h2>Min-Pooling Layers</h2>
+			<p>
+				This layer moves a filter across the image that takes the min pixel
+				value and outputs it. The top left pixel is white because it took the min
+				value of each color over a 2 by 2 square and put it together.
+			</p>
+			<div class="showcase">
+				<h3 style="margin-right: 3%">min pool Input:</h3>
+				<canvas id="minpIn" width="30px" height="30px"></canvas>
+				<h3 style="margin-right: 3%">min pool Output:</h3>
+				<canvas id="minpOut" width="30px" height="30px"></canvas>
+			</div>
 		</div>
 		<script src="layerScript.js"></script>
 </html>
