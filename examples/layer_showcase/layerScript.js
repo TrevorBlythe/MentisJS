@@ -255,8 +255,8 @@ var mpLayerInput = [
 	0, 0.1, 0, 0, 0, 0,
 
 	//green pixel values
-	0.9, 0, 1, 0, 0, 0, 
-	0, 0, 0, 0, 0, 0, 
+	0.5, 0, 1, 0, 0, 0, 
+	0.9, 0, 0, 0, 0, 0, 
 	0, 0, 1, 0, 0, 0, 
 	0, 0, 0, 0, 0, 0, 
 	0.3, 0, 1, 0, 0, 0, 
@@ -275,3 +275,38 @@ var mpIn = document.getElementById("mpIn").getContext("2d");
 var mpOut = document.getElementById("mpOut").getContext("2d");
 drawFromArr(mpLayerInput, mpIn, 6, 6, 3);
 drawFromArr(mpLayer.outData, mpOut, 3, 3, 3);
+
+//AVERAGE POOL LAYER CODE
+
+var avgLayer = new AvgPoolingLayer([6, 6, 3], [2, 2], 2);
+// prettier-ignore
+var avgLayerInput = [
+	//red pixel values
+	1, 1, 0, 0, 1, 0, 
+	1, 1, 0, 0, 1, 0, 
+	1, 0, 0, 0, 0, 1, 
+	0, 0, 0, 0, 0, 1, 
+	1, 0.6, 0, 0, 0, 0, 
+	0, 0.1, 0, 0, 0, 0,
+
+	//green pixel values
+	0, 0, 1, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	0, 0, 1, 0, 1, 0, 
+	0, 0, 0, 0, 1, 0, 
+	0.3, 0, 1, 0, 1, 0, 
+	0, 0.7, 0, 0, 1, 0,
+
+	//blue pixel values
+	1, 1, 0, 0, 0, 1, 
+	1, 1, 0, 0, 0, 1, 
+	0, 0, 0, 0, 0, 0, 
+	0, 0, 0, 0, 0, 0, 
+	0, 0.2, 0, 0, 0, 1, 
+	0.1, 0.5, 0, 0, 0, 1
+];
+avgLayer.forward(avgLayerInput);
+var avgIn = document.getElementById("avgIn").getContext("2d");
+var avgOut = document.getElementById("avgOut").getContext("2d");
+drawFromArr(avgLayerInput, avgIn, 6, 6, 3);
+drawFromArr(avgLayer.outData, avgOut, 3, 3, 3);

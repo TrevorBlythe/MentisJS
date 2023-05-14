@@ -1,5 +1,5 @@
 {
-	class MaxPoolLayer {
+	class AveragePoolLayer {
 		constructor(inDim, filterDim, stride = 1) {
 			if (inDim.length != 3) {
 				throw (
@@ -36,7 +36,7 @@
 			this.maxIndexes = new Float32Array(this.outData.length);
 			this.accessed = new Float32Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
-				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
+				throw "Average Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
 
 			//Everything below here is precalculated constants used in forward/backward
@@ -77,7 +77,6 @@
 					this.inData[i] = inData[i];
 				}
 			}
-			this.outData.fill(0);
 
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const ga = g * this.stride;
@@ -87,17 +86,14 @@
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
 						const hWIH = h * this.wIH + ba;
-						let max = this.inData[ga * this.inWidth + hWIH];
+						let avg = 0;
 						for (var j = 0; j < this.filterHeight; j++) {
 							const jGAIWBA = (j + ga) * this.inWidth + hWIH;
 							for (var k = 0; k < this.filterWidth; k++) {
-								if (this.inData[k + jGAIWBA] > max) {
-									max = this.inData[k + jGAIWBA];
-									this.maxIndexes[odi] = k + jGAIWBA;
-								}
+								avg += this.inData[k + jGAIWBA];
 							}
 						}
-						this.outData[odi] = max;
+						this.outData[odi] = avg / (this.filterWidth * this.filterHeight);
 					}
 				}
 			}
@@ -118,11 +114,26 @@
 					}
 				}
 			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] != 0) {
-					this.costs[i] /= this.accessed[i]; //Average it yeah!!!
-					this.accessed[i] = 0;
+			for (var g = 0; g < this.hMFHPO; g++) {
+				const ga = g * this.stride;
+				const gWMFWPO = g * this.wMFWPO;
+				for (var b = 0; b < this.wMFWPO; b++) {
+					const ba = b * this.stride;
+					for (var h = 0; h < this.inDepth; h++) {
+						const odi = b + gWMFWPO + h * this.hMFWMF;
+						const hWIH = h * this.wIH + ba;
+						for (var j = 0; j < this.filterHeight; j++) {
+							const jGAIWBA = (j + ga) * this.inWidth + hWIH;
+							for (var k = 0; k < this.filterWidth; k++) {
+								this.costs[k + jGAIWBA] += err[odi];
+							}
+						}
+					}
 				}
+			}
+			for (var i = 0; i < this.costs.length; i++) {
+				this.costs[i] /= this.accessed[i] + this.filterWidth * this.filterHeight; //Average the grad
+				this.accessed[i] = 0;
 			}
 		}
 
@@ -150,7 +161,7 @@
 		static load(json) {
 			//inWidth, inHeight, inDepth, filterWidth, filterHeight, stride = 1,
 			let saveObject = JSON.parse(json);
-			let layer = new MaxPoolLayer(
+			let layer = new AveragePoolLayer(
 				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
 				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.stride
@@ -159,7 +170,10 @@
 		}
 	}
 
-	Ment.MaxPoolLayer = MaxPoolLayer;
-	Ment.MaxPoolingLayer = MaxPoolLayer;
-	Ment.MaxPool = MaxPoolLayer;
+	Ment.AveragePoolLayer = AveragePoolLayer;
+	Ment.AveragePool = AveragePoolLayer;
+	Ment.AveragePooling = AveragePoolLayer;
+	Ment.AvgPool = AveragePoolLayer;
+	Ment.AvgPoolLayer = AveragePoolLayer;
+	Ment.AvgPoolingLayer = AveragePoolLayer;
 }
