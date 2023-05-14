@@ -53,46 +53,32 @@ let inputs = [
 let outputs = [[0], [1], [1], [0]];
 ```
 
-<p>Next we must define the layers our Network will have!</p>
+<p>Notice how the inputs and outputs correspond to the I/O of a XOR logic gate?</p>
+<p>Next we must define the Network to be the gate. You make a network by creating</p>
+<p>a "Net" object. Its constructor takes a list of layers that it will have</p>
 
 ```javascript
-let layerOne = new Ment.FC(2, 5);
-//input:2, output:5, fully connected layer
+let network = new Ment.Net([
+	new Ment.FC(2, 5), //fully connected/dense layer input size 2 output size 5
+	new Ment.Sig(5), //sigmoid activation layer size 5
+	new Ment.FC(5, 5),
+	new Ment.FC(5, 1),
+	new Ment.Sig(1),
+]);
 
-let layerTwo = new Ment.Sig(5);
-//size:5, sigmoid activation
-
-let layerThree = new Ment.FC(5, 5);
-//input:5, output:5, fully connected layer
-
-let layerFour = new Ment.FC(5, 1);
-//input:5, output:1, fully connected layer
-
-let layerFive = new Ment.Sig(1);
-//size:1, sigmoid activation
+network.learningRate = 0.1;
+network.batchSize = 4;
+//batch size is how many batches it will train on before averaging gradients and updating the params (weights)
 ```
 
 <p>Notice how the first layer takes an input size of two? This is because we will be inputting two numbers into the network</p>
 <p>The last layer only has one neuron. That will be the output neuron and will tell us what the network predicts.</p>
 <p>This network is overkill for a simple XOR gate but is good for a tutorial. Next we put these layers in a Net object</p>
 
-```javascript
-let network = new Ment.Net([layerOne, layerTwo, layerThree, layerFour, layerFive]);
-
-network.learningRate = 0.1;
-network.batchSize = 4;
-```
-
-<p> It is also possible to define the layers inside of the network definition to save space like so: </p>
-
-```javascript
-let network = new Ment.Net([new Ment.FC(2, 5), new Ment.Sig(5), new Ment.FC(5, 5), new Ment.FC(5, 1), new Ment.Sig(1)]);
-```
-
 <p> Now that we have our network made we can use it to solve XOR! You can input data with the forward function.</p>
 
 ```javascript
-network.forward(inputs[0]); //returns the output (a number)
+network.forward(inputs[0]); //returns the output (a list with 1 number)
 ```
 
 <p>Since our network isnt trained yet, it returns gibberish... Lets train it</p>
@@ -133,40 +119,9 @@ network.forward([1, 1]);
 
 It works!
 
-# All current layers:
+# RNN's
 
-Conv(inDim,filterDim,filters = 3,stride = 1,bias = true)<br>
-Deconv(inDim,filterDim,filters = 3,stride = 1,bias = true)<br>
-Depadding(outDim, pad)<br>
-FC(inSize,outSize)<br>
-Identity(size)<br>
-LeakyRelu(size)<br>
-Relu(size)<br>
-MaxPool(inDim, filterDim, stride = 1)<br>
-Padding(inDim, pad, padwith)<br>
-ResEmitter(id)<br>
-ResReceiver(id)<br>
-RecReceiverLayer(id)<br>
-RecEmitterLayer(id)<br>
-Sigmoid(size)<br>
-Sine(size)<br>
-DataBlockLayer(size)<br>
-Tanh(size)<br>
-
-# RNN update
-
-Im not completly sure if I did it correctly! This is why im releasing it with a warning that it might not work and
-the api might change. Please give feedback if anyone is even using this.
-
-A tutorial has been added to the website to get started with some rudimentary RNN models.
-
-Im trying to get a really small diffussion model as a proof of work that my rnn implementation is working.
-
-This latest update also comes with some minor fixes of things like saving arrays in json that dont need saved
-
-# RNN tutorial
-
-Before you learn this, learn a normal network. How does an RNN work? RNN's work exactly like normal networks with a few key exceptions.
+Before you learn this, learn a normal network. How does an RNN work? RNN's work almost exactly like normal networks with a few key exceptions.
 They allow you to build them with <b>RecEmitterLayer</b>'s and <b>RecReceiverLayer</b>'s.
 
 ## What do these special layers do?
@@ -177,7 +132,7 @@ In simple terms, a <b>RecEmitterLayer</b> saves its input and then forwards it t
 
 ## How to use these layers?
 
-To add these layers into your model, add them like a normal layer.
+To add these layers into your model, instanstiate an RNN object and add them like a normal layer.
 
 ```javascript
 let net = new Ment.Rnn([
@@ -199,7 +154,7 @@ This will make a network that looks like this. (white arrows are data flow)
 
 <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/net_diagram.png?raw=true" width = "800px">
 
-We will be using this network to be trained to become a XOR gate.
+We will be using this network to be trained to become a XOR gate. (im open to better example ideas)
 
 ```javascript
 for (var i = 0; i < 50000; i++) {
@@ -291,7 +246,8 @@ net.resetRecurrentData(); // this function resets its memory
 
 It will replace the memory with zeroes. In the last model of the tutorial we cleared it after every batch of data so the model
 learned that when its memory is zero it starts at 1. If your training an rnn make sure to clear its memory after batches or whenever you need it cleared.
-
+Remember, Rnn's take up more memory the more times you call forwards. It saves its activations for training. The memory is cleared when you call the backwards
+function as many times as you called the forwards function. The states are saved in a list called "savedStates", (rnnObject.savedStates)
 contact me: trevorblythe82@gmail.com
 
 Open up index.html for lots of examples of this network!
