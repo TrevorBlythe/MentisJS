@@ -12,7 +12,7 @@
 				border: 0px;
 			}
 			body {
-				font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+				font-family: Arial, "Helvetica Neue", Helvetica, sans-serif;
 			}
 			ws {
 				white-space: break-spaces;
@@ -30,19 +30,7 @@
 				justify-content: center;
 			}
 		</style>
-		<script src="../../src/Utils.js"></script>
-		<script src="../../src/layers/FCLayer.js"></script>
-		<script src="../../src/layers/ActivationBase.js"></script>
-		<script src="../../src/layers/SigmoidLayer.js"></script>
-		<script src="../../src/layers/TanhLayer.js"></script>
-		<script src="../../src/layers/SineLayer.js"></script>
-		<script src="../../src/layers/ReluLayer.js"></script>
-		<script src="../../src/layers/LeakyReluLayer.js"></script>
-		<script src="../../src/layers/IdentityLayer.js"></script>
-		<script src="../../src/layers/ConvLayer.js"></script>
-		<script src="../../src/layers/MaxPoolLayer.js"></script>
-		<script src="../../src/Population.js"></script>
-		<script src="../../src/Net.js"></script>
+		<script src="../../Mentis.js"></script>
 	</head>
 	<body onkeypress="doit()">
 		<div class="wrapper">
@@ -83,13 +71,14 @@ ctx.clearRect(0, 0, document.getElementById('canvas').width, document.getElement
 			<br />
 			<h1>XOR Test</h1>
 			<p>
-				The XOR gate is a common benchmark for neural networks to make sure they can learn things. For a neural network to learn the XOR dataset, It must have
-				working nonlinearities. This is why it is used. Also because it is small and easy to program.
+				The XOR gate is a common benchmark for neural networks to make sure they can learn things. For a neural network to learn
+				the XOR dataset, It must have working nonlinearities. This is why it is used. Also because it is small and easy to
+				program.
 			</p>
 			<br /><br />
 			<p>
-				You can edit the network with this text box and press reload network to reload it. There is a live feed of it training with the total error of the
-				network. It should be pretty low. If not, try giving the learning rate slider a jiggle
+				You can edit the network with this text box and press reload network to reload it. There is a live feed of it training
+				with the total error of the network. It should be pretty low. If not, try giving the learning rate slider a jiggle
 			</p>
 		</div>
 		<script src="xorScript.js"></script>

@@ -1,14 +1,23 @@
 var Ment = Ment || {};
 {
 	class Net {
-		constructor(layers, optimizer) {
+		constructor(layers, optimizer = "SGD") {
 			this.layers = layers || [];
 			this.batchSize = 5; //every 'batchSize' iterations, update the weights by calling 'updateParams' (resets iteration to 0)
 			this.epoch = 0; //goes up every 'updateParams' call
 			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
 			this.learningRate = 0.01;
-			this.optimizer = optimizer || "SGD"; //I have not made any other optimizer's yet
 
+			//Putting this here to keep code from the OG days alive.
+			if (optimizer == "SGD") {
+				this.optimizer = new Ment.SGD();
+			} else if (typeof optimizer == "string") {
+				this.optimizer = new Ment[optimizer]();
+			} else {
+				this.optimizer = optimizer;
+			}
+			this.optimizer.netObject = this; //give it access to the net object so it can get the learning rate and stuff.
+			this.optimizer.initialize();
 			this.connectLayers();
 		} //END OF CONSTRUCTOR
 
@@ -130,7 +139,7 @@ var Ment = Ment || {};
 			let saveObject = {};
 
 			saveObject.layerAmount = this.layers.length;
-			saveObject.optimizer = this.optimizer;
+			saveObject.optimizer = this.optimizer.constructor.name;
 			saveObject.learningRate = this.learningRate;
 			saveObject.batchSize = this.batchSize;
 			for (var i = 0; i < this.layers.length; i++) {
@@ -244,20 +253,8 @@ var Ment = Ment || {};
 
 		updateParams() {
 			this.epoch++;
-			for (var i = this.layers.length - 1; i >= 0; i--) {
-				if (this.layers[i].getParamsAndGrads) {
-					let pag = this.layers[i].getParamsAndGrads();
-					for (var j = 0; j < pag.length; j += 2) {
-						let params = pag[j];
-						let grads = pag[j + 1];
-						for (var k = 0; k < params.length; k++) {
-							params[k] += (grads[k] / this.iteration) * this.learningRate; //only does SGD rn
-							// params[k] += Ment.protectNaN((grads[k] / this.batchSize) * this.learningRate); //safe version
-							grads[k] = 0;
-						}
-					}
-				}
-			}
+			let pag = this.getParamsAndGrads();
+			this.optimizer.applyGradients(pag);
 		}
 	} //END OF NET CLASS DECLARATION
 

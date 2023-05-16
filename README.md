@@ -11,9 +11,8 @@ To use this library just copy the file "Mentis.js" which contains everything.
 
 # Newest Update
 
-If you feel like this library hasnt been working as fast/good as it should, its because it didnt. Thankfully ive tuned it to
-be at maximum speed. Ive gone through it all and fixed and optimized pretty much all of the code and am far more confident in it
-working perfectly. Ive made a lot of changes I'll list below
+<h3>ADDED MOMENTUM AND GROUND WORK FOR FUTURE OPTIMIZERS OTHER THAN SGD
+and also..</h3>
 
 0. Lots of tiny optimizations all around the library.
 1. the "backwards" function in layer objects now takes error as a parameter instead of expected values
@@ -118,6 +117,31 @@ network.forward([1, 1]);
 > [0.0012]
 
 It works!
+
+# Using the optimizers
+
+I recently added an optimizer that can increase training speed greatly. I should have done it earlier, it was super simple but made things train a lot better.
+
+Here is how to use different optimizers.
+
+### 1. Just include it in the Net() constructor.
+
+```javascript
+/*
+You can either use the string of the name or make the object in the parameters
+
+String method sucks but had to have it for backwards compatibility.
+
+With the "make the object in parameter" method you can include hyper-parameters, in this case you can set the momentum constant (default is 0.9).
+
+*/
+let network = new Ment.Net([layers]); //uses SGD optimizer (defualt)
+let network = new Ment.Net([layers], "SGD"); // also uses SGD
+let network = new Ment.Net([layers], "Momentum"); // uses momentum
+let network = new Ment.Net([layers], new Ment.Momentum(0.5)); //uses momentum with 0.5 momentum constant
+```
+
+If you wanna try out momentum go to the mnist example and press "reload network." It trains way faster.
 
 # RNN's
 
