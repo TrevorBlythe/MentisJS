@@ -143,6 +143,16 @@ let network = new Ment.Net([layers], new Ment.Momentum(0.5)); //uses momentum wi
 
 If you wanna try out momentum go to the mnist example and press "reload network." It trains way faster.
 
+### How to change optimizers mid-train:
+
+```javascript
+//Assume net has SGD and we wanna switch to momentum
+net.optimizer = new Momentum(0.9);
+net.optimizer.netObject = net;
+net.optimizer.initialize();
+//thats it
+```
+
 # RNN's
 
 Before you learn this, learn a normal network. How does an RNN work? RNN's work almost exactly like normal networks with a few key exceptions.
