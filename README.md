@@ -249,7 +249,28 @@ network.learningRate = 0.1;
 network.batchSize = 4;
 ```
 
-Everything else is the same. DONT BE SUPRISED WHEN ITS SLOW ON YOUR FIRST "forward" CALL, IT IS JUST INITIALIZING THE SHADERS!! All calls after that should be very fast.
+### How to get outputs from the GPU
+
+```javascript
+network_on_gpu.forward(data);
+//DOESNT RETURN ANYTHING
+
+network_on_gpu.backward(data);
+//ALSO DOESNT RETURN ANYTHING
+```
+
+It doesnt return anything because getting arrays from the gpu is very slow, so you should only do it very periodically to check on your networks progress. Here is how.
+
+```javascript
+network_on_gpu.forward(data);
+network_on_gpu.outData;
+//Returns the output array
+
+network_on_gpu.backward(data, true);
+//Returns the loss (The second parameter makes it do that)
+```
+
+Everything else is basically the same. DONT BE SUPRISED WHEN ITS SLOW ON YOUR FIRST "forward" CALL, IT IS JUST INITIALIZING THE SHADERS!! All calls after that should be very fast.
 
 I think i might be done with this passion project. Open up "index.html" for lots of cool examples.
 trevorblythe82@gmail.com
