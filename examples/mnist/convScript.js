@@ -82,13 +82,13 @@ var net = new Ment.Net([
 	new Ment.Conv([28, 28, 1], [10, 10], 5, 3, 0),
 	new Ment.MaxPool([7, 7, 5], [2, 2], 2),
 	new Ment.FC(45, 35),
-	new Ment.Sig(),
+	new Ment.Tanh(),
 	new Ment.FC(35, 10),
 	new Ment.Relu(),
 ]);
 
-net.batchSize = 5;
-net.learningRate = 0.001;
+net.batchSize = 10;
+net.learningRate = 0.01;
 document.getElementById("lr").innerHTML = "Learning Rate: " + net.learningRate;
 let names = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine"];
 

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../../index.css" />
+		<script src="../../Mentis.js"></script>
+		<script src="../../WebMonkeys.js"></script>
+		<title>MentisJS</title>
+		<style>
+			* {
+				margin: 0px;
+				border: 0px;
+			}
+			body {
+				font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+			}
+		
+			.wrapper {
+				margin-left: 15%;
+				width: 70%;
+				background-color: rgb(220, 225, 222);
+				
+			}
+			.wrapper p{
+				padding:1vw;
+				color: rgb(55, 55, 55);
+			}
+
+				button{
+				/* copied from copy-paste-css.com good looking button */
+				
+                display: inline-block;
+                outline: 0;
+                cursor: pointer;
+                border: 2px solid #000;
+                border-radius: 3px;
+                color: #fff;
+                background: #000;
+                font-size: 20px;
+                font-weight: 600;
+                line-height: 28px;
+                padding: 12px 20px;
+                text-align:center;
+                transition-duration: .15s;
+                transition-property: all;
+                transition-timing-function: cubic-bezier(.4,0,.2,1);
+
+                
+                 
+                
+				}
+
+				button:hover{
+                    color: #000;
+                    background: rgb(255, 218, 87);
+                }
+
+		.results {
+			align-items: center;
+			display: flex;
+			width: 100%;
+			border: 5px solid black;
+			height: 10vh;
+			background-color: grey;
+		}
+		</style>
+		<script>
+			var getWrongness = function(arr, arrTwo){
+				let wrongness = 0;
+				for(var i = 0;i<arr.length;i++){
+					wrongness += Math.pow(arr[i] - arrTwo[i],2);
+				}
+				wrongness /= arr.length;
+				return wrongness;
+			}
+			Ment.polluteGlobal();
+
+			var fillRan = function(arr){	
+				for(var i =0 ;i< arr.length;i++){
+							arr[i] = Math.random() * (Math.random() > 0.5 ? -1:1);
+						}
+
+			}
+		</script>
+	</head>
+	<body>
+		<div onclick="window.location = '../../index.html'" class="topbar">
+			<img src="../../images/logo.png" />
+			<h1>MentisJS</h1>
+		</div>
+		<!-- End of topbar -->
+		<div class="showcaseTitle">
+			<h1>GPU Test</h1>
+			<h3>This is a tool I used when making this to make sure the GPU layers worked correctly. It checks by comparing it with its cpu counter parts and making sure htey are the same.</h3>
+		</div>
+		<div class="wrapper">
+			
+			<br>
+			<br>
+			<h2>Convolutional layers</h2>
+			<button onclick="testConv('convResults');">Test</button>
+			<div class="results" id="convResults">
+				<script>
+					var testConv = (resultSectionId) => {
+						var element = document.getElementById(resultSectionId);
+						var cpuLayer = new Net([new Conv([5,5,3],[2,2],3,1,true)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].filterws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuFilterWGrads));
+						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
+
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+					}
+				</script>
+			</div>
+
+			
+
+				<br>
+			<br>
+			<br>
+			<h2>Deconv Layers</h2>
+			<button onclick="testDeconv('deconvResults');">Test</button>
+			<div class="results" id="deconvResults">
+				<script>
+					var testDeconv = (resultSectionId) => {
+						var element = document.getElementById(resultSectionId);
+						var cpuLayer = new Net([new DeConv([5,5,3],[2,2],3,1,true)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].filterws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuFilterWGrads));
+						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
+
+						
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+					}
+				</script>
+			</div>
+
+			<br>
+			<br>
+			<br>
+			<h2>FC Layers</h2>
+			<button onclick="testFC('FCResults');">Test</button>
+			<div class="results" id="FCResults">
+				<script>
+					var globalgpu;
+					var globalcpu;
+					var testFC = (resultSectionId) => {
+						var element = document.getElementById(resultSectionId);
+						var cpuLayer = new Net([new FC(100, 100,true),new FC(100, 100,true)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+						globalgpu = gpuLayer;
+						globalcpu = cpuLayer;
+						var input = new Float32Array(cpuLayer.layers[0].inSize());fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize());fillRan(output);
+						
+						cpuLayer.forward(input); 
+						cpuLayer.backward(output);
+						gpuLayer.forward(input); 
+						gpuLayer.backward(output);
+		
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].ws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuWeightsGradsName));
+						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+					}
+				</script>
+			</div>
+
+
+
+			<br>
+			<br>
+			<br>
+			<h2>Upscaling Layers</h2>
+			<button onclick="testUp('upResults');">Test</button>
+			<div class="results" id="upResults">
+				<script>
+					var gcpu;
+					var ggpu;
+					var testUp = (resultSectionId) => {
+						
+						var element = document.getElementById(resultSectionId);
+						var cpuLayer = new Net([new UpscalingLayer([3,3,2],2)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+						gcpu = cpuLayer;
+						ggpu = gpuLayer;
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+			<br>
+			<br>
+			<br>
+			<h2>Depadding Layers</h2>
+			<button onclick="testDepad('depadResults');">Test</button>
+			<div class="results" id="depadResults">
+				<script>
+					var testDepad = (resultSectionId) => {
+						
+						var element = document.getElementById(resultSectionId);
+						var cpuLayer = new Net([new Ment.Depad([3,3,3],2)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+				<br>
+			<br>
+			<br>
+			<h2>Identity (layer that does nothing) Layers</h2>
+			<button onclick="testIdentity();">Test</button>
+			<div class="results" id="identityResults">
+				<script>
+					var testIdentity = () => {
+						
+						var element = document.getElementById('identityResults');
+						var cpuLayer = new Net([new Ment.Dummy(69)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+
+			<br>
+			<br>
+			<br>
+			<h2>Input Insertion Layers</h2>
+			<button onclick="testInsertionAYO();">Test</button>
+			<div class="results" id="insertionResults">
+				<script>
+					var testInsertionAYO = () => {
+						
+						var element = document.getElementById('insertionResults');
+						var cpuLayer = new Net([new Ment.FC(5,5), new Ment.InputInsertion(5,5), new FC(10,5)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var customInput = [1,2,3,4,5];
+						cpuLayer.layers[1].setInput(customInput);
+						gpuLayer.layers[1].setInput(customInput);
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[cpuLayer.layers.length - 1].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+
+						wrongness -= getWrongness(cpuLayer.layers[2].inData, gpuLayer.layers[2].inData);
+						wrongness -= getWrongness(cpuLayer.layers[2].outData, gpuLayer.layers[2].outData);
+						wrongness -= getWrongness(cpuLayer.layers[2].costs, Ment.webMonkeys.get(gpuLayer.layers[2].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+			<br>
+			<br>
+			<br>
+			<h2>Leaky Relu Layers</h2>
+			<button onclick="testLeaky();">Test</button>
+			<div class="results" id="leakyResults">
+				<script>
+					var testLeaky = () => {
+						
+						var element = document.getElementById('leakyResults');
+						var cpuLayer = new Net([new Ment.LRelu(69)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+			<br>
+			<br>
+			<br>
+			<h2>Padding Layers</h2>
+			<button onclick="testPad();">Test</button>
+			<div class="results" id="padResults">
+				<script>
+					var testPad = () => {
+						
+						var element = document.getElementById('padResults');
+						var cpuLayer = new Net([new Ment.Padding([5,5,3],2)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+<br>
+			<br>
+			<br>
+			<h2>Sigmoid Layers</h2>
+			<button onclick="testSig();">Test</button>
+			<div class="results" id="sigResults">
+				<script>
+					var testSig= () => {
+						
+						var element = document.getElementById('sigResults');
+						var cpuLayer = new Net([new Ment.Sig(69), new Ment.Sig(69)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+			<br>
+			<br>
+			<br>
+			<h2>Tanh Layers</h2>
+			<button onclick="testTan();">Test</button>
+			<div class="results" id="tanResults">
+				<script>
+					var testTan= () => {
+						
+						var element = document.getElementById('tanResults');
+						var cpuLayer = new Net([new Ment.Tanh(69), new Ment.Tanh(69)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+				<br>
+			<br>
+			<br>
+			<h2>Residual Layers</h2>
+			<button onclick="testRes();">Test</button>
+			<div class="results" id="resResults">
+				<script>
+					var gpu;
+					var cpu;
+					var testRes = () => {
+						
+						var element = document.getElementById('resResults');
+						var cpuLayer = new Net([new Ment.Input(5), new Ment.ResE("id"), new Dummy(5), new ResR("id"), new Dummy(10)]);
+						var gpuLayer = NetGPU.load(cpuLayer.save());
+						cpu = cpuLayer;
+						gpu = gpuLayer;
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[cpuLayer.layers.length - 1].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+
+			<br>
+			<br>
+			<br>
+			<h2>RNN on the GPU</h2>
+			<button onclick="testRnn();">Test</button>
+			<div class="results" id="rnnResults">
+				<script>
+					var gpu;
+					var cpu;
+					var testRnn = () => {
+						
+						var element = document.getElementById('rnnResults');
+						var cpuLayer = new Rnn([new Ment.FC(5,5), new Ment.ResE("id"), new Dummy(5), new ResR("id"), new Dummy(10)]);
+						var gpuLayer = RnnGPU.load(cpuLayer.save());
+
+						cpuLayer.batchSize =1000;
+						gpuLayer.batchSize =1000;
+						cpu = cpuLayer;
+						gpu = gpuLayer;
+						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output = new Float32Array(cpuLayer.layers[cpuLayer.layers.length - 1].outSize()); fillRan(output);
+
+						var input2 = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						var output2 = new Float32Array(cpuLayer.layers[cpuLayer.layers.length - 1].outSize()); fillRan(output);
+
+						cpuLayer.forward(input); cpuLayer.forward(input2); cpuLayer.backward(output); cpuLayer.backward(output2);
+						gpuLayer.forward(input); gpuLayer.forward(input2); gpuLayer.backward(output); gpuLayer.backward(output2);
+
+						cpuLayer.forward(input); cpuLayer.forward(input); cpuLayer.backward(output); cpuLayer.backward(output);
+						gpuLayer.forward(input); gpuLayer.forward(input); gpuLayer.backward(output); gpuLayer.backward(output);
+
+						var wrongness = 100;
+						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
+						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
+						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].ws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuWeightsGradsName));
+						console.log(wrongness);
+
+						element.innerHTML = `
+								GPU Layer Accuracy: ${wrongness} (higher is better);
+						`
+						
+					
+					}
+				</script>
+			</div>
+
+		</div>
+</html>

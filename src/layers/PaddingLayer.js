@@ -13,7 +13,7 @@
 			let inDepth = inDim[2];
 
 			pad = pad || 2;
-			padwith = padwith | 0;
+			padwith = padwith || 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.outData = new Float32Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
 			this.pad = pad;

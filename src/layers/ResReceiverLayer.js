@@ -88,10 +88,10 @@
 			if (this.mode == "concat") {
 				//fixed a very atrocious error
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] / 2;
+					this.costs[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i] / 2;
+					this.costsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {

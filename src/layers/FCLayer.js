@@ -44,11 +44,8 @@
 			mutate(mutationRate::float, mutationIntensity::float)
 
 		FUNCTIONS FOR GPU SUPPORT TO WORK:
-			initGPU() -- this should at least make "this.gpuEnabled" true.
+			enableGPUMode() -- this should at least make "this.gpuEnabled" true.
 
-			You can code the rest yourself, Mentnet uses gpujs and Ment.gpu is a 
-			global gpu object to use to prevent making multpile gpu objects. 
-			Make it work however you want.
 
 			If you have all this your layer should work inside a real net!
 
@@ -59,7 +56,6 @@
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.gpuEnabled = false;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -213,27 +209,6 @@
 			layer.lr = saveObject.lr;
 			return layer;
 		}
-
-		//----------------
-		// GPU specific stuff below! Beware.
-		//----------------
-
-		// initGPU(){
-		// 	this.forwardGPUKernel = Ment.gpu.createKernel(function(inData, weights, biases, outDataLength, inDataLength) {
-		// 		var act = 0;
-		// 		for (var j = 0; j < inDataLength; j++) {
-		// 					act +=
-		// 						inData[j] *
-		// 						weights[this.thread.x + j *	outDataLength];// the dirty deed
-		// 		}
-		// 		act += biases[this.thread.x];
-		// 		return act
-		// 	}).setOutput([this.outData.length]);
-		// }
-
-		//----------------
-		// End of GPU specific stuff. Take a breather.
-		//----------------
 	}
 
 	Ment.FCLayer = FCLayer;

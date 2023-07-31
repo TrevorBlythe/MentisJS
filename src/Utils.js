@@ -15,6 +15,19 @@ var Ment = Ment || {};
 		}
 	};
 
+	function makeid(length) {
+		//stolen code lol
+		let result = "";
+		const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		const charactersLength = characters.length;
+		let counter = 0;
+		while (counter < length) {
+			result += characters.charAt(Math.floor(Math.random() * charactersLength));
+			counter += 1;
+		}
+		return result;
+	}
+
 	var printNet = function (net) {
 		let text = "LAYERS:\n";
 		for (var i = 0; i < net.layers.length; i++) {
@@ -330,7 +343,12 @@ var Ment = Ment || {};
 		} //end of for loop each layer
 	};
 
+	function initWebMonkeys(monkeyObject) {
+		Ment.webMonkeys = monkeyObject;
+	}
+
 	Ment.clamp = clamp;
+	Ment.initWebMonkeys = initWebMonkeys;
 	Ment.render = render;
 	Ment.renderBox = renderBox;
 	Ment.getLoss = getLoss;
@@ -338,23 +356,20 @@ var Ment = Ment || {};
 	Ment.lin = lin;
 	Ment.bounce = bounce;
 	Ment.isBrowser = isBrowser;
+	Ment.makeid = makeid;
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
 	Ment.protectNaN = protectNaN;
 	Ment.inputError = inputError;
 	Ment.printNet = printNet;
+
 	let globalObject = isBrowser() ? window : global;
-	if (globalObject.GPU) {
-		const gpu = new GPU();
-		Ment.gpu = gpu;
-	}
 
 	if (!Ment.isBrowser()) {
 		//test if we are in node
-		if (typeof module === "undefined" || typeof module.exports === "undefined") {
-			window.Ment = Ment; // in ordinary browser attach library to window
-		} else {
-			module.exports = Ment; // in nodejs
-		}
+		module.exports = Ment; // in nodejs
+	} else {
+		window.Ment = Ment; // in ordinary browser attach library to window
+		Ment.Worker = window.Worker;
 	}
 }

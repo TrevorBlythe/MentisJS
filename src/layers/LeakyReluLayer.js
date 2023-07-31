@@ -1,6 +1,6 @@
 {
 	class LeakyReluLayer extends Ment.ActivationBase {
-		static leakySlope = 0.25;
+		static leakySlope = 0.01;
 
 		constructor(size) {
 			super(size);

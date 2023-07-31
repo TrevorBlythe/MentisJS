@@ -5,6 +5,8 @@
 		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="index.css" />
+		<script src="WebMonkeys.js"></script>
+		<script src="gpu.js"></script>
 		<script src="Mentis.js"></script>
 		<title>MentisJS</title>
 	</head>
@@ -34,7 +36,21 @@
 					Residual Layers showcase<br /><img src="tutorials/resnet/resExam.png" />
 				</div>
 				<div onclick="window.location = 'examples/layer_showcase/layers.html';">Layers Showcase<br /><img src="" /></div>
+				<div onclick="window.location = 'examples/gpuLayerTest/layers.html';">GPU test<br /><img src="images/gpu.png" /></div>
+				<div onclick="window.location = 'examples/gpuSpeedTest/layers.html';">
+					GPU Speed test<br /><img src="images/gpu.png" />
+				</div>
 			</div>
 		</div>
 	</body>
+	<script>
+		Ment.polluteGlobal();
+		Ment.initWebMonkeys(WebMonkeys());
+		Ment.gpu = new GPU();
+
+		let layer = new Ment.NetGPU([new Ment.FCGPU(5, 5)]);
+		let input = new Float32Array(layer.inSize());
+		layer.initGPUActivations();
+		console.log(layer.forward(input));
+	</script>
 </html>

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<link rel="stylesheet" href="../../index.css" />
+		<script src="../../Mentis.js"></script>
+		<script src="../../WebMonkeys.js"></script>
+		<title>MentisJS</title>
+		<style>
+			* {
+				margin: 0px;
+				border: 0px;
+			}
+			body {
+				font-family: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+			}
+		
+			.wrapper {
+				margin-left: 15%;
+				width: 70%;
+				background-color: rgb(220, 225, 222);
+				
+			}
+			.wrapper p{
+				padding:1vw;
+				color: rgb(55, 55, 55);
+			}
+
+				button{
+				/* copied from copy-paste-css.com good looking button */
+				
+                display: inline-block;
+                outline: 0;
+                cursor: pointer;
+                border: 2px solid #000;
+                border-radius: 3px;
+                color: #fff;
+                background: #000;
+                font-size: 20px;
+                font-weight: 600;
+                line-height: 28px;
+                padding: 12px 20px;
+                text-align:center;
+                transition-duration: .15s;
+                transition-property: all;
+                transition-timing-function: cubic-bezier(.4,0,.2,1);
+
+                
+                 
+                
+				}
+
+				button:hover{
+                    color: #000;
+                    background: rgb(255, 218, 87);
+                }
+
+		.results {
+			align-items: center;
+			display: flex;
+			width: 100%;
+			border: 5px solid black;
+			height: 10vh;
+			background-color: grey;
+		}
+		</style>
+		<script>
+			Ment.polluteGlobal();
+
+			var fillRan = function(arr){	
+				for(var i =0 ;i< arr.length;i++){
+							arr[i] = Math.random() * (Math.random() > 0.5 ? -1:1);
+						}
+
+			}
+		</script>
+	</head>
+	<body>
+		<div onclick="window.location = '../../index.html'" class="topbar">
+			<img src="../../images/logo.png" />
+			<h1>MentisJS</h1>
+		</div>
+		<!-- End of topbar -->
+		<div class="showcaseTitle">
+			<h1>GPU Speed Test</h1>
+			<h3>This shows if using GPU is actually faster or not</h3>
+		</div>
+		<div class="wrapper">
+			
+			<br>
+			<br>
+			<h2>Large Network speed test  </h2>
+			<p>Running the network on gpu will be slower for the first time because of initialazation. So to see the speed of the gpu, 
+				press "test on gpu"  twice.
+			</p>
+			<button onclick="large();">TEST ON CPU</button>
+			<button onclick="largegpu();">TEST ON GPU</button>
+			<div class="results" id="convResults">
+				<script>
+					var initializedcpu = false;
+					var cpuLayer;
+					var large = () => {
+						var element = document.getElementById('convResults');
+						if(!initializedcpu){
+						cpuLayer = new Net([new FC(10,3000),new FC(3000,3000)]);
+						}
+						let input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						cpuLayer.forward(input);
+						// cpuLayer.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on cpu (milliseconds): " + (t1 - t0);
+					}
+
+					var initialized = false;
+					var gpuLayer;
+					var largegpu = () => {
+						var element = document.getElementById('convResults');
+						if(!initialized){
+						gpuLayer = new NetGPU([new FCGPU(10,3000), new FCGPU(3000,3000)]);
+						initialized = true;
+						}
+						let input = new Array(gpuLayer.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						gpuLayer.forward(input);
+						// gpuLayer.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on Gpu (milliseconds): " + (t1 - t0);
+					}
+				</script>
+			</div>
+
+				<br>
+			<br>
+			<h2>Large Network speed test with large input  </h2>
+			<p>Running the network on gpu will be slower for the first time because of initialazation. So to see the speed of the gpu, 
+				press "test on gpu"  twice.
+			</p>
+			<button onclick="largeI();">TEST ON CPU</button>
+			<button onclick="largegpuI();">TEST ON GPU</button>
+			<div class="results" id="convResults2">
+				<script>
+					var initializedcpuI = false;
+					var cpuLayerI;
+					var largeI = () => {
+						var element = document.getElementById('convResults2');
+						if(!initializedcpuI){
+						cpuLayerI = new Net([new FC(3000,3000),new FC(3000,3000)]);
+						initilizedcpuI = true;
+						}
+						let input = new Float32Array(cpuLayerI.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						cpuLayerI.forward(input);
+						cpuLayerI.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on cpu (milliseconds): " + (t1 - t0);
+					}
+
+					var initializedI = false;
+					var gpuLayerI;
+					var largegpuI = () => {
+						var element = document.getElementById('convResults2');
+						if(!initializedI){
+						gpuLayerI = new NetGPU([new FCGPU(3000,3000), new FCGPU(3000,3000)]);
+						initializedI = true;
+						}
+						let input = new Array(gpuLayerI.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						gpuLayerI.forward(input);
+						gpuLayerI.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on Gpu (milliseconds): " + (t1 - t0);
+					}
+				</script>
+			</div>
+
+				<br>
+			<br>
+			<h2>Small Network</h2>
+			<p> For small networks using the gpu is kinda pointless.
+			</p>
+			<button onclick="largeS();">TEST ON CPU</button>
+			<button onclick="largegpuS();">TEST ON GPU</button>
+			<div class="results" id="convResultsS">
+				<script>
+					var initializedcpuS = false;
+					var cpuLayerS;
+					var largeS = () => {
+						var element = document.getElementById('convResultsS');
+						if(!initializedcpuS){
+						cpuLayerS = new Net([new FC(30,30),new FC(30,30)]);
+						initializedS = true;
+						}
+						let input = new Float32Array(cpuLayerS.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						cpuLayerS.forward(input);
+						cpuLayerS.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on cpu (milliseconds): " + (t1 - t0);
+					}
+
+					var initializedS = false;
+					var gpuLayerS;
+					var largegpuS = () => {
+						var element = document.getElementById('convResultsS');
+						if(!initializedS){
+						gpuLayerS = new NetGPU([new FCGPU(30,30), new FCGPU(30,30)]);
+						initializedS = true;
+						}
+						let input = new Array(gpuLayerS.layers[0].inSize()); fillRan(input);
+						const t0 = performance.now();
+						gpuLayerS.forward(input);
+						gpuLayerS.backward(input);
+						const t1 = performance.now();
+						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						element.innerHTML = "Time to forward and backward pass on Gpu (milliseconds): " + (t1 - t0);
+					}
+				</script>
+			</div>
+
+			<p>TAKEAWAYS!! Gpu networks take a bit to initialize but are way faster when there is a lot of computation. Depending on your gpu though sometimes it will crash or glitch out if you try running something your gpu cant handle. These examples work on my 200$ laptop though.
+				If your laptop cant run this example. Throw it away cuz it is a toaster. Or you can go into the "layers.html" and change the network sizes manually to see if it will work for you. 
+			</p>
+
+		</div>
+</html>

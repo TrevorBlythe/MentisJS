@@ -1,7 +1,7 @@
 {
 	class DeconvLayer {
-		static averageOutCosts = true;
-		static averageOutGrads = true;
+		static averageOutCosts = false;
+		static averageOutGrads = false;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -50,6 +50,37 @@
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
+			for (var a = 0; a < 3; a++) {
+				let newFilterw = this.filterw.slice(0);
+				for (var f = 0; f < this.filters; f++) {
+					for (var d = 0; d < this.inDepth; d++) {
+						for (var x = 0; x < this.filterWidth; x++) {
+							for (var y = 0; y < this.filterHeight; y++) {
+								let count = 0;
+								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+								let indR = [
+									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indL = [
+									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indD = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indU = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								if (x < filterWidth - 1) count += this.filterw[indR];
+								if (x > 1) count += this.filterw[indL];
+								if (y < filterHeight - 1) count += this.filterw[indD];
+								if (y > 1) count += this.filterw[indU];
+								newFilterw[ind] += count / 5;
+							}
+						}
+					}
+				}
+				this.filterw = newFilterw;
 			}
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {

@@ -1,15 +1,23 @@
 var Ment = Ment || {};
+
 {
-	class Net {
-		constructor(layers, optimizer = "SGD") {
+	class NetGPU {
+		constructor(layers, optimizer = "SGDGPU") {
+			if (!Ment.webMonkeys) {
+				console.log("GPU wont work until you include the altered webmonkeys code");
+			}
 			this.layers = layers || [];
 			this.batchSize = 5; //every 'batchSize' iterations, update the weights by calling 'updateParams' (resets iteration to 0)
 			this.epoch = 0; //goes up every 'updateParams' call
 			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
 			this.learningRate = 0.01;
+			this.gpuEnabled = false; //turns on when gpu mode is enabled
+			this.gpuLastLayerExpectedArrayName = Ment.makeid(8); //generates random 8 character string
+			this.gpuFirstLayerInput = Ment.makeid(8);
+
 			//Putting this here to keep code from the OG days alive.
-			if (optimizer == "SGD") {
-				this.optimizer = new Ment.SGD();
+			if (optimizer == "SGDGPU") {
+				this.optimizer = new Ment.SGDGPU();
 			} else if (typeof optimizer == "string") {
 				this.optimizer = new Ment[optimizer]();
 			} else {
@@ -24,24 +32,16 @@ var Ment = Ment || {};
 			return this.layers[0].inData;
 		}
 
-		set inData(arr) {
-			if (arr.length == this.layers[0].inSize()) {
-				this.layers[0].inData = arr;
+		set inData(input) {
+			if (input.length == this.layers[0].inSize()) {
+				Ment.webMonkeys.set(this.layers[0].gpuInDataName, input);
 			} else {
-				throw "cant set in data because its the wrong size";
+				throw inputError(this.layers[0], input);
 			}
 		}
 
 		get outData() {
 			return [...this.layers[this.layers.length - 1].outData];
-		}
-
-		set outData(arr) {
-			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
-				this.layers[this.layers.length - 1].outData = arr;
-			} else {
-				throw "cant set out data because its the wrong size";
-			}
 		}
 
 		connectLayers() {
@@ -53,7 +53,15 @@ var Ment = Ment || {};
 			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
 			// you dont.)
 
-			//this function is always safe to call. some data may get reset though.
+			let activationIds = Array(this.layers.length + 1); // an id for every set of activations
+			let activationErrorIds = Array(this.layers.length + 1); // an id for every set of activations errors
+			let activationsId = Ment.makeid(8);
+			for (var i = 0; i < this.layers.length + 1; i++) {
+				activationIds[i] = activationsId; //Ment.makeid(8);
+				activationErrorIds[i] = Ment.makeid(8);
+				//theres a very small chance to layers get the same id for something
+				//this would mess everything up but the chance is so small and all u gotta do is reload the code
+			}
 
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].previousLayer = this.layers[i - 1];
@@ -75,11 +83,42 @@ var Ment = Ment || {};
 						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
 					}`;
 				}
-				this.layers[i + 1].inData = this.layers[i].outData;
+				// this.layers[i].initGPUActivations(
+				// 	activationIds[i],
+				// 	activationIds[i + 1],
+				// 	activationErrorIds[i],
+				// 	activationErrorIds[i + 1]
+				// );
+				this.layers[i].gpuInDataName = activationIds[i];
+				this.layers[i].gpuOutDataName = activationIds[i + 1];
+				this.layers[i].gpuCostsArrayName = activationErrorIds[i];
+				Ment.webMonkeys.set(activationErrorIds[i], this.layers[i].inSize());
+
+				this.layers[i].gpuErrorArrayName = activationErrorIds[i + 1];
+				Ment.webMonkeys.set(activationErrorIds[i + 1], this.layers[i].outSize());
 			}
+			let runningTotal = 0;
+			for (var i = 0; i < this.layers.length; i++) {
+				this.layers[i].gpuInDataStartIndex = runningTotal;
+				runningTotal += this.layers[i].inSize();
+				this.layers[i].gpuOutDataStartIndex = runningTotal;
+				// runningTotal += this.layers[i].outSize();
+			}
+			runningTotal += this.layers[this.layers.length - 1].outSize();
+
+			Ment.webMonkeys.set(activationsId, runningTotal);
+			this.layers[this.layers.length - 1].gpuInDataName = activationIds[this.layers.length - 1];
+			this.layers[this.layers.length - 1].gpuOutDataName = activationIds[this.layers.length];
+			this.layers[this.layers.length - 1].gpuCostsArrayName = activationErrorIds[this.layers.length - 1];
+			Ment.webMonkeys.set(activationErrorIds[this.layers.length - 1], this.layers[this.layers.length - 1].inSize());
+			this.layers[this.layers.length - 1].gpuErrorArrayName = activationErrorIds[this.layers.length];
+			Ment.webMonkeys.set(activationErrorIds[this.layers.length], this.layers[this.layers.length - 1].outSize());
 		}
 
 		forward(data) {
+			if (!data) {
+				throw "You didnt supply input data to be forwarded the network in your forwards function";
+			}
 			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
 				if (typeof data == "number") {
 					data = [data];
@@ -87,20 +126,24 @@ var Ment = Ment || {};
 					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
 			}
+			Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
+			Ment.webMonkeys.work(
+				this.layers[0].inSize(),
+				`
+float act = ${this.gpuFirstLayerInput}(i);
 
-			this.layers[0].forward(data);
-			for (var i = 1; i < this.layers.length; i++) {
+${this.layers[0].gpuInDataName}(i) := act;
+				`
+			);
+			// this.layers[0].forward(data);
+			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].forward();
 			}
-			return this.layers[this.layers.length - 1].outData;
-		}
 
-		mutate(rate, intensity) {
-			for (var i = 0; i < this.layers.length; i++) {
-				if (this.layers[i].mutate) {
-					this.layers[i].mutate(rate, intensity);
-				}
-			}
+			//getting the outdata from the gpu is to expensive to do it everytime
+			//if the user wants the outdata they will have to call for it
+			//net.outData
+			// return this.layers[this.layers.length - 1].outData;
 		}
 
 		save(saveToFile, filename) {
@@ -142,13 +185,21 @@ var Ment = Ment || {};
 
 		static load(json) {
 			//this function takes json from the "save" function
+
+			//convert any non gpu layers to gpu layers
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
+				if (!jsonObj["layer" + i].type.endsWith("GPU")) {
+					jsonObj["layer" + i].type += "GPU";
+				}
 				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
-			let ret = new Ment.Net(layers, jsonObj.optimizer);
+			if (!jsonObj.optimizer.endsWith("GPU")) {
+				jsonObj.optimizer += "GPU";
+			}
+			let ret = new Ment.NetGPU(layers, jsonObj.optimizer);
 			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
@@ -161,36 +212,48 @@ var Ment = Ment || {};
 			return loss;
 		}
 
-		backward(expected, calcLoss = true, backPropErrorInstead = false) {
+		backward(expected, calcLoss = false, backPropErrorInstead = false) {
 			//returns the loss of the last layer only cuz im actually such a lazy lard
 			let loss = 0;
-			let err = undefined;
-			let lastlayer = this.layers[this.layers.length - 1];
+			let lastLayer = this.layers[this.layers.length - 1];
 			if (expected) {
-				if (expected.length != this.layers[this.layers.length - 1].outData.length) {
-					throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${
-						this.layers[this.layers.length - 1].outData.length
-					}`;
+				if (expected.length != this.layers[this.layers.length - 1].outSize()) {
+					throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${this.layers[
+						this.layers.length - 1
+					].outSize()}`;
 				}
+
 				//first calculate the error (expected - actual) and pass it to
 				//the last layer.
 				if (!backPropErrorInstead) {
-					err = new Float32Array(lastlayer.outData.length);
-					for (var i = 0; i < lastlayer.outData.length; i++) {
-						//for every outAct in last layer
-						err[i] = expected[i] - lastlayer.outData[i];
-					}
+					// err = new Float32Array(lastlayer.outSize());
+					// for (var i = 0; i < lastlayer.outSize(); i++) {
+					// 	//for every outAct in last layer
+					// 	err[i] = expected[i] - lastlayer.outData[i];
+					// }
+
+					Ment.webMonkeys.set(this.gpuLastLayerExpectedArrayName, expected);
+
+					Ment.webMonkeys.work(
+						lastLayer.outSize(),
+						`
+${lastLayer.gpuErrorArrayName}(i) := ${this.gpuLastLayerExpectedArrayName}(i) - ${lastLayer.gpuOutDataName}(i + ${lastLayer.gpuOutDataStartIndex});
+
+`
+					);
 				} else {
-					err = expected;
+					Ment.webMonkeys.set(lastLayer.gpuErrorArrayName, expected);
 				}
 				if (calcLoss) {
+					let err = Ment.webMonkeys.get(lastLayer.gpuErrorArrayName);
 					for (var i = 0; i < err.length; i++) {
 						loss += Math.pow(err[i], 2); //always positive
 					}
 					loss /= expected.length; //average it
 				}
 			}
-			lastlayer.backward(err);
+
+			lastLayer.backward(); //no need to pass in the error, the above code sets it all up
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				//it automatically grabs the calcualted error from the layer ahead.
 				//Would work the same as if you did backward(nextlayer.costs)
@@ -227,11 +290,9 @@ var Ment = Ment || {};
 			for (var i = this.layers.length - 1; i >= 0; i--) {
 				if (this.layers[i].getParamsAndGrads) {
 					let pag = this.layers[i].getParamsAndGrads();
-					for (var j = 0; j < pag.length; j += 2) {
+					for (var j = 0; j < Ment.webMonkeys.getLen(pag); j += 2) {
 						let grads = pag[j + 1];
-						for (var k = 0; k < grads.length; k++) {
-							grads[k] = 0;
-						}
+						Ment.webMonkeys.fill(grads, 0);
 					}
 				}
 			}
@@ -244,5 +305,5 @@ var Ment = Ment || {};
 		}
 	} //END OF NET CLASS DECLARATION
 
-	Ment.Net = Net;
+	Ment.NetGPU = NetGPU;
 }

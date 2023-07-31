@@ -20,6 +20,7 @@ var Ment = Ment || {};
 		constructor(layers, optimizer) {
 			super(layers, optimizer);
 			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
+			this.trainingMode = true; //when this is on, it will save snapshots of the network for backprop through time.
 			//to do backprop over time
 		} //END OF CONSTRUCTOR
 
@@ -89,7 +90,9 @@ var Ment = Ment || {};
 			}
 			let ret = super.forward(data);
 			//save the state
-			this.appendCurrentState();
+			if (this.trainingMode) {
+				this.appendCurrentState();
+			}
 			return ret;
 		}
 

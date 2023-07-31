@@ -7,7 +7,6 @@ var Ment = Ment || {};
 			this.epoch = 0; //goes up every 'updateParams' call
 			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
 			this.learningRate = 0.01;
-
 			//Putting this here to keep code from the OG days alive.
 			if (optimizer == "SGD") {
 				this.optimizer = new Ment.SGD();
@@ -81,13 +80,14 @@ var Ment = Ment || {};
 		}
 
 		forward(data) {
-			if (!Array.isArray(data) && data.constructor.name != "Float32Array") {
+			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
 				if (typeof data == "number") {
 					data = [data];
 				} else {
 					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
 			}
+
 			this.layers[0].forward(data);
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].forward();
@@ -95,27 +95,11 @@ var Ment = Ment || {};
 			return this.layers[this.layers.length - 1].outData;
 		}
 
-		enableGPU() {
-			console.log("gpu hasnt been implemented yet so nothing will happen");
-			for (var i = 0; i < this.layers.length; i++) {
-				this.layers[i].gpuEnabled = true;
-				if (this.layers[i].initGPU) {
-					this.layers[i].initGPU();
-				}
-			}
-		}
-
 		mutate(rate, intensity) {
 			for (var i = 0; i < this.layers.length; i++) {
 				if (this.layers[i].mutate) {
 					this.layers[i].mutate(rate, intensity);
 				}
-			}
-		}
-
-		disableGPU() {
-			for (var i = 0; i < this.layers.length; i++) {
-				this.layers[i].gpuEnabled = false;
 			}
 		}
 
@@ -180,29 +164,31 @@ var Ment = Ment || {};
 		backward(expected, calcLoss = true, backPropErrorInstead = false) {
 			//returns the loss of the last layer only cuz im actually such a lazy lard
 			let loss = 0;
-			if (expected.length != this.layers[this.layers.length - 1].outData.length) {
-				throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${
-					this.layers[this.layers.length - 1].outData.length
-				}`;
-			}
-			//first calculate the error (expected - actual) and pass it to
-			//the last layer.
+			let err = undefined;
 			let lastlayer = this.layers[this.layers.length - 1];
-			let err;
-			if (!backPropErrorInstead) {
-				err = new Float32Array(lastlayer.outData.length);
-				for (var i = 0; i < lastlayer.outData.length; i++) {
-					//for every outAct in last layer
-					err[i] = expected[i] - lastlayer.outData[i];
+			if (expected) {
+				if (expected.length != this.layers[this.layers.length - 1].outData.length) {
+					throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${
+						this.layers[this.layers.length - 1].outData.length
+					}`;
 				}
-			} else {
-				err = expected;
-			}
-			if (calcLoss) {
-				for (var i = 0; i < err.length; i++) {
-					loss += Math.pow(err[i], 2); //always positive
+				//first calculate the error (expected - actual) and pass it to
+				//the last layer.
+				if (!backPropErrorInstead) {
+					err = new Float32Array(lastlayer.outData.length);
+					for (var i = 0; i < lastlayer.outData.length; i++) {
+						//for every outAct in last layer
+						err[i] = expected[i] - lastlayer.outData[i];
+					}
+				} else {
+					err = expected;
 				}
-				loss /= expected.length; //average it
+				if (calcLoss) {
+					for (var i = 0; i < err.length; i++) {
+						loss += Math.pow(err[i], 2); //always positive
+					}
+					loss /= expected.length; //average it
+				}
 			}
 			lastlayer.backward(err);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
@@ -259,6 +245,316 @@ var Ment = Ment || {};
 	} //END OF NET CLASS DECLARATION
 
 	Ment.Net = Net;
+}
+
+var Ment = Ment || {};
+
+{
+	class NetGPU {
+		constructor(layers, optimizer = "SGDGPU") {
+			if (!Ment.webMonkeys) {
+				console.log("GPU wont work until you include the altered webmonkeys code");
+			}
+			this.layers = layers || [];
+			this.batchSize = 5; //every 'batchSize' iterations, update the weights by calling 'updateParams' (resets iteration to 0)
+			this.epoch = 0; //goes up every 'updateParams' call
+			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
+			this.learningRate = 0.01;
+			this.gpuEnabled = false; //turns on when gpu mode is enabled
+			this.gpuLastLayerExpectedArrayName = Ment.makeid(8); //generates random 8 character string
+			this.gpuFirstLayerInput = Ment.makeid(8);
+
+			//Putting this here to keep code from the OG days alive.
+			if (optimizer == "SGDGPU") {
+				this.optimizer = new Ment.SGDGPU();
+			} else if (typeof optimizer == "string") {
+				this.optimizer = new Ment[optimizer]();
+			} else {
+				this.optimizer = optimizer;
+			}
+			this.optimizer.netObject = this; //give it access to the net object so it can get the learning rate and stuff.
+			this.optimizer.initialize();
+			this.connectLayers();
+		} //END OF CONSTRUCTOR
+
+		get inData() {
+			return this.layers[0].inData;
+		}
+
+		set inData(input) {
+			if (input.length == this.layers[0].inSize()) {
+				Ment.webMonkeys.set(this.layers[0].gpuInDataName, input);
+			} else {
+				throw inputError(this.layers[0], input);
+			}
+		}
+
+		get outData() {
+			return [...this.layers[this.layers.length - 1].outData];
+		}
+
+		connectLayers() {
+			//'connect' means make the outData array the same object as the inData of the next layer.
+			//this is so we dont have to copy over the arrays values when forwarding/backwarding
+			//Also we set the 'nextLayer' and 'previousLayer' attributes to each layer accordingly
+			//We set these properties BEFORE the indata/outdata connecting so layers can initialize array sizes.(they can sometimes be infered)
+			//this is because some layers rely on surrounding layers to initialize, (like Sigmoid, you dont need to put in the size)
+			//where you woudnt want to have to input the size as a parameter, so it automatically initializes if
+			// you dont.)
+
+			let activationIds = Array(this.layers.length + 1); // an id for every set of activations
+			let activationErrorIds = Array(this.layers.length + 1); // an id for every set of activations errors
+			let activationsId = Ment.makeid(8);
+			for (var i = 0; i < this.layers.length + 1; i++) {
+				activationIds[i] = activationsId; //Ment.makeid(8);
+				activationErrorIds[i] = Ment.makeid(8);
+				//theres a very small chance to layers get the same id for something
+				//this would mess everything up but the chance is so small and all u gotta do is reload the code
+			}
+
+			for (var i = 1; i < this.layers.length; i++) {
+				this.layers[i].previousLayer = this.layers[i - 1];
+			}
+
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				this.layers[i].nextLayer = this.layers[i + 1];
+			}
+
+			for (var i = 0; i < this.layers.length - 1; i++) {
+				if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+					throw `Failure connecting ${
+						this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
+					} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
+						i
+					].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
+						this.layers[i + 1].constructor.name
+					} input size: ${this.layers[i + 1].inSize()}${
+						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
+					}`;
+				}
+				// this.layers[i].initGPUActivations(
+				// 	activationIds[i],
+				// 	activationIds[i + 1],
+				// 	activationErrorIds[i],
+				// 	activationErrorIds[i + 1]
+				// );
+				this.layers[i].gpuInDataName = activationIds[i];
+				this.layers[i].gpuOutDataName = activationIds[i + 1];
+				this.layers[i].gpuCostsArrayName = activationErrorIds[i];
+				Ment.webMonkeys.set(activationErrorIds[i], this.layers[i].inSize());
+
+				this.layers[i].gpuErrorArrayName = activationErrorIds[i + 1];
+				Ment.webMonkeys.set(activationErrorIds[i + 1], this.layers[i].outSize());
+			}
+			let runningTotal = 0;
+			for (var i = 0; i < this.layers.length; i++) {
+				this.layers[i].gpuInDataStartIndex = runningTotal;
+				runningTotal += this.layers[i].inSize();
+				this.layers[i].gpuOutDataStartIndex = runningTotal;
+				// runningTotal += this.layers[i].outSize();
+			}
+			runningTotal += this.layers[this.layers.length - 1].outSize();
+
+			Ment.webMonkeys.set(activationsId, runningTotal);
+			this.layers[this.layers.length - 1].gpuInDataName = activationIds[this.layers.length - 1];
+			this.layers[this.layers.length - 1].gpuOutDataName = activationIds[this.layers.length];
+			this.layers[this.layers.length - 1].gpuCostsArrayName = activationErrorIds[this.layers.length - 1];
+			Ment.webMonkeys.set(activationErrorIds[this.layers.length - 1], this.layers[this.layers.length - 1].inSize());
+			this.layers[this.layers.length - 1].gpuErrorArrayName = activationErrorIds[this.layers.length];
+			Ment.webMonkeys.set(activationErrorIds[this.layers.length], this.layers[this.layers.length - 1].outSize());
+		}
+
+		forward(data) {
+			if (!data) {
+				throw "You didnt supply input data to be forwarded the network in your forwards function";
+			}
+			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
+				if (typeof data == "number") {
+					data = [data];
+				} else {
+					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
+				}
+			}
+			Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
+			Ment.webMonkeys.work(
+				this.layers[0].inSize(),
+				`
+float act = ${this.gpuFirstLayerInput}(i);
+
+${this.layers[0].gpuInDataName}(i) := act;
+				`
+			);
+			// this.layers[0].forward(data);
+			for (var i = 0; i < this.layers.length; i++) {
+				this.layers[i].forward();
+			}
+
+			//getting the outdata from the gpu is to expensive to do it everytime
+			//if the user wants the outdata they will have to call for it
+			//net.outData
+			// return this.layers[this.layers.length - 1].outData;
+		}
+
+		save(saveToFile, filename) {
+			//this can be made better.
+			//this method returns a string of json used to get the model back
+
+			if (saveToFile) {
+				if (Ment.isBrowser()) {
+					var a = document.createElement("a");
+					var file = new Blob([this.save()]);
+					a.href = URL.createObjectURL(file);
+					a.download = "model.json";
+					a.click();
+				} else {
+					var fs = require("fs");
+					fs.writeFileSync(filename, this.save());
+				}
+			}
+
+			let saveObject = {};
+
+			saveObject.layerAmount = this.layers.length;
+			saveObject.optimizer = this.optimizer.constructor.name;
+			saveObject.learningRate = this.learningRate;
+			saveObject.batchSize = this.batchSize;
+			for (var i = 0; i < this.layers.length; i++) {
+				let layer = this.layers[i];
+				let layerSaveObject = {};
+				layerSaveObject.type = layer.constructor.name;
+				saveObject["layer" + i] = layerSaveObject;
+				if (!layer.save) {
+					throw `Layer ${i} (${layer.constructor.name}) in your network doesnt have a save() function so your model cant be saved`;
+				}
+				layerSaveObject.layerData = layer.save();
+			}
+
+			return JSON.stringify(saveObject);
+		} //end of save method
+
+		static load(json) {
+			//this function takes json from the "save" function
+
+			//convert any non gpu layers to gpu layers
+			let jsonObj = JSON.parse(json);
+			let layers = [];
+			for (var i = 0; i < jsonObj.layerAmount; i++) {
+				if (!jsonObj["layer" + i].type.endsWith("GPU")) {
+					jsonObj["layer" + i].type += "GPU";
+				}
+				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				layers.push(layer);
+			}
+			if (!jsonObj.optimizer.endsWith("GPU")) {
+				jsonObj.optimizer += "GPU";
+			}
+			let ret = new Ment.NetGPU(layers, jsonObj.optimizer);
+			ret.learningRate = jsonObj.learningRate;
+			ret.batchSize = jsonObj.batchSize;
+			return ret;
+		} //end of load method
+
+		train(input, expectedOut) {
+			this.forward(input);
+			let loss = this.backward(expectedOut);
+			//done backpropping
+			return loss;
+		}
+
+		backward(expected, calcLoss = false, backPropErrorInstead = false) {
+			//returns the loss of the last layer only cuz im actually such a lazy lard
+			let loss = 0;
+			let lastLayer = this.layers[this.layers.length - 1];
+			if (expected) {
+				if (expected.length != this.layers[this.layers.length - 1].outSize()) {
+					throw `Error: The array your trying to train your AI on, is the wrong size. ${expected.length}:${this.layers[
+						this.layers.length - 1
+					].outSize()}`;
+				}
+
+				//first calculate the error (expected - actual) and pass it to
+				//the last layer.
+				if (!backPropErrorInstead) {
+					// err = new Float32Array(lastlayer.outSize());
+					// for (var i = 0; i < lastlayer.outSize(); i++) {
+					// 	//for every outAct in last layer
+					// 	err[i] = expected[i] - lastlayer.outData[i];
+					// }
+
+					Ment.webMonkeys.set(this.gpuLastLayerExpectedArrayName, expected);
+
+					Ment.webMonkeys.work(
+						lastLayer.outSize(),
+						`
+${lastLayer.gpuErrorArrayName}(i) := ${this.gpuLastLayerExpectedArrayName}(i) - ${lastLayer.gpuOutDataName}(i + ${lastLayer.gpuOutDataStartIndex});
+
+`
+					);
+				} else {
+					Ment.webMonkeys.set(lastLayer.gpuErrorArrayName, expected);
+				}
+				if (calcLoss) {
+					let err = Ment.webMonkeys.get(lastLayer.gpuErrorArrayName);
+					for (var i = 0; i < err.length; i++) {
+						loss += Math.pow(err[i], 2); //always positive
+					}
+					loss /= expected.length; //average it
+				}
+			}
+
+			lastLayer.backward(); //no need to pass in the error, the above code sets it all up
+			for (var i = this.layers.length - 2; i >= 0; i--) {
+				//it automatically grabs the calcualted error from the layer ahead.
+				//Would work the same as if you did backward(nextlayer.costs)
+				//Costs represent the error of the indata neurons
+				this.layers[i].backward();
+			}
+			this.iteration++;
+			if (this.iteration % this.batchSize == 0) {
+				this.updateParams();
+				this.iteration = 0;
+			}
+			return loss;
+		}
+
+		getParamsAndGrads() {
+			//The word "params" could also be seen as "weights" here.
+			let ret = [];
+			for (var i = 0; i < this.layers.length; i++) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < pag.length; j += 2) {
+						let params = pag[j];
+						let grads = pag[j + 1];
+						ret.push(params);
+						ret.push(grads);
+					}
+				}
+			}
+			return ret;
+		}
+
+		clearGrads() {
+			//clears the gradients
+			for (var i = this.layers.length - 1; i >= 0; i--) {
+				if (this.layers[i].getParamsAndGrads) {
+					let pag = this.layers[i].getParamsAndGrads();
+					for (var j = 0; j < Ment.webMonkeys.getLen(pag); j += 2) {
+						let grads = pag[j + 1];
+						Ment.webMonkeys.fill(grads, 0);
+					}
+				}
+			}
+		}
+
+		updateParams() {
+			this.epoch++;
+			let pag = this.getParamsAndGrads();
+			this.optimizer.applyGradients(pag);
+		}
+	} //END OF NET CLASS DECLARATION
+
+	Ment.NetGPU = NetGPU;
 }
 
 var Ment = Ment || {};
@@ -348,6 +644,7 @@ var Ment = Ment || {};
 		constructor(layers, optimizer) {
 			super(layers, optimizer);
 			this.savedStates = []; //fills with arrays of arrays containing in/out Datas for the layers. need to save them
+			this.trainingMode = true; //when this is on, it will save snapshots of the network for backprop through time.
 			//to do backprop over time
 		} //END OF CONSTRUCTOR
 
@@ -417,7 +714,9 @@ var Ment = Ment || {};
 			}
 			let ret = super.forward(data);
 			//save the state
-			this.appendCurrentState();
+			if (this.trainingMode) {
+				this.appendCurrentState();
+			}
 			return ret;
 		}
 
@@ -487,6 +786,144 @@ var Ment = Ment || {};
 
 var Ment = Ment || {};
 {
+	class RnnGPU extends Ment.NetGPU {
+		constructor(layers, optimizer) {
+			super(layers, optimizer);
+			this.savedStates = []; //fills with strings representing the activations
+			this.currentState = -1; //starts at neg 1 dont change this
+			this.trainingMode = true; //when this is on, it will save snapshots of the network for backprop through time.
+		} //END OF CONSTRUCTOR
+
+		setState(ind) {
+			if (ind == undefined) {
+				ind = this.currentState;
+			}
+			if (ind == -1) {
+				return; //the state of having no state :()
+			}
+			let state = this.savedStates[ind];
+
+			for (var i = 0; i < this.layers.length; i++) {
+				let layer = this.layers[i];
+				layer.gpuInDataName = state;
+				if (i > 0) {
+					this.layers[i - 1].gpuOutDataName = state;
+				}
+			}
+			this.layers[this.layers.length - 1].gpuOutDataName = state;
+		}
+
+		pushNewState() {
+			let newStateID = Ment.makeid(8);
+			this.savedStates.push(newStateID);
+			Ment.webMonkeys.set(newStateID, Ment.webMonkeys.getLen(this.layers[0].gpuInDataName));
+		}
+
+		forward(data) {
+			if (this.trainingMode) {
+				if (this.currentState == this.savedStates.length - 1) {
+					this.pushNewState();
+				}
+				this.currentState++;
+				this.setState(this.currentState);
+			}
+			if (data == undefined) {
+				//todo you dont need to make a whole new array here it should get copied by the layers forward function
+				// data = new Float32Array(this.layers[this.layers.length - 1].outData);
+				Ment.webMonkeys.work(
+					this.layers[0].inSize(),
+					`
+${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
+						this.layers[this.layers.length - 1].gpuOutDataName
+					}(i + ${this.layers[this.layers.length - 1].gpuOutDataStartIndex});
+				`
+				);
+			}
+			let ret = super.forward(data);
+			//save the state
+
+			return ret;
+		}
+
+		resetRecurrentData() {
+			throw "todo";
+			// for (var i = 0; i < this.layers.length; i++) {
+			// 	let layer = this.layers[i];
+			// 	if (layer.constructor.name == "RecEmitterLayer") {
+			// 		layer.savedOutData.fill(0);
+			// 	}
+			// 	if (layer.constructor.name == "RecReceiverLayer") {
+			// 		layer.savedCostsForEmitter.fill(0);
+			// 	}
+			// }
+		}
+
+		train(input, expectedOut) {
+			console.log("If your gonna use this method you might as well use a normal network");
+			this.forward(input);
+
+			let loss = this.backward(expectedOut);
+			//done backpropping
+			return loss;
+		}
+
+		backward(expected, calcLoss = false, backPropErrorInstead = false) {
+			//expected represents error if backProperrorInstead == true
+
+			//in rnns we might not have an expected array.. in this case..
+			//backprop the error (first layers costs) from the "next iteration" (n+1).
+			//this will only work if the indata and outdata of the network are the same size.
+			//This means you must specify a Final output at least, which makes sense.
+			//you could have a network with different in/out sizes but you would need to specify
+			//the expected input and output at each step. - Trevor
+			if (expected == undefined) {
+				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
+					throw "Size Mismatch in RNN. In data and out data are different dimensions and/or you havent provided an input array";
+				}
+				// expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
+				// for (var i = 0; i < this.layers[0].inSize(); i++) {
+				// 	expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
+				// }
+				// backPropErrorInstead = true;
+				Ment.webMonkeys.work(
+					this.layers[0].inSize(),
+					`
+${this.layers[this.layers.length - 1].gpuErrorArrayName}(i) := ${this.layers[0].gpuCostsArrayName}(i);
+				`
+				);
+			}
+			let loss = super.backward(expected, calcLoss, backPropErrorInstead);
+			this.currentState--;
+			this.setState(this.currentState); //this basically goes back in time by 1 step, search up backpropagation through time or something.
+			return loss;
+		}
+
+		static load(json) {
+			//convert any non gpu layers to gpu layers
+			let jsonObj = JSON.parse(json);
+			let layers = [];
+			for (var i = 0; i < jsonObj.layerAmount; i++) {
+				if (!jsonObj["layer" + i].type.endsWith("GPU")) {
+					jsonObj["layer" + i].type += "GPU";
+				}
+				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				layers.push(layer);
+			}
+			if (!jsonObj.optimizer.endsWith("GPU")) {
+				jsonObj.optimizer += "GPU";
+			}
+			let ret = new Ment.RnnGPU(layers, jsonObj.optimizer);
+			ret.learningRate = jsonObj.learningRate;
+			ret.batchSize = jsonObj.batchSize;
+			return ret;
+		} //end of load method
+	} //END OF Rnn CLASS DECLARATION
+
+	Ment.RnnGPU = RnnGPU;
+}
+
+var Ment = Ment || {};
+{
 	var return_v = false;
 	var v_val = 0.0;
 
@@ -501,6 +938,19 @@ var Ment = Ment || {};
 			return num;
 		}
 	};
+
+	function makeid(length) {
+		//stolen code lol
+		let result = "";
+		const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+		const charactersLength = characters.length;
+		let counter = 0;
+		while (counter < length) {
+			result += characters.charAt(Math.floor(Math.random() * charactersLength));
+			counter += 1;
+		}
+		return result;
+	}
 
 	var printNet = function (net) {
 		let text = "LAYERS:\n";
@@ -817,7 +1267,12 @@ var Ment = Ment || {};
 		} //end of for loop each layer
 	};
 
+	function initWebMonkeys(monkeyObject) {
+		Ment.webMonkeys = monkeyObject;
+	}
+
 	Ment.clamp = clamp;
+	Ment.initWebMonkeys = initWebMonkeys;
 	Ment.render = render;
 	Ment.renderBox = renderBox;
 	Ment.getLoss = getLoss;
@@ -825,25 +1280,751 @@ var Ment = Ment || {};
 	Ment.lin = lin;
 	Ment.bounce = bounce;
 	Ment.isBrowser = isBrowser;
+	Ment.makeid = makeid;
 	Ment.gaussRandom = gaussRandom;
 	Ment.polluteGlobal = polluteGlobal;
 	Ment.protectNaN = protectNaN;
 	Ment.inputError = inputError;
 	Ment.printNet = printNet;
+
 	let globalObject = isBrowser() ? window : global;
-	if (globalObject.GPU) {
-		const gpu = new GPU();
-		Ment.gpu = gpu;
-	}
 
 	if (!Ment.isBrowser()) {
 		//test if we are in node
-		if (typeof module === "undefined" || typeof module.exports === "undefined") {
-			window.Ment = Ment; // in ordinary browser attach library to window
-		} else {
-			module.exports = Ment; // in nodejs
-		}
+		module.exports = Ment; // in nodejs
+	} else {
+		window.Ment = Ment; // in ordinary browser attach library to window
+		Ment.Worker = window.Worker;
 	}
+}
+
+var Ment = Ment || {};
+{
+	load(this, function (exports) {
+		function WebMonkeys(opt) {
+			var maxVertexIndex,
+				vertexIndexBuffer,
+				resultTextureSide,
+				resultTexture,
+				arrays,
+				arrayByName,
+				shaderByTask,
+				gl,
+				defaultLib,
+				writer,
+				renderer,
+				userLib,
+				framebuffer,
+				rendererVertexBuffer;
+
+			// () -> Monkeys
+			function init() {
+				opt = opt || [];
+				maxVertexIndex = 0;
+				resultTextureSide = 0;
+				arrays = [];
+				arrayByName = {};
+				shaderByTask = {};
+
+				var glOpt = { antialias: false, preserveDrawingBuffer: true };
+
+				var ENVIRONMENT_IS_WEB = typeof window === "object";
+				var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
+				var ENVIRONMENT_IS_NODE =
+					typeof process === "object" && typeof require === "function" && !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_WORKER;
+
+				if (ENVIRONMENT_IS_NODE) {
+					gl = require("g" + "l")(1, 1, glOpt);
+				} else {
+					var canvas;
+					if (ENVIRONMENT_IS_WEB) {
+						canvas = document.createElement("canvas");
+					}
+					if (ENVIRONMENT_IS_WORKER) {
+						canvas = new OffscreenCanvas(1, 1);
+					}
+					gl = canvas.getContext("webgl", glOpt) || canvas.getContext("experimental-webgl", glOpt);
+					gl.canvas = canvas;
+					gl.canvas.width = 1;
+					gl.canvas.height = 1;
+					gl.canvas.style = [
+						"border: 1px solid black;",
+						"image-rendering: optimizeSpeed;",
+						"image-rendering: -moz-crisp-edges;",
+						"image-rendering: -webkit-optimize-contrast;",
+						"image-rendering: -o-crisp-edges;",
+						"image-rendering: pixelated;",
+						"-ms-interpolation-mode: nearest-neighbor;",
+					].join("");
+				}
+
+				defaultLib = [
+					"vec2 indexToPos(vec2 size, float index){",
+					"  return vec2(mod(index, size.x), floor(index/size.x));",
+					"}",
+					"float posToIndex(vec2 size, vec2 pos){",
+					"  return pos.y*size.x + pos.x;",
+					"}",
+					"vec2 scaleRange(vec2 fromA, vec2 fromB, vec2 toA, vec2 toB, vec2 pos){",
+					"  return toA+(pos-fromA)/(fromB-fromA)*(toB-toA);",
+					"}",
+					"vec4 packFloat(float x){",
+					"  float s = 0.0;",
+					"  float e = 0.0;",
+					"  float m = x;",
+					"  if (m<0.0) s=1.0, m=-m;",
+					"  for (int i=0; i<24; ++i){",
+					"    if (m>=2.0) m=m/2.0, e+=1.0;",
+					"    if (m< 1.0) m=m*2.0, e-=1.0;",
+					"    if (m>=1.0 && m<2.0) break;",
+					"  };",
+					"  return vec4(",
+					"    floor(fract((m-1.0)*256.0*256.0)*256.0),",
+					"    floor(fract((m-1.0)*256.0)*256.0),",
+					"    floor(fract((m-1.0)*1.0)*256.0),",
+					"    ((e+63.0) + (x>0.0?128.0:0.0)))/255.0;",
+					"}",
+					"float unpackFloat(vec4 v){",
+					"  v *= 255.0;",
+					"  float s = v.a >= 128.0 ? 1.0 : -1.0;",
+					"  float e = v.a - (v.a >= 128.0 ? 128.0 : 0.0) - 63.0;",
+					"  float m = 1.0 + v.x/256.0/256.0/256.0 + v.y/256.0/256.0 + v.z/256.0;",
+					"  return s * pow(2.0, e) * m;",
+					"}",
+					"vec4 packVec4(vec4 v){",
+					"  return v/255.0;",
+					"}",
+					"vec4 unpackVec4(vec4 v){",
+					"  return v*255.0;",
+					"}",
+					"vec4 packIndexDepth(int a, int b){",
+					"  float av = float(a);",
+					"  float bv = float(b);",
+					"  float x = mod(floor(av), 256.0);",
+					"  float y = mod(floor(av/256.0), 256.0);",
+					"  float z = mod(floor(av/256.0/256.0), 256.0);",
+					"  float w = mod(floor(bv), 256.0);",
+					"  return vec4(x,y,z,w)/255.0;",
+					"}",
+					"int unpackIndex(vec4 v){",
+					"  return int(v.x*255.0 + v.y*255.0*256.0 + v.z*255.0*256.0*256.0);",
+					"}",
+					"int unpackDepth(vec4 v){",
+					"  return int(v.w*255.0);",
+					"}",
+				].join("\n");
+
+				writer = buildShader(
+					[
+						"precision highp float;",
+						"attribute float resultIndex;",
+						"uniform sampler2D resultTexture;",
+						"uniform float resultTextureSide;",
+						"uniform float resultGridSide;",
+						"uniform float resultSquareSide;",
+						"uniform float targetTextureSide;",
+						"varying vec4 value;",
+						defaultLib,
+						"void main(){",
+						"  float resultSquareIndex = mod(resultIndex, resultSquareSide*resultSquareSide/2.0);",
+						"  vec2 resultSquareCoord = indexToPos(vec2(resultSquareSide/2.0,resultSquareSide), resultSquareIndex)*vec2(2.0,1.0);",
+						"  vec2 resultGridCoord = indexToPos(vec2(resultGridSide), floor(resultIndex/(resultSquareSide*resultSquareSide/2.0)));",
+						"  vec2 resultCoord = resultGridCoord * resultSquareSide + resultSquareCoord;",
+						"  vec2 indexCoord = (resultCoord+vec2(0.5,0.5))/resultTextureSide;",
+						"  vec2 valueCoord = (resultCoord+vec2(1.5,0.5))/resultTextureSide;",
+						"  float index = float(unpackIndex(texture2D(resultTexture, indexCoord))-1);",
+						"  float depth = float(unpackDepth(texture2D(resultTexture, indexCoord)));",
+						"  value = texture2D(resultTexture, valueCoord);",
+						"  vec2 rPos = (indexToPos(vec2(targetTextureSide),index)+vec2(0.5))/targetTextureSide*2.0-1.0;",
+						"  gl_Position = vec4(depth > 0.5 ? rPos : vec2(-1.0,-1.0), (255.0-depth)/255.0, 1.0);",
+						//"  gl_Position = vec4(rPos, -0.5, 1.0);",
+						"  gl_PointSize = 1.0;",
+						"}",
+					].join("\n"),
+					["precision highp float;", "varying vec4 value;", "void main(){", "  gl_FragColor = value;", "}"].join("\n")
+				);
+
+				renderer = buildShader(
+					[
+						"precision highp float;",
+						"attribute vec2 vertexPos;",
+						"varying vec2 pos;",
+						"void main(){",
+						"  pos = vertexPos;",
+						"  gl_Position = vec4(vertexPos, 0.0, 1.0);",
+						"}",
+					].join("\n"),
+					[
+						"precision mediump float;",
+						"uniform sampler2D array;",
+						"varying vec2 pos;",
+						"void main(){",
+						"  gl_FragColor = texture2D(array, pos*0.5+0.5);",
+						"}",
+					].join("\n")
+				);
+
+				gl.clearDepth(256.0);
+
+				vertexIndexBuffer = gl.createBuffer();
+
+				rendererVertexBuffer = gl.createBuffer();
+				gl.bindBuffer(gl.ARRAY_BUFFER, rendererVertexBuffer);
+				gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([1, 1, -1, -1, 1, -1, 1, 1, -1, 1, -1, -1]), gl.STATIC_DRAW);
+
+				resultTexture = gl.createTexture();
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, resultTexture);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+				gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+				framebuffer = gl.createFramebuffer();
+				gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+				return monkeysApi;
+			}
+
+			// *Monkeys => Number -> Monkeys
+			//   Makes sure there are enough index vertices available
+			//   for a `gl.drawArrays(gl.POINTS, 0, vertices)` call.
+			function allocVertexIndices(indices) {
+				if (indices > maxVertexIndex) {
+					maxVertexIndex = Math.pow(fitTextureSide(indices), 2);
+					var vertexIndexArray = new Float32Array(maxVertexIndex);
+					for (var i = 0; i < maxVertexIndex; ++i) vertexIndexArray[i] = i;
+					gl.bindBuffer(gl.ARRAY_BUFFER, vertexIndexBuffer);
+					gl.bufferData(gl.ARRAY_BUFFER, vertexIndexArray, gl.STATIC_DRAW);
+					gl.bindBuffer(gl.ARRAY_BUFFER, null);
+				}
+			}
+
+			// *Monkeys => Number -> ()
+			//   Makes sure the results texture is big
+			//   enough to fit every result of a task.
+			function allocResultTexture(usedTextureSide) {
+				if (usedTextureSide > resultTextureSide) {
+					resultTextureSide = usedTextureSide;
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, resultTexture);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, resultTextureSide, resultTextureSide, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+				}
+			}
+
+			// *Monkeys => String, String -> WebGLProgram
+			function buildShader(vertexSrc, fragmentSrc) {
+				function compile(type, shaderSource) {
+					var shader = gl.createShader(type);
+					gl.shaderSource(shader, shaderSource);
+					gl.compileShader(shader);
+					if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+						var errorMsg = "WebMonkeys had the following error from WebGL: " + gl.getShaderInfoLog(shader);
+						if (errorMsg.indexOf("syntax error") !== -1) errorMsg += "This could be fixed by adding extra `;` before setters.";
+						throw errorMsg;
+					}
+					return shader;
+				}
+				var vertexShader = compile(gl.VERTEX_SHADER, vertexSrc);
+				var fragmentShader = compile(gl.FRAGMENT_SHADER, fragmentSrc);
+
+				var shader = gl.createProgram();
+				gl.attachShader(shader, vertexShader);
+				gl.attachShader(shader, fragmentShader);
+				gl.linkProgram(shader);
+				if (!gl.getProgramParameter(shader, gl.LINK_STATUS)) throw "Error linking shaders.";
+
+				return shader;
+			}
+
+			// Number -> Number
+			function fitTextureSide(elements) {
+				return Math.pow(2, Math.ceil(Math.log(Math.sqrt(elements)) / Math.log(2)));
+			}
+
+			// Number -> Number
+			function fract(x) {
+				return x - Math.floor(x);
+			}
+
+			// *Monkeys => String -> Maybe (Either (Array Number) *Uint32Array)
+			function get(name) {
+				var array = arrayByName[name];
+				if (!array) return null;
+				var targetArray = array.uint32Array;
+				var pixels = targetArray
+					? new Uint8Array(targetArray.buffer) // re-uses existing buffer
+					: new Uint8Array(array.textureSide * array.textureSide * 4);
+				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, array.texture, 0);
+				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, null);
+				gl.readPixels(0, 0, array.textureSide, array.textureSide, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+
+				if (!targetArray) {
+					var result = new Float32Array(array.length);
+					for (var i = 0, l = array.length; i < l; ++i) {
+						var s = pixels[i * 4 + 3] >= 128 ? 1 : -1;
+						var e = pixels[i * 4 + 3] - (pixels[i * 4 + 3] >= 128 ? 128 : 0) - 63;
+						var m = 1 + pixels[i * 4 + 0] / 256 / 256 / 256 + pixels[i * 4 + 1] / 256 / 256 + pixels[i * 4 + 2] / 256;
+						var n = s * Math.pow(2, e) * m;
+						var z = 0.000000000000000001; // to avoid annoying floating point error for 0
+						// result.push(-z < n && n < z ? 0 : n); //floating point error is miniscule in ai computation.
+						result[i] = n;
+					}
+					return result;
+				} else {
+					return targetArray;
+				}
+			}
+
+			function getLen(name) {
+				var array = arrayByName[name];
+				return array.length;
+			}
+
+			// *Monkeys => String, *Uint32Array -> Monkeys
+			// *Monkeys => String, Array Number -> Monkeys
+			// *Monkeys => String, Number -> Monkeys
+			function set(name, lengthOrArray) {
+				if (typeof lengthOrArray === "number") {
+					var length = lengthOrArray;
+					var textureSide = fitTextureSide(length);
+					var array = null;
+				} else {
+					var length = lengthOrArray.length;
+					var textureSide = fitTextureSide(length);
+					if (lengthOrArray instanceof Array || lengthOrArray instanceof Float32Array || lengthOrArray instanceof Float64Array) {
+						// upload JS Numbers as Floats
+						var array = new Uint8Array(textureSide * textureSide * 4);
+						for (var i = 0, l = lengthOrArray.length; i < l; ++i) {
+							var x = lengthOrArray[i];
+							var s = x > 0 ? 1 : -1;
+							var e = Math.floor(Math.log(s * x) / Math.LN2);
+							var m = (s * x) / Math.pow(2, e);
+							array[i * 4 + 0] = Math.floor(fract((m - 1) * 256 * 256) * 256) || 0;
+							array[i * 4 + 1] = Math.floor(fract((m - 1) * 256) * 256) || 0;
+							array[i * 4 + 2] = Math.floor(fract((m - 1) * 1) * 256) || 0;
+							array[i * 4 + 3] = e + 63 + (x > 0 ? 128 : 0) || 0;
+						}
+					} else {
+						// upload 32-bit Uints as Vec4s
+						if (textureSide * textureSide !== length)
+							throw (
+								"WebMonkey error: when on raw buffer mode, the length of your\n" +
+								"buffer must be (2^n)^2 for a positive integer n. That is, it\n" +
+								"could be 1, 4, 16, 64, 256, 1024, 4096, 16384, 65536, 262144\n" +
+								"and so on. Your '" +
+								name +
+								"' buffer has length " +
+								length +
+								"."
+							);
+						var array = new Uint8Array(lengthOrArray.buffer);
+					}
+				}
+				gl.activeTexture(gl.TEXTURE0);
+				if (!arrayByName[name]) {
+					var texture = gl.createTexture();
+					gl.bindTexture(gl.TEXTURE_2D, texture);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+					gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureSide, textureSide, 0, gl.RGBA, gl.UNSIGNED_BYTE, array);
+					var depthbuffer = gl.createRenderbuffer();
+					gl.bindRenderbuffer(gl.RENDERBUFFER, depthbuffer);
+					gl.renderbufferStorage(gl.RENDERBUFFER, gl.DEPTH_COMPONENT16, textureSide, textureSide);
+					arrayByName[name] = {
+						name: name,
+						uint32Array: lengthOrArray instanceof Uint32Array ? lengthOrArray : null,
+						valueType: lengthOrArray instanceof Uint32Array ? "vec4" : "float",
+						texture: texture,
+						depthbuffer: depthbuffer,
+						textureName: name + "_",
+						textureSide: textureSide,
+						length: length,
+					};
+					arrays.push(arrayByName[name]);
+				} else {
+					var texture = arrayByName[name].texture;
+					gl.bindTexture(gl.TEXTURE_2D, texture);
+					gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, textureSide, textureSide, 0, gl.RGBA, gl.UNSIGNED_BYTE, array);
+				}
+				return monkeysApi;
+			}
+
+			// *Monkeys => String, Number -> Monkeys
+			//   Fills an array with a floating point number
+			function fill(name, x) {
+				var array = arrayByName[name];
+				// Since the float packing on the set function is
+				// inlined for performance, it must be duplicated
+				// here. FIXME: find a way to avoid this.
+				var s = x > 0 ? 1 : -1;
+				var e = Math.floor(Math.log2(s * x));
+				var m = (s * x) / Math.pow(2, e);
+				var a = Math.floor(fract((m - 1) * 256 * 256) * 256) || 0;
+				var b = Math.floor(fract((m - 1) * 256) * 256) || 0;
+				var c = Math.floor(fract((m - 1) * 1) * 256) || 0;
+				var d = e + 63 + (x > 0 ? 128 : 0) || 0;
+				return clear(name, (d << 24) + (c << 16) + (b << 8) + a);
+			}
+
+			// *Monkeys => String, Uint32 -> Monkeys
+			//   Fills an array with an Uint32
+			function clear(name, value) {
+				var array = arrayByName[name];
+				gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, array.texture, 0);
+				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, null);
+				gl.clearColor(
+					((value & 0x000000ff) >>> 0) / 255,
+					((value & 0x0000ff00) >>> 8) / 255,
+					((value & 0x00ff0000) >>> 16) / 255,
+					((value & 0xff000000) >>> 24) / 255
+				);
+				gl.clear(gl.COLOR_BUFFER_BIT);
+				return monkeysApi;
+			}
+
+			// *Monkeys => String -> Monkeys
+			function del(name) {
+				var existingArray;
+				if ((existingArray = arrayByName[name])) {
+					delete arrayByName[name];
+					arrays = arrays.filter(function (arr) {
+						return arr !== existingArray;
+					});
+					gl.deleteTexture(existingArray.texture);
+				}
+				return monkeysApi;
+			}
+
+			// String -> Maybe {name: String, index: String, depth: String, value: String}
+			//   Parses a setter statement such as `foo(i*8) := bar(i*8) + baz(i*8);` and
+			//   returns `name`, `index`, `depth` and `value` strings:
+			//   {name: "foo", index: "i*8", depth: "", value: "bar(i*8) + baz(i*8)"}
+			function parseSetterStatement(statement) {
+				var name = "";
+				var index = "";
+				var depth = "";
+				var value = "";
+				var phase = 0;
+				var brackets = 1;
+				for (var i = 0, l = statement.length; i < l; ++i) {
+					var chr = statement[i];
+					switch (phase) {
+						case 0:
+							if (chr === "(") phase = 1;
+							else if (chr !== " " && chr !== "\n") name += chr;
+							break;
+						case 1:
+							if (chr === "(") ++brackets;
+							else if (chr === ")") --brackets;
+							if (brackets === 1 && chr === ",") phase = 2;
+							else if (brackets === 0) phase = 3;
+							else index += chr;
+							break;
+						case 2:
+							if (chr === "(") ++brackets;
+							else if (chr === ")") --brackets;
+							if (brackets === 0) phase = 3;
+							else depth += chr;
+							break;
+						case 3:
+							if (chr === ":") phase = 4;
+							break;
+						case 4:
+							if (chr === "=") phase = 5;
+							else return null;
+							break;
+						case 5:
+							if (chr !== " ") (value += chr), (phase = 6);
+							break;
+						case 6:
+							if (chr === ";") phase = 7;
+							else value += chr;
+							break;
+					}
+				}
+				return phase === 7 ? { name: name, index: index, depth: depth, value: value } : null;
+			}
+
+			// String -> {
+			//   shader: GLShader,
+			//   usedResults: Number,
+			//   allocResults: Number,
+			//   resultArrayName: String,
+			//   usesDepth: Bool}
+			function buildTask(task) {
+				if (shaderByTask[task]) return shaderByTask[task];
+
+				var usesDepth = false;
+				var taskStatements = task.split(";");
+				taskStatements.pop();
+				var setters = [];
+				var setter;
+				while ((setter = parseSetterStatement(taskStatements[taskStatements.length - 1] + ";"))) {
+					setters.push(setter);
+					taskStatements.pop();
+					if (setter.depth !== "0") usesDepth = true;
+				}
+				if (setters.length === 0)
+					throw "Error parsing Monkey task: tasks must end with a setter statement such as `foo[0] = 0;`.";
+				var resultArrayName = setters[0].name;
+				for (var i = 1, l = setters.length; i < l; ++i)
+					if (setters[i].name !== resultArrayName)
+						throw "Error parsing Monkey task: you can't write to different arrays on the same task.";
+
+				var taskWithoutSetters = taskStatements.join(";") + ";";
+
+				// `usedResults` is how many sets this work does.
+				// `allocResults` is how many sets we actually allocated space for.
+				// Explanation: a result is an (indice, value) pair which will be used on
+				// the next pass to fill the target array. Those results are recorded
+				// into square sections of a 2D texture. Each monkey has its own square.
+				// In order for everything to fit, the square of a monkey will have empty
+				// space. For example, if a task makes 3 sets, it requires 6 pixels on
+				// the texture report its result (3 indices + 3 values). To fit 6 pixels,
+				// we need a square of side 4; side 2 isn't enough because it only fits 4
+				// pixels, side 3 isn't allowed because such a square wouldn't align
+				// correctly on the texture.
+				// TODO: complete this explanation, move it to the top, make some drawings
+				var usedResults = setters.length;
+				var allocResults = Math.pow(fitTextureSide(usedResults * 2), 2) / 2;
+
+				var getters = "";
+				for (var i = 0, l = arrays.length; i < l; ++i)
+					getters +=
+						"uniform sampler2D " +
+						arrays[i].textureName +
+						";\n" +
+						arrays[i].valueType +
+						" " +
+						arrays[i].name +
+						"(float idx){\n" +
+						"  return " +
+						(arrays[i].valueType === "float" ? "unpackFloat" : "unpackVec4") +
+						"(texture2D(" +
+						arrays[i].textureName +
+						",indexToPos(vec2(" +
+						arrays[i].textureSide.toFixed(1) +
+						"), idx)/" +
+						arrays[i].textureSide.toFixed(2) +
+						"));\n" +
+						"}\n" +
+						arrays[i].valueType +
+						" " +
+						arrays[i].name +
+						"(int idx){\n" +
+						"  return " +
+						arrays[i].name +
+						"(float(idx));\n" +
+						"}\n";
+
+				var setterFns = "";
+				for (var i = 0; i < allocResults; ++i) {
+					setterFns += "void set" + i + "(int i" + i + ", int d" + i + ", float v" + i + "){\n";
+					setterFns += "  results[" + (i * 2 + 0) + "] = packIndexDepth(i" + i + "+1, d" + i + ");\n";
+					setterFns += "  results[" + (i * 2 + 1) + "] = packFloat(v" + i + ");\n";
+					setterFns += "}\n";
+					setterFns += "void set" + i + "(int i" + i + ", int d" + i + ", vec4 v" + i + "){\n";
+					setterFns += "  results[" + (i * 2 + 0) + "] = packIndexDepth(i" + i + "+1, d" + i + ");\n";
+					setterFns += "  results[" + (i * 2 + 1) + "] = packVec4(v" + i + ");\n";
+					setterFns += "}\n";
+				}
+
+				var writeToTexture = "";
+				for (var i = 0; i < allocResults * 2; ++i)
+					writeToTexture += "  if (idx == " + i + ") gl_FragColor = results[" + i + "];\n";
+
+				var setter = "";
+				for (var i = 0; i < allocResults; ++i) {
+					setter += "  set" + i + "(";
+					setter +=
+						i < usedResults ? setters[i].index + ", " + (setters[i].depth || "1") + ", " + setters[i].value : "0, 0, vec4(0.0)";
+					setter += ");\n";
+				}
+
+				var vertexShader = [
+					"precision highp float;",
+					"uniform float resultTextureSide;",
+					"uniform float resultGridSide;",
+					"uniform float resultSquareSide;",
+					"attribute float resultIndex;",
+					"varying float resultIndexVar;",
+					"varying vec4 results[" + allocResults * 2 + "];",
+					defaultLib,
+					getters,
+					setterFns,
+					userLib,
+					"vec4 scaleToScreen(vec2 pos){",
+					"  vec2 screenCoord = scaleRange(vec2(0.0,0.0), vec2(resultGridSide), vec2(-1.0), vec2(-1.0+resultSquareSide*resultGridSide/resultTextureSide*2.0), pos);",
+					"  return vec4(screenCoord + vec2(resultSquareSide)/resultTextureSide, 1.0, 1.0);",
+					"}",
+					"void main(){",
+					"  int i = int(resultIndex);",
+					"  float f = resultIndex;",
+					taskWithoutSetters,
+					setter,
+					"  gl_PointSize = resultSquareSide;",
+					"  gl_Position = scaleToScreen(indexToPos(vec2(resultGridSide), resultIndex));",
+					"  resultIndexVar = resultIndex;",
+					"}",
+				].join("\n");
+
+				var fragmentShader = [
+					"precision highp float;",
+					"varying float resultIndexVar;",
+					"varying vec4 results[" + allocResults * 2 + "];",
+					"uniform float resultSquareSide;",
+					defaultLib,
+					"void main(){",
+					"  vec2 coord = floor(gl_PointCoord * resultSquareSide);",
+					"  int idx = int((resultSquareSide-1.0-coord.y) * resultSquareSide + coord.x);",
+					writeToTexture,
+					"}",
+				].join("\n");
+
+				var shader = buildShader(vertexShader, fragmentShader);
+
+				return (shaderByTask[task] = {
+					usesDepth: usesDepth,
+					usedResults: usedResults,
+					allocResults: allocResults,
+					shader: shader,
+					resultArrayName: resultArrayName,
+				});
+			}
+
+			// *Monkeys => Number, String -> Monkeys
+			function work(monkeyCount, taskSource) {
+				var task = buildTask(taskSource);
+				var resultArray = arrayByName[task.resultArrayName];
+				var resultSquareSide = fitTextureSide(task.allocResults * 2);
+				var resultGridSide = fitTextureSide(monkeyCount);
+				var usedResultTextureSide = resultGridSide * resultSquareSide;
+				var resultSquareSide = fitTextureSide(task.allocResults * 2);
+				var resultGridSide = fitTextureSide(monkeyCount);
+				var usedResultTextureSide = resultGridSide * resultSquareSide;
+
+				allocResultTexture(usedResultTextureSide);
+				allocVertexIndices(Math.max(monkeyCount, (monkeyCount * resultSquareSide * resultSquareSide) / 2));
+
+				gl.useProgram(task.shader);
+				gl.bindBuffer(gl.ARRAY_BUFFER, vertexIndexBuffer);
+				gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+				gl.uniform1f(gl.getUniformLocation(task.shader, "resultGridSide"), resultGridSide);
+				gl.uniform1f(gl.getUniformLocation(task.shader, "resultSquareSide"), resultSquareSide);
+				gl.uniform1f(gl.getUniformLocation(task.shader, "resultTextureSide"), resultTextureSide);
+				gl.vertexAttribPointer(gl.getAttribLocation(task.shader, "resultIndex"), 1, gl.FLOAT, false, 0, 0);
+				gl.enableVertexAttribArray(gl.getAttribLocation(task.shader, "resultIndex"));
+				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resultTexture, 0);
+				gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, null);
+				gl.viewport(0, 0, resultTextureSide, resultTextureSide);
+				for (var i = 0, l = arrays.length; i < l; ++i) {
+					gl.activeTexture(gl.TEXTURE0 + i);
+					gl.bindTexture(gl.TEXTURE_2D, arrays[i].texture);
+					gl.uniform1i(gl.getUniformLocation(task.shader, arrays[i].textureName), i);
+				}
+				gl.drawArrays(gl.POINTS, 0, monkeyCount);
+
+				if (task.usesDepth) gl.enable(gl.DEPTH_TEST);
+				gl.useProgram(writer);
+				gl.activeTexture(gl.TEXTURE0);
+				gl.bindTexture(gl.TEXTURE_2D, resultTexture);
+				gl.uniform1i(gl.getUniformLocation(writer, "resultTexture"), resultTexture);
+				gl.uniform1f(gl.getUniformLocation(writer, "resultGridSide"), resultGridSide);
+				gl.uniform1f(gl.getUniformLocation(writer, "resultSquareSide"), resultSquareSide);
+				gl.uniform1f(gl.getUniformLocation(writer, "resultTextureSide"), resultTextureSide);
+				gl.uniform1f(gl.getUniformLocation(writer, "targetTextureSide"), resultArray.textureSide);
+				gl.vertexAttribPointer(gl.getAttribLocation(writer, "resultIndex"), 1, gl.FLOAT, false, 0, 0);
+				gl.enableVertexAttribArray(gl.getAttribLocation(writer, "resultIndex"));
+				gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, resultArray.texture, 0);
+				gl.viewport(0, 0, resultArray.textureSide, resultArray.textureSide);
+				if (task.usesDepth) {
+					gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, resultArray.depthbuffer);
+					gl.clear(gl.DEPTH_BUFFER_BIT);
+				}
+				gl.drawArrays(gl.POINTS, 0, (monkeyCount * resultSquareSide * resultSquareSide) / 2);
+				if (task.usesDepth) gl.disable(gl.DEPTH_TEST);
+				return monkeysApi;
+			}
+
+			// Allows rendering arrays to a Canvas for visualization
+			// *Monkeys => String, Number, Number -> Maybe Canvas
+			function render(name, width, height) {
+				if (gl.canvas && arrayByName[name]) {
+					gl.canvas.width = width;
+					gl.canvas.height = height;
+					gl.useProgram(renderer);
+					gl.viewport(0, 0, width, height);
+
+					gl.activeTexture(gl.TEXTURE0);
+					gl.bindTexture(gl.TEXTURE_2D, arrayByName[name].texture);
+
+					gl.bindBuffer(gl.ARRAY_BUFFER, rendererVertexBuffer);
+					var vertexPosAttr = gl.getAttribLocation(renderer, "vertexPos");
+					gl.vertexAttribPointer(vertexPosAttr, 2, gl.FLOAT, false, 0, 0);
+					gl.enableVertexAttribArray(vertexPosAttr);
+					gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+					gl.drawArrays(gl.TRIANGLES, 0, 6);
+					return gl.canvas;
+				}
+				return null;
+			}
+
+			// *Monkeys => String -> Monkeys
+			function lib(source) {
+				userLib = source;
+				return monkeysApi;
+			}
+
+			// Monkeys => String -> String
+			function stringify(name) {
+				return JSON.stringify(get(name));
+			}
+
+			// Monkeys => String -> IO ()
+			function log(name) {
+				console.log(stringify(name));
+			}
+
+			var monkeysApi = {
+				set: set,
+				get: get,
+				getLen: getLen,
+				del: del,
+				lib: lib,
+				work: work,
+				clear: clear,
+				fill: fill,
+				render: render,
+				stringify: stringify,
+				log: log,
+			};
+
+			return init();
+		}
+
+		if (typeof window === "object") exports.WebMonkeys = WebMonkeys;
+
+		if (typeof module !== "undefined") module.exports = WebMonkeys;
+	});
+
+	function load(root, factory) {
+		"use strict";
+
+		// amd
+		if (typeof define === "function" && define.amd)
+			// register as an anonymous module
+			define([], factory);
+		// commonjs
+		else if (typeof exports === "object" && typeof exports.nodeName !== "string") factory(exports);
+		// browser globals
+		else factory(root);
+	}
+	Ment.webMonkeys = WebMonkeys();
 }
 
 //Base layer for all activations to inherit from
@@ -1246,8 +2427,8 @@ Im sorry but I had to choose one
 */
 
 	class ConvLayer {
-		static averageOutCosts = true; //probs
-		static averageOutGrads = true; //ehhh
+		static averageOutCosts = false; //probs
+		static averageOutGrads = false; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -1295,6 +2476,37 @@ Im sorry but I had to choose one
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.5 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
+			for (var a = 0; a < 3; a++) {
+				let newFilterw = this.filterw.slice(0);
+				for (var f = 0; f < this.filters; f++) {
+					for (var d = 0; d < this.inDepth; d++) {
+						for (var x = 0; x < this.filterWidth; x++) {
+							for (var y = 0; y < this.filterHeight; y++) {
+								let count = 0;
+								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+								let indR = [
+									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indL = [
+									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indD = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indU = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								if (x < filterWidth - 1) count += this.filterw[indR];
+								if (x > 1) count += this.filterw[indL];
+								if (y < filterHeight - 1) count += this.filterw[indD];
+								if (y > 1) count += this.filterw[indU];
+								newFilterw[ind] += count / 5;
+							}
+						}
+					}
+				}
+				this.filterw = newFilterw;
 			}
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
@@ -1378,7 +2590,6 @@ Im sorry but I had to choose one
 				err = this.nextLayer.costs;
 			}
 			this.costs.fill(0); //reset the costs
-
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
@@ -1580,8 +2791,8 @@ Im sorry but I had to choose one
 
 {
 	class DeconvLayer {
-		static averageOutCosts = true;
-		static averageOutGrads = true;
+		static averageOutCosts = false;
+		static averageOutGrads = false;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -1630,6 +2841,37 @@ Im sorry but I had to choose one
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
 				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+			}
+			for (var a = 0; a < 3; a++) {
+				let newFilterw = this.filterw.slice(0);
+				for (var f = 0; f < this.filters; f++) {
+					for (var d = 0; d < this.inDepth; d++) {
+						for (var x = 0; x < this.filterWidth; x++) {
+							for (var y = 0; y < this.filterHeight; y++) {
+								let count = 0;
+								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+								let indR = [
+									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indL = [
+									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indD = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indU = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								if (x < filterWidth - 1) count += this.filterw[indR];
+								if (x > 1) count += this.filterw[indL];
+								if (y < filterHeight - 1) count += this.filterw[indD];
+								if (y > 1) count += this.filterw[indU];
+								newFilterw[ind] += count / 5;
+							}
+						}
+					}
+				}
+				this.filterw = newFilterw;
 			}
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
@@ -2015,11 +3257,8 @@ Im sorry but I had to choose one
 			mutate(mutationRate::float, mutationIntensity::float)
 
 		FUNCTIONS FOR GPU SUPPORT TO WORK:
-			initGPU() -- this should at least make "this.gpuEnabled" true.
+			enableGPUMode() -- this should at least make "this.gpuEnabled" true.
 
-			You can code the rest yourself, Mentnet uses gpujs and Ment.gpu is a 
-			global gpu object to use to prevent making multpile gpu objects. 
-			Make it work however you want.
 
 			If you have all this your layer should work inside a real net!
 
@@ -2030,7 +3269,6 @@ Im sorry but I had to choose one
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.gpuEnabled = false;
 			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
 			this.bs = new Float32Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
@@ -2184,27 +3422,6 @@ Im sorry but I had to choose one
 			layer.lr = saveObject.lr;
 			return layer;
 		}
-
-		//----------------
-		// GPU specific stuff below! Beware.
-		//----------------
-
-		// initGPU(){
-		// 	this.forwardGPUKernel = Ment.gpu.createKernel(function(inData, weights, biases, outDataLength, inDataLength) {
-		// 		var act = 0;
-		// 		for (var j = 0; j < inDataLength; j++) {
-		// 					act +=
-		// 						inData[j] *
-		// 						weights[this.thread.x + j *	outDataLength];// the dirty deed
-		// 		}
-		// 		act += biases[this.thread.x];
-		// 		return act
-		// 	}).setOutput([this.outData.length]);
-		// }
-
-		//----------------
-		// End of GPU specific stuff. Take a breather.
-		//----------------
 	}
 
 	Ment.FCLayer = FCLayer;
@@ -2430,7 +3647,7 @@ Im sorry but I had to choose one
 
 {
 	class LeakyReluLayer extends Ment.ActivationBase {
-		static leakySlope = 0.25;
+		static leakySlope = 0.01;
 
 		constructor(size) {
 			super(size);
@@ -2823,7 +4040,7 @@ Im sorry but I had to choose one
 			let inDepth = inDim[2];
 
 			pad = pad || 2;
-			padwith = padwith | 0;
+			padwith = padwith || 0;
 			this.inData = new Float32Array(inWidth * inHeight * inDepth);
 			this.outData = new Float32Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
 			this.pad = pad;
@@ -3532,10 +4749,10 @@ Im sorry but I had to choose one
 			if (this.mode == "concat") {
 				//fixed a very atrocious error
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] / 2;
+					this.costs[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i] / 2;
+					this.costsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
@@ -3856,6 +5073,2329 @@ Im sorry but I had to choose one
 	Ment.UpScalingLayer = UpscalingLayer;
 }
 
+//Base layer for all activations to inherit from
+
+{
+	class ActivationBaseGPU {
+		constructor(size) {
+			this.nextLayer; //the connected layer
+			this.pl; //reference to previous layer
+			this.inSize = () => {
+				return size;
+			};
+
+			this.outSize = () => {
+				return size;
+			};
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+		set previousLayer(layer) {
+			//will get initialized berore initGPUactivations is run.
+			this.inSize = () => {
+				return layer.outSize();
+			};
+
+			this.outSize = () => {
+				return layer.outSize();
+			};
+			this.pl = layer;
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuBiasName" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "gpuBiasGradsName" ||
+					key == "gpuWeightsName" ||
+					key == "gpuWeightsGradsName" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+
+			return ret;
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+	}
+
+	Ment.ActivationBaseGPU = ActivationBaseGPU;
+}
+
+{
+	class ConvLayerGPU {
+		//yeah these averaging things wont do antyhing cuz i havent implemented them yet
+		//dont worry the layer will still werk
+		//Proggramming this layer right here gave me schizofrinia!!!
+		static averageOutCosts = true; //probs
+		static averageOutGrads = true; //ehhh
+		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+
+			this.gpuFilterW = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			let temp = new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			for (var i = 0; i < filters * inDepth * filterWidth * filterHeight; i++) {
+				temp[i] = 0.3 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+			}
+			Ment.webMonkeys.set(this.gpuFilterW, temp);
+
+			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
+
+			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+
+			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
+			this.gpuBiasGradsName = Ment.makeid(8); //new Float32Array(this.outData.length);
+			this.useBias = bias;
+			temp = new Float32Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			if (this.useBias) {
+				for (
+					var i = 0;
+					i < Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters;
+					i++
+				) {
+					temp[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1); // set random bias
+				}
+			}
+			Ment.webMonkeys.set(this.gpuBiasName, temp);
+			Ment.webMonkeys.set(
+				this.gpuBiasGradsName,
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+
+			//Everything below here is precalculated constants used in forward/backward
+			//to optimize this and make sure we are as effeiciant as possible.
+			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+
+			this.gpuAccessedMap = Ment.makeid(8); //a map with the same size of the input times filter each input pixel will store what filter pixels can reach it. Needed cuz gpu is so so dumb unlike cpu
+
+			//initialize it.
+			// prettier-ignore
+			{
+			let tempAccessed = new Float32Array(inWidth * inHeight * filterWidth * filterHeight);
+
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * this.stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * this.stride;
+						for (var h = 0; h < this.inDepth; h++) {
+							const hWIH = h * this.wIH;
+							const hFWIH = h * this.fWIH + iFWIHID;
+							for (var j = 0; j < this.filterHeight; j++) {
+								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
+								const jFWHFWIH = j * this.filterWidth + hFWIH;
+								for (var k = 0; k < this.filterWidth; k++) {
+									let filterInd = j * this.filterWidth + k;
+									let indice = (k + jGAIWBA)*this.filterHeight * this.filterWidth + filterInd;
+									tempAccessed[indice] = g * this.wMFWPO + b + 1.1;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			Ment.webMonkeys.set(this.gpuAccessedMap, tempAccessed);
+
+
+		}
+		}
+
+		inSize() {
+			return this.inWidth * this.inHeight * this.inDepth;
+		}
+
+		outSize() {
+			return (
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride) *
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride) *
+				this.filters
+			);
+		}
+
+		inSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		outSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.filters * this.hMFHPO * this.wMFWPO,
+				`
+float act = 0.0;
+int ifromi = int(i / ${this.hMFHPO * this.wMFWPO});
+int gfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO}) / ${this.wMFWPO});
+int bfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO} - gfromi * ${this.wMFWPO}));
+
+
+int iHMFWMF = ifromi * ${this.hMFWMF};
+int iFWIHID = ifromi * ${this.fWIHID};
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+
+for (int h = 0; h < ${this.inDepth}; h++) {
+	int hWIH = h * ${this.wIH} + ba;
+	int hFWIH = h * ${this.fWIH} + iFWIHID;
+
+	for (int j = 0; j < ${this.filterHeight}; j++) {
+		int jGAIWBA = (j + ga) * ${this.inWidth} + hWIH;
+		int jFWHFWIH = j * ${this.filterWidth} + hFWIH;
+		for (int k = 0; k < ${this.filterWidth}; k++) {
+			act += ${this.gpuInDataName}(k + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuFilterW}(k + jFWHFWIH);
+		}
+	}
+}
+act += ${this.gpuBiasName}(odi);
+
+;
+
+${this.gpuOutDataName}(odi + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			//v will be height c will be width h will be depth
+			//this took forever to think of
+			Ment.webMonkeys.work(
+				this.inWidth * this.inHeight * this.inDepth,
+				`
+float act = 0.0;
+int remaining = i;
+int hfromi = int(remaining / (${this.inWidth * this.inHeight}));
+remaining = remaining - (hfromi * ${this.inWidth * this.inHeight});
+int vfromi = int(remaining / (${this.inWidth}));
+remaining = remaining - (vfromi * ${this.inWidth});
+int cfromi = remaining;
+int cdi = i;
+int acc = ((i - hfromi * ${this.inWidth * this.inHeight}) * ${this.filterHeight * this.filterWidth});
+
+for (int jfromi = 0; jfromi < ${this.filterHeight}; jfromi++) {
+for (int kfromi = 0; kfromi < ${this.filterWidth}; kfromi++) {
+if(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi) > 0.5){
+
+int amnt = int(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi)) - 1;
+int gfromi = int(amnt / ${this.wMFWPO});
+int bfromi = amnt - gfromi * ${this.wMFWPO};
+for (int ifromi = 0; ifromi < ${this.filters}; ifromi++) {
+int iHMFWMF = ifromi * ${this.hMFWMF};
+int iFWIHID = ifromi * ${this.fWIHID};
+
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+int hWIH = hfromi * ${this.wIH};
+int hFWIH = hfromi * ${this.fWIH} + iFWIHID;
+int jFWHFWIH = jfromi * ${this.filterWidth} + hFWIH;
+
+act += ${this.gpuFilterW}(kfromi + jFWHFWIH) * ${this.gpuErrorArrayName}(odi);
+
+}
+
+
+
+}
+}
+};
+
+;
+
+${this.gpuCostsArrayName}(cdi) := act;
+`
+			);
+
+			Ment.webMonkeys.work(
+				this.filters * this.inDepth * this.filterWidth * this.filterHeight,
+				`
+				int remaining = i;
+				int ifromi = int(remaining / (${this.inDepth * this.filterHeight * this.filterWidth}));
+remaining = remaining - (ifromi * ${this.inDepth * this.filterHeight * this.filterWidth});
+int hfromi = int(remaining / (${this.filterHeight * this.filterWidth}));
+remaining = remaining - (hfromi * ${this.filterHeight * this.filterWidth});
+int jfromi = int(remaining / (${this.filterWidth}));
+remaining = remaining - (jfromi * ${this.filterWidth});
+int kfromi = remaining;
+
+
+int cdi = i;
+
+int iFWIHID = ifromi * ${this.fWIHID};
+int hFWIH = hfromi * ${this.fWIH} + iFWIHID;
+int jFWHFWIH = jfromi * ${this.filterWidth} + hFWIH;
+float act = ${this.gpuFilterWGrads}(kfromi + jFWHFWIH);
+for (int vfromi = 0; vfromi < ${this.inHeight}; vfromi++) {
+for (int cfromi = 0; cfromi < ${this.inWidth}; cfromi++) {
+int acc = (((vfromi * ${this.inWidth} + cfromi)) * ${this.filterHeight * this.filterWidth});
+if(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi) > 0.5){
+
+int amnt = int(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi)) - 1;
+int gfromi = int(amnt / ${this.wMFWPO});
+int bfromi = amnt - gfromi * ${this.wMFWPO};
+int iHMFWMF = ifromi * ${this.hMFWMF};
+
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+int hWIH = hfromi * ${this.wIH};
+int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
+
+act += ${this.gpuInDataName}(kfromi + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(odi);
+
+
+
+
+
+}
+}
+};
+
+;
+
+${this.gpuFilterWGrads}(kfromi + jFWHFWIH) := act;
+`
+			);
+
+			if (this.useBias) {
+				Ment.webMonkeys.work(
+					this.outSize(),
+					`
+float act = ${this.gpuBiasGradsName}(i) + ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuBiasGradsName}(i) := act;
+`
+				);
+			}
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			if (this.useBias) {
+				return [this.gpuFilterW, this.gpuFilterWGrads, this.gpuBiasName, this.gpuBiasGradsName];
+			} else {
+				return [this.gpuFilterW, this.gpuFilterWGrads];
+			}
+		}
+
+		save() {
+			this.filterw = Ment.webMonkeys.get(this.gpuFilterW);
+			this.b = Ment.webMonkeys.get(this.gpuBiasName);
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "gpuFilterWGrads" ||
+					key == "gpuBiasGradsName" ||
+					key == "gpuAccessedMap" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b")
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			delete this.filterw;
+			delete this.b;
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new ConvLayerGPU(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias
+			);
+			let temp = new Float32Array(layer.filters * layer.inDepth * layer.filterWidth * layer.filterHeight);
+			for (var i = 0; i < layer.filters * layer.inDepth * layer.filterWidth * layer.filterHeight; i++) {
+				temp[i] = saveObject.filterw[i];
+			}
+			Ment.webMonkeys.set(layer.gpuFilterW, temp);
+			if (layer.useBias) {
+				temp = new Float32Array(layer.outSize());
+				for (var i = 0; i < layer.outSize(); i++) {
+					temp[i] = saveObject.b[i];
+				}
+				Ment.webMonkeys.set(layer.gpuBiasName, temp);
+			}
+			return layer;
+		}
+	}
+
+	Ment.ConvLayerGPU = ConvLayerGPU;
+	Ment.ConvGPU = ConvLayerGPU;
+}
+
+{
+	class DeconvLayerGPU {
+		static averageOutCosts = true;
+		static averageOutGrads = true;
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.useBias = useBias;
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+			//init random weights
+			this.gpuFilterW = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			let temp = new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			for (var i = 0; i < filters * inDepth * filterWidth * filterHeight; i++) {
+				temp[i] = 0.3 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+			}
+			Ment.webMonkeys.set(this.gpuFilterW, temp);
+
+			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
+			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
+
+			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+
+			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
+			this.gpuBiasGradsName = Ment.makeid(8);
+			temp = new Float32Array(this.inHeight * this.inWidth * this.inDepth);
+			if (this.useBias) {
+				for (var i = 0; i < this.inHeight * this.inWidth * this.inDepth; i++) {
+					temp[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1); // set random bias
+				}
+			}
+			Ment.webMonkeys.set(this.gpuBiasName, temp);
+			Ment.webMonkeys.set(this.gpuBiasGradsName, this.inHeight * this.inWidth * this.inDepth);
+
+			//Everything below here is precalculated constants used in forward/backward
+			//to optimize this and make sure we are as effeiciant as possible.
+			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+
+			this.gpuAccessedMap = Ment.makeid(8); //a map with the same size of the input times filter each input pixel will store what filter pixels can reach it. Needed cuz gpu is so so dumb unlike cpu
+
+			//initialize it.
+			Ment.webMonkeys.set(this.gpuAccessedMap, inWidth * inHeight * filterWidth * filterHeight);
+			// prettier-ignore
+			{
+			let tempAccessed = new Float32Array(inWidth * inHeight * filterWidth * filterHeight);
+
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * this.stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * this.stride;
+						for (var h = 0; h < this.inDepth; h++) {
+							const hWIH = h * this.wIH;
+							const hFWIH = h * this.fWIH + iFWIHID;
+							for (var j = 0; j < this.filterHeight; j++) {
+								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
+								const jFWHFWIH = j * this.filterWidth + hFWIH;
+								for (var k = 0; k < this.filterWidth; k++) {
+									let filterInd = j * this.filterWidth + k;
+									let indice = (k + jGAIWBA)*this.filterHeight * this.filterWidth + filterInd;
+									tempAccessed[indice] = g * this.wMFWPO + b + 1.1;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			Ment.webMonkeys.set(this.gpuAccessedMap, tempAccessed);
+
+
+		}
+		}
+
+		inSize() {
+			return (
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride) *
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride) *
+				this.filters
+			);
+		}
+
+		outSize() {
+			return this.inWidth * this.inHeight * this.inDepth;
+		}
+
+		outSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		inSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.inWidth * this.inHeight * this.inDepth,
+				`
+float act = 0.0;
+int remaining = i;
+int hfromi = int(remaining / (${this.inWidth * this.inHeight}));
+remaining = remaining - (hfromi * ${this.inWidth * this.inHeight});
+int vfromi = int(remaining / (${this.inWidth}));
+remaining = remaining - (vfromi * ${this.inWidth});
+int cfromi = remaining;
+int cdi = i;
+int acc = ((i - hfromi * ${this.inWidth * this.inHeight}) * ${this.filterHeight * this.filterWidth});
+
+for (int jfromi = 0; jfromi < ${this.filterHeight}; jfromi++) {
+for (int kfromi = 0; kfromi < ${this.filterWidth}; kfromi++) {
+if(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi) > 0.5){
+
+int amnt = int(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi)) - 1;
+int gfromi = int(amnt / ${this.wMFWPO});
+int bfromi = amnt - gfromi * ${this.wMFWPO};
+for (int ifromi = 0; ifromi < ${this.filters}; ifromi++) {
+int iHMFWMF = ifromi * ${this.hMFWMF};
+int iFWIHID = ifromi * ${this.fWIHID};
+
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+int hWIH = hfromi * ${this.wIH};
+int hFWIH = hfromi * ${this.fWIH} + iFWIHID;
+int jFWHFWIH = jfromi * ${this.filterWidth} + hFWIH;
+
+act += ${this.gpuFilterW}(kfromi + jFWHFWIH) * ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex});
+
+}
+
+
+
+}
+}
+};
+
+act += ${this.gpuBiasName}(i);
+
+;
+
+${this.gpuOutDataName}(cdi + ${this.gpuOutDataStartIndex}) := act;
+`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			if (this.useBias) {
+				Ment.webMonkeys.work(
+					this.outSize(),
+					`
+float act = ${this.gpuBiasGradsName}(i) + ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuBiasGradsName}(i) := act;
+`
+				);
+			}
+
+			Ment.webMonkeys.work(
+				this.filters * this.inDepth * this.filterWidth * this.filterHeight,
+				`
+int remaining = i;
+int ifromi = int(remaining / (${this.inDepth * this.filterHeight * this.filterWidth}));
+remaining = remaining - (ifromi * ${this.inDepth * this.filterHeight * this.filterWidth});
+int hfromi = int(remaining / (${this.filterHeight * this.filterWidth}));
+remaining = remaining - (hfromi * ${this.filterHeight * this.filterWidth});
+int jfromi = int(remaining / (${this.filterWidth}));
+remaining = remaining - (jfromi * ${this.filterWidth});
+int kfromi = remaining;
+
+
+int cdi = i;
+
+int iFWIHID = ifromi * ${this.fWIHID};
+int hFWIH = hfromi * ${this.fWIH} + iFWIHID;
+int jFWHFWIH = jfromi * ${this.filterWidth} + hFWIH;
+float act = ${this.gpuFilterWGrads}(kfromi + jFWHFWIH);
+for (int vfromi = 0; vfromi < ${this.inHeight}; vfromi++) {
+for (int cfromi = 0; cfromi < ${this.inWidth}; cfromi++) {
+int acc = (((vfromi * ${this.inWidth} + cfromi)) * ${this.filterHeight * this.filterWidth});
+if(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi) > 0.5){
+
+int amnt = int(${this.gpuAccessedMap}(acc + jfromi * ${this.filterWidth} + kfromi)) - 1;
+int gfromi = int(amnt / ${this.wMFWPO});
+int bfromi = amnt - gfromi * ${this.wMFWPO};
+int iHMFWMF = ifromi * ${this.hMFWMF};
+
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+int hWIH = hfromi * ${this.wIH};
+int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
+
+act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA);
+
+
+
+
+
+}
+}
+};
+
+;
+
+${this.gpuFilterWGrads}(kfromi + jFWHFWIH) := act;
+`
+			);
+
+			Ment.webMonkeys.work(
+				this.filters * this.hMFHPO * this.wMFWPO,
+				`
+float act = 0.0;
+int ifromi = int(i / ${this.hMFHPO * this.wMFWPO});
+int gfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO}) / ${this.wMFWPO});
+int bfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO} - gfromi * ${this.wMFWPO}));
+
+
+int iHMFWMF = ifromi * ${this.hMFWMF};
+int iFWIHID = ifromi * ${this.fWIHID};
+int ga = gfromi * ${this.stride};
+int gWMFWPO = gfromi * ${this.wMFWPO};
+int odi = bfromi + gWMFWPO + iHMFWMF;
+int ba = bfromi * ${this.stride};
+
+for (int h = 0; h < ${this.inDepth}; h++) {
+	int hWIH = h * ${this.wIH} + ba;
+	int hFWIH = h * ${this.fWIH} + iFWIHID;
+
+	for (int j = 0; j < ${this.filterHeight}; j++) {
+		int jGAIWBA = (j + ga) * ${this.inWidth} + hWIH;
+		int jFWHFWIH = j * ${this.filterWidth} + hFWIH;
+		for (int k = 0; k < ${this.filterWidth}; k++) {
+			act += ${this.gpuErrorArrayName}(k + jGAIWBA) * ${this.gpuFilterW}(k + jFWHFWIH);
+		}
+	}
+}
+
+;
+
+${this.gpuCostsArrayName}(odi) := act;
+				`
+			);
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			// if (forUpdate) {
+			// 	if (ConvLayer.averageOutGrads) {
+			// 		for (var i = 0; i < this.filterws.length; i++) {
+			// 			this.filterws[i] /= this.filters;
+			// 		}
+			// 	}
+			// }
+			if (this.useBias) {
+				return [this.gpuFilterW, this.gpuFilterWGrads, this.gpuBiasName, this.gpuBiasGradsName];
+			} else {
+				return [this.gpuFilterW, this.gpuFilterWGrads];
+			}
+		}
+
+		save() {
+			this.filterw = Ment.webMonkeys.get(this.gpuFilterW);
+			this.b = Ment.webMonkeys.get(this.gpuBiasName);
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "gpuFilterWGrads" ||
+					key == "gpuBiasGradsName" ||
+					key == "gpuAccessedMap" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "accessed" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b")
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+			delete this.filterw;
+			delete this.b;
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
+			let saveObject = JSON.parse(json);
+			let layer = new DeconvLayerGPU(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias
+			);
+			let temp = new Float32Array(layer.filters * layer.inDepth * layer.filterWidth * layer.filterHeight);
+			for (var i = 0; i < layer.filters * layer.inDepth * layer.filterWidth * layer.filterHeight; i++) {
+				temp[i] = saveObject.filterw[i];
+			}
+			Ment.webMonkeys.set(layer.gpuFilterW, temp);
+			if (layer.useBias) {
+				temp = new Float32Array(layer.outSize());
+				for (var i = 0; i < layer.outSize(); i++) {
+					temp[i] = saveObject.b[i];
+				}
+				Ment.webMonkeys.set(layer.gpuBiasName, temp);
+			}
+			return layer;
+		}
+	}
+
+	Ment.DeconvLayerGPU = DeconvLayerGPU;
+	Ment.DeConvLayerGPU = DeconvLayerGPU;
+	Ment.DeconvGPU = DeconvLayerGPU;
+	Ment.DeConvGPU = DeconvLayerGPU;
+
+	//only uncomment if you know what your doing
+}
+
+{
+	class DepaddingLayerGPU {
+		constructor(outDim, pad) {
+			if (outDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let outWidth = outDim[0];
+			let outHeight = outDim[1];
+			let outDepth = outDim[2];
+
+			pad = pad || 2;
+			this.pad = pad;
+			this.outWidth = outWidth;
+			this.outHeight = outHeight;
+			this.outDepth = outDepth;
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+		}
+
+		forward() {
+			// Ment.webMonkeys.fill(this.gpuOutDataName, this.padwith);
+			Ment.webMonkeys.work(
+				this.outSize(),
+				// prettier-ignore
+				`
+float act = 0.0;
+int remaining = i;
+int ifromi = int(remaining / (${this.outHeight * this.outWidth}));
+remaining = remaining - (ifromi * ${this.outHeight * this.outWidth});
+int jfromi = int(remaining / (${this.outWidth}));
+remaining = remaining - (jfromi * ${this.outWidth});
+int hfromi = remaining;
+int prop = ifromi * ${this.outHeight} * ${this.outWidth} + jfromi * ${this.outWidth} + hfromi;
+int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${this.outWidth} + ${this.pad} * 2) + prop + ifromi * ((${this.outWidth} + ${this.pad} * 2) * ${this.pad}) * 2 + ifromi * (${this.outHeight} * ${this.pad}) * 2;
+
+act = ${this.gpuInDataName}(index + ${this.gpuInDataStartIndex});
+
+${this.gpuOutDataName}(prop + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+		inSize() {
+			return (this.outWidth + this.pad * 2) * (this.outHeight + this.pad * 2) * this.outDepth;
+		}
+
+		outSize() {
+			return this.outWidth * this.outHeight * this.outDepth;
+		}
+
+		outSizeDimensions() {
+			return [this.outWidth, this.outHeight, this.outDepth];
+		}
+
+		inSizeDimensions() {
+			return [this.outWidth + this.pad * 2, this.outHeight + this.pad * 2, this.outDepth];
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+			Ment.webMonkeys.work(
+				this.outSize(),
+				// prettier-ignore
+				`
+float act = 0.0;
+int remaining = i;
+int ifromi = int(remaining / (${this.outHeight * this.outWidth}));
+remaining = remaining - (ifromi * ${this.outHeight * this.outWidth});
+int jfromi = int(remaining / (${this.outWidth}));
+remaining = remaining - (jfromi * ${this.outWidth});
+int hfromi = remaining;
+int prop = ifromi * ${this.outHeight} * ${this.outWidth} + jfromi * ${this.outWidth} + hfromi;
+int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${this.outWidth} + ${this.pad} * 2) + prop + ifromi * ((${this.outWidth} + ${this.pad} * 2) * ${this.pad}) * 2 + ifromi * (${this.outHeight} * ${this.pad}) * 2;
+
+act = ${this.gpuErrorArrayName}(prop);
+
+${this.gpuCostsArrayName}(index) := act;
+				`
+			);
+		}
+
+		save() {
+			// we cant see the length of arrays after saving them in JSON
+			// for some reason so we are adding temp variables so we know
+			// the sizes;
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "accessed"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new DepaddingLayerGPU([saveObject.outWidth, saveObject.outHeight, saveObject.outDepth], saveObject.pad);
+			return layer;
+		}
+	}
+
+	Ment.DePaddingLayerGPU = DepaddingLayerGPU;
+	Ment.DepaddingLayerGPU = DepaddingLayerGPU;
+	Ment.DepadLayerGPU = DepaddingLayerGPU;
+	Ment.DepaddingGPU = DepaddingLayerGPU;
+	Ment.DepadGPU = DepaddingLayerGPU;
+}
+
+{
+	class FCLayerGPU {
+		constructor(inSize, outSize, useBias) {
+			this.useBias = useBias == undefined ? true : useBias;
+			this.gpuWeightsName = Ment.makeid(8); //generates random 8 character string
+			this.gpuWeightsGradsName = Ment.makeid(8); //generates random 8 character string
+			this.gpuBiasName = Ment.makeid(8); //generates random 8 character string
+			this.gpuBiasGradsName = Ment.makeid(8); //generates random 8 character string
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+			this.inSize = () => {
+				return inSize;
+			};
+
+			this.outSize = () => {
+				return outSize;
+			};
+
+			let temp = new Float32Array(inSize * outSize);
+			for (var i = 0; i < inSize * outSize; i++) {
+				temp[i] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+			}
+			Ment.webMonkeys.set(this.gpuWeightsName, temp);
+			temp.fill(0);
+			Ment.webMonkeys.set(this.gpuWeightsGradsName, temp);
+
+			temp = new Float32Array(outSize);
+			if (this.useBias) {
+				for (var i = 0; i < outSize; i++) {
+					temp[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1); // set random bias
+				}
+			}
+			Ment.webMonkeys.set(this.gpuBiasName, temp);
+			temp.fill(0);
+			Ment.webMonkeys.set(this.gpuBiasGradsName, temp);
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = 0.0;
+for (int j = 0; j < ${this.outSize()}; j++) {
+	act += ${this.gpuWeightsName}(j + i * ${this.outSize()}) * ${this.gpuErrorArrayName}(j) * 2.0;
+}
+act = act / ${this.outSize()}.0;
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+
+			//this code is so weird but works :\
+			Ment.webMonkeys.work(
+				this.inSize() * this.outSize(),
+				`
+float act = 0.0;
+int j = i - (int(i / ${this.outSize()}) * ${this.outSize()});
+int k = (i - j) / ${this.outSize()};
+act = ${this.gpuInDataName}(k + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(j) * 2.0;
+act += ${this.gpuWeightsGradsName}(i);
+
+;
+
+${this.gpuWeightsGradsName}(i) := act;
+`
+			);
+
+			if (this.useBias) {
+				Ment.webMonkeys.work(
+					this.outSize(),
+					`
+float act = ${this.gpuBiasGradsName}(i) + ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuBiasGradsName}(i) := act;
+`
+				);
+			}
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			if (this.useBias) {
+				return [this.gpuWeightsName, this.gpuWeightsGradsName, this.gpuBiasName, this.gpuBiasGradsName];
+			} else {
+				return [this.gpuWeightsName, this.gpuWeightsGradsName];
+			}
+		}
+
+		save() {
+			// we cant see the length of arrays after saving them in JSON
+			// for some reason so we are adding temp variables so we know
+			// the sizes;
+			this.savedInSize = this.inSize();
+			this.savedOutSize = this.outSize();
+			this.w = Ment.webMonkeys.get(this.gpuWeightsName);
+			this.b = Ment.webMonkeys.get(this.gpuBiasName);
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "outData" ||
+					key == "inData" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "gpuBiasName" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "gpuBiasGradsName" ||
+					key == "gpuWeightsName" ||
+					key == "gpuWeightsGradsName" ||
+					key == (this.useBias ? null : "b")
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			delete this.savedInSize;
+			delete this.w;
+			delete this.b;
+			delete this.savedOutSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new FCLayerGPU(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
+
+			let temp = new Float32Array(layer.inSize() * layer.outSize());
+			for (var i = 0; i < layer.inSize() * layer.outSize(); i++) {
+				temp[i] = saveObject.w[i];
+			}
+			Ment.webMonkeys.set(layer.gpuWeightsName, temp);
+			if (layer.useBias) {
+				temp = new Float32Array(layer.outSize());
+				for (var i = 0; i < layer.outSize(); i++) {
+					temp[i] = saveObject.b[i];
+				}
+				Ment.webMonkeys.set(layer.gpuBiasName, temp);
+			}
+			return layer;
+		}
+
+		// initGPUActivations(
+		// 	inDataGpuArrayName,
+		// 	outDataGpuArrayName,
+		// 	costsGpuArrayName,
+		// 	errorGpuArrayName,
+		// 	inDataGPUStartIndex,
+		// 	outDataGPUStartIndex
+		// ) {
+		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// 	if (!inDataGpuArrayName) {
+		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!outDataGpuArrayName) {
+		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!costsGpuArrayName) {
+		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!errorGpuArrayName) {
+		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	this.gpuInDataName = inDataGpuArrayName;
+		// 	this.gpuOutDataName = outDataGpuArrayName;
+		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuErrorArrayName = errorGpuArrayName;
+		// 	this.gpuInDataStartIndex = inDataGPUStartIndex;
+		// 	this.gpuOutDataStartIndex = outDataGPUStartIndex;
+
+		// 	let temp = new Float32Array(this.inSize());
+		// 	temp.fill(0);
+		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
+		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+
+		// 	temp = new Float32Array(this.outSize());
+		// 	temp.fill(0);
+		// 	Ment.webMonkeys.set(this.gpuOutDataName, temp);
+		// 	Ment.webMonkeys.set(this.gpuErrorArrayName, temp);
+		// }
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = 0.0;
+for (int j = 0; j < ${this.inSize()}; j++) {
+	act += ${this.gpuInDataName}(j + ${this.gpuInDataStartIndex}) * ${this.gpuWeightsName}(i + j * ${this.outSize()});
+}
+act += ${this.gpuBiasName}(i);
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+							`
+			);
+		}
+	}
+
+	Ment.FCLayerGPU = FCLayerGPU;
+	Ment.FCGPU = FCLayerGPU;
+}
+
+{
+	class IdentityLayerGPU {
+		//this layer outputs the inputs with no changes
+		constructor(size) {
+			this.nextLayer; //the connected layer
+			this.pl; //reference to previous layer
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+			this.inSize = () => {
+				return size;
+			};
+
+			this.outSize = () => {
+				return size;
+			};
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+		set previousLayer(layer) {
+			// try to connect to it
+			this.inSize = () => {
+				return layer.outSize();
+			};
+
+			this.outSize = () => {
+				return layer.outSize();
+			};
+			this.pl = layer;
+		}
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "nextLayer" ||
+					key == "previousLayer"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new IdentityLayerGPU(saveObject.savedSize);
+			return layer;
+		}
+	}
+
+	Ment.IdentityLayerGPU = IdentityLayerGPU;
+	Ment.IdentityGPU = IdentityLayerGPU;
+	Ment.InputGPU = IdentityLayerGPU;
+	Ment.DummyLayerGPU = IdentityLayerGPU;
+	Ment.DummyGPU = IdentityLayerGPU;
+	Ment.InputLayerGPU = IdentityLayerGPU;
+	Ment.OutputLayerGPU = IdentityLayerGPU;
+	Ment.OutputGPU = IdentityLayerGPU;
+}
+
+{
+	class InputInsertionLayerGPU {
+		//this layer allows you to add input to the data flow of the model at any
+		//place in the layers of the model. By calling "setInput" before each
+		//forward call, you can have two inputs. This can be useful for situations
+		//where you wanna input an image AND maybe also a latent vector somewhere
+		//in the middle of the model. Or if you wanna add some kind of time vector
+		//All this layer does is take the current input and adds it to the activations
+		//of the last layer.
+		constructor(size, inputSize) {
+			if (size == undefined || inputSize == undefined) {
+				throw "You need to define size and input size for InputInsertionLayerGPU";
+			}
+			this.nextLayer; //the connected layer
+			this.currentInputName = Ment.makeid(8);
+			this.currentInputLength = inputSize;
+			Ment.webMonkeys.set(this.currentInputName, inputSize);
+			this.pl; //reference to previous layer
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+
+			this.inSize = () => {
+				return size;
+			};
+
+			this.outSize = () => {
+				return inputSize + size;
+			};
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		setInput(input) {
+			if (input.length == this.outSize() - this.inSize()) {
+				Ment.webMonkeys.set(this.currentInputName, input);
+			}
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+		set previousLayer(layer) {
+			// try to connect to it
+			// if (this.inData.length == 0) {
+			// 	//if not already initialized
+			// 	this.inData = new Float32Array(layer.outSize());
+			// 	this.outData = new Float32Array(layer.outSize());
+			// 	this.costs = new Float32Array(layer.outSize());
+			// }
+			this.pl = layer;
+		}
+		forward() {
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+
+			Ment.webMonkeys.work(
+				this.currentInputLength,
+				`
+float act = ${this.currentInputName}(i);
+
+;
+
+${this.gpuOutDataName}(i + ${this.inSize()} + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+			this.savedInputSize = this.currentInput.length;
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "pl" ||
+					key == "outData" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "currentInput"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+			delete this.savedInputSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new InputInsertionLayerGPU(saveObject.savedSize, saveObject.savedInputSize);
+			return layer;
+		}
+	}
+
+	Ment.InputInsertionLayerGPU = InputInsertionLayerGPU;
+	Ment.InputInsertionGPU = InputInsertionLayerGPU;
+	Ment.ActivationInsertionGPU = InputInsertionLayerGPU;
+}
+
+{
+	class LeakyReluLayerGPU extends Ment.ActivationBaseGPU {
+		static leakySlope = 0.01;
+
+		constructor(size) {
+			super(size);
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = ${this.gpuInDataName}(${this.gpuInDataStartIndex} + i);
+
+if(act < 0.0){
+	act = act * ${LeakyReluLayerGPU.leakySlope};
+}
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = ${this.gpuErrorArrayName}(i);
+
+if(${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) < 0.0){
+	act = act * ${LeakyReluLayerGPU.leakySlope};
+}
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new LeakyReluLayerGPU(saveObject.savedSize);
+			return layer;
+		}
+	}
+	Ment.LeakyReluLayerGPU = LeakyReluLayerGPU;
+	Ment.LeakyReluGPU = LeakyReluLayerGPU;
+	Ment.LReluGPU = LeakyReluLayerGPU;
+}
+
+{
+	class PaddingLayerGPU {
+		constructor(inDim, pad, padwith) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			pad = pad || 2;
+			padwith = padwith || 0;
+			this.pad = pad;
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.padwith = padwith;
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.inSize(),
+				// prettier-ignore
+				`
+float act = 0.0;
+int remaining = i;
+int ifromi = int(remaining / (${this.inHeight * this.inWidth}));
+remaining = remaining - (ifromi * ${this.inHeight * this.inWidth});
+int jfromi = int(remaining / (${this.inWidth}));
+remaining = remaining - (jfromi * ${this.inWidth});
+int hfromi = remaining;
+int prop = ifromi * ${this.inHeight} * ${this.inWidth} + jfromi * ${this.inWidth} + hfromi;
+int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${this.inWidth} + ${this.pad} * 2) + prop + ifromi * ((${this.inWidth} + ${this.pad} * 2) * ${this.pad}) * 2 + ifromi * (${this.inHeight} * ${this.pad}) * 2;
+
+act = ${this.gpuInDataName}(prop + ${this.gpuInDataStartIndex});
+
+${this.gpuOutDataName}(index + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+			Ment.webMonkeys.work(
+				this.inSize(),
+				// prettier-ignore
+				`
+float act = 0.0;
+int remaining = i;
+int ifromi = int(remaining / (${this.inHeight * this.inWidth}));
+remaining = remaining - (ifromi * ${this.inHeight * this.inWidth});
+int jfromi = int(remaining / (${this.inWidth}));
+remaining = remaining - (jfromi * ${this.inWidth});
+int hfromi = remaining;
+int prop = ifromi * ${this.inHeight} * ${this.inWidth} + jfromi * ${this.inWidth} + hfromi;
+int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${this.inWidth} + ${this.pad} * 2) + prop + ifromi * ((${this.inWidth} + ${this.pad} * 2) * ${this.pad}) * 2 + ifromi * (${this.inHeight} * ${this.pad}) * 2;
+
+act = ${this.gpuErrorArrayName}(index);
+
+${this.gpuCostsArrayName}(prop) := act;
+				`
+			);
+		}
+
+		inSize() {
+			return this.inWidth * this.inHeight * this.inDepth;
+		}
+
+		outSize() {
+			return (this.inWidth + this.pad * 2) * (this.inHeight + this.pad * 2) * this.inDepth;
+		}
+
+		inSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		outSizeDimensions() {
+			return [this.inWidth + this.pad * 2, this.inHeight + this.pad * 2, this.inDepth];
+		}
+
+		save() {
+			// we cant see the length of arrays after saving them in JSON
+			// for some reason so we are adding temp variables so we know
+			// the sizes;
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new PaddingLayerGPU(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				saveObject.pad,
+				saveObject.padwith
+			);
+			return layer;
+		}
+	}
+
+	Ment.PaddingLayerGPU = PaddingLayerGPU;
+	Ment.PadLayerGPU = PaddingLayerGPU;
+	Ment.PaddingGPU = PaddingLayerGPU;
+	Ment.PadGPU = PaddingLayerGPU;
+}
+
+{
+	class ResEmitterLayerGPU {
+		//this layer outputs the inputs with no changes
+		constructor(id) {
+			this.id = id || 0;
+			this.nextLayer; //the connected layer
+			this.receiver; // a reference to the receiver layer so we can skip layers
+			//this will be set by the receiver  when the net is initialized
+			this.gpuCostsFromEmitterName; //gets set by the receiver
+			this.pl = undefined;
+			this.gpuInDataStartIndex = 0;
+			this.gpuOutDataStartIndex = 0;
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+
+		set previousLayer(layer) {
+			this.inSize = () => {
+				return layer.outSize();
+			};
+
+			this.outSize = () => {
+				return layer.outSize();
+			};
+			this.pl = layer;
+		}
+
+		// initGPUActivations(inDataGpuArrayName, outDataGpuArrayName, costsGpuArrayName, errorGpuArrayName) {
+		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// 	if (!inDataGpuArrayName) {
+		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!outDataGpuArrayName) {
+		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!costsGpuArrayName) {
+		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	if (!errorGpuArrayName) {
+		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	}
+		// 	this.gpuInDataName = inDataGpuArrayName;
+		// 	this.gpuOutDataName = outDataGpuArrayName;
+		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuErrorArrayName = errorGpuArrayName;
+
+		// 	let temp = new Float32Array(this.inSize());
+		// 	temp.fill(0);
+		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
+		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+
+		// 	temp = new Float32Array(this.outSize());
+		// 	temp.fill(0);
+		// 	Ment.webMonkeys.set(this.gpuOutDataName, temp);
+		// 	Ment.webMonkeys.set(this.gpuErrorArrayName, temp);
+
+		// 	this.receiver.gpuInDataFromEmitterName = this.gpuOutDataName;
+		// }
+
+		forward() {
+			//the outData of this layer is the same object referenced in the inData of the Receiver layer
+
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				//this code should only run if user is dumb, but just in case
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = (${this.gpuErrorArrayName}(i) + ${this.gpuCostsFromEmitterName}(i)) / 2.0;
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "gpuCostsFromEmitter" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "emitter"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new ResEmitterLayerGPU(saveObject.id);
+			return layer;
+		}
+	}
+
+	Ment.ResEmitterLayerGPU = ResEmitterLayerGPU;
+	Ment.ResEmitterGPU = ResEmitterLayerGPU;
+	Ment.ResEGPU = ResEmitterLayerGPU;
+}
+
+{
+	class ResReceiverLayerGPU {
+		//this layer outputs the inputs with no changes
+		constructor(id, mode = "concat") {
+			//mode can be concat or add or average
+			this.mode = mode;
+			this.id = id || 0;
+			this.nextLayer; //the connected layer
+			this.emitter;
+			this.gpuCostsForEmitter;
+			this.pl; // holds a reference to previous layer
+		}
+
+		get previousLayer() {
+			return this.pl;
+		}
+
+		set previousLayer(layer) {
+			this.inSize = () => {
+				return layer.outSize();
+			};
+
+			this.pl = layer;
+
+			//time to find this layers soulmate
+			let found = false;
+			let currentLayer = layer; //start at this layer go backward until find a emitter with the same ID
+			while (!found) {
+				if (currentLayer.id == this.id && currentLayer.constructor == Ment.ResEmitterGPU) {
+					found = true;
+				} else {
+					currentLayer = currentLayer.previousLayer;
+					if (currentLayer == undefined) {
+						throw "Could not find Matching Emitter Layer for Receiver Layer ID: " + this.id;
+					}
+				}
+			}
+			this.emitter = currentLayer; //so they can find each other again :)
+			currentLayer.receiver = this;
+			if (this.mode == "add" || this.mode == "average") {
+				if (layer.outSize() != this.emitter.outSize()) {
+					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
+				}
+				this.outSize = () => {
+					return layer.outSize();
+				};
+			} else if (this.mode == "concat") {
+				this.outSize = () => {
+					return layer.outSize() + this.emitter.outSize();
+				};
+			}
+			this.gpuCostsForEmitterName = Ment.makeid(8);
+			Ment.webMonkeys.set(this.gpuCostsForEmitterName, this.emitter.outSize());
+			this.emitter.gpuCostsFromEmitterName = this.gpuCostsForEmitterName;
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		//we dont look in front because residual data only goes forwards.
+
+		forward() {
+			//the outData of this layer is the same object referenced in the inData of the Receiver layer
+
+			if (this.mode == "concat") {
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+				);
+				Ment.webMonkeys.work(
+					this.emitter.outSize(),
+					`
+float act = ${this.emitter.gpuOutDataName}(i + ${this.emitter.gpuOutDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.inSize()} + ${this.gpuOutDataStartIndex}) := act;
+				`
+				);
+			} else if (this.mode == "add") {
+				Ment.webMonkeys.work(
+					this.outSize(),
+					`
+float act = ${this.emitter.gpuOutDataName}(i + ${this.emitter.gpuOutDataStartIndex}) + ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex});
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+				);
+			} else if (this.mode == "average") {
+				Ment.webMonkeys.work(
+					this.outSize(),
+					`
+float act = (${this.emitter.gpuOutDataName}(i + ${this.emitter.gpuOutDataStartIndex}) + ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex})) / 2.0;
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+				);
+			}
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			if (this.mode == "concat") {
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+				);
+				Ment.webMonkeys.work(
+					this.emitter.outSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i + ${this.inSize()});
+
+;
+
+${this.gpuCostsForEmitterName}(i) := act;				`
+				);
+			} else if (this.mode == "add") {
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i) / 2.0;
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+				);
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i) / 2.0;
+
+;
+
+${this.gpuCostsForEmitterName}(i) := act;				`
+				);
+			} else if (this.mode == "average") {
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+				);
+				Ment.webMonkeys.work(
+					this.inSize(),
+					`
+float act = ${this.gpuErrorArrayName}(i);
+
+;
+
+${this.gpuCostsForEmitterName}(i) := act;				`
+				);
+			}
+		}
+
+		save() {
+			this.savedSize = this.inSize();
+
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "receiver" ||
+					key == "pl" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "gpuCostsForEmitter" ||
+					key == "gpuInDataFromEmitterName" ||
+					key == "gpuInDataName" ||
+					key == "gpuOutDataName" ||
+					key == "gpuCostsArrayName" ||
+					key == "gpuErrorArrayName" ||
+					key == "emitter"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new ResReceiverLayerGPU(saveObject.id, saveObject.mode);
+			return layer;
+		}
+	}
+
+	Ment.ResReceiverLayerGPU = ResReceiverLayerGPU;
+	Ment.ResReceiverGPU = ResReceiverLayerGPU;
+	Ment.ResRGPU = ResReceiverLayerGPU;
+}
+
+{
+	class SigmoidLayerGPU extends Ment.ActivationBaseGPU {
+		constructor(size) {
+			super(size);
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = 1.0 / (1.0 + exp(-${this.gpuInDataName}(i + ${this.gpuInDataStartIndex})));
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float zee = exp(-${this.gpuInDataName}(i + ${this.gpuInDataStartIndex}));
+float act = ${this.gpuErrorArrayName}(i) * (zee / ((1.0 + zee) * (1.0 + zee)));
+
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new SigmoidLayerGPU(saveObject.savedSize);
+			return layer;
+		}
+	}
+
+	Ment.SigmoidLayerGPU = SigmoidLayerGPU;
+	Ment.SigmoidGPU = SigmoidLayerGPU;
+	Ment.SigGPU = SigmoidLayerGPU;
+}
+
+{
+	class TanhLayerGPU extends Ment.ActivationBaseGPU {
+		tanh(z) {
+			return Math.tanh(z);
+		}
+
+		tanhPrime(z) {
+			return 1 - Math.pow(Math.tanh(z), 2);
+		}
+
+		constructor(size) {
+			super(size);
+		}
+
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float e = 2.71828;
+float act = 2.0 / (1.0 + pow(e,-2.0 * ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex}))) - 1.0;
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float e = 2.71828;
+float zee = 2.0 / (1.0 + pow(e,-2.0 * ${this.gpuInDataName}(i + ${this.gpuInDataStartIndex}))) - 1.0;
+float act = 1.0 - (zee * zee);
+act = act * ${this.gpuErrorArrayName}(i);
+;
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new TanhGPU(saveObject.savedSize);
+			return layer;
+		}
+	}
+
+	Ment.TanhLayerGPU = TanhLayerGPU;
+	Ment.TanhGPU = TanhLayerGPU;
+}
+
+{
+	class UpscalingLayerGPU {
+		constructor(inDim, scale) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.outWidth = inWidth * scale;
+			this.outHeight = inHeight * scale;
+			this.scale = scale;
+			this.nextLayer; //the connected layer
+			this.previousLayer; //the previousLayer
+		}
+		inSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		outSizeDimensions() {
+			return [this.outWidth, this.outHeight, this.inDepth];
+		}
+		forward() {
+			Ment.webMonkeys.work(
+				this.outSize(),
+				`
+float act = 0.0;
+
+int remaining = i;
+int ifromi = int(remaining / (${this.inHeight * this.scale * this.inWidth * this.scale}));
+remaining = remaining - (ifromi * ${this.scale * this.inHeight * this.inWidth * this.scale});
+int hfromi = int(remaining / (${this.inWidth * this.scale}));
+remaining = remaining - (hfromi * ${this.inWidth * this.scale});
+int jfromi = remaining;
+
+act += ${this.gpuInDataName}(${this.gpuInDataStartIndex} + ifromi * ${this.inHeight * this.inWidth} + int(hfromi / ${
+					this.scale
+				}) * ${this.inWidth} + int(jfromi / ${this.scale}))
+
+;
+
+${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
+				`
+			);
+		}
+
+		backward(err) {
+			if (err && err.length == this.outSize()) {
+				Ment.webMonkeys.set(this.gpuErrorArrayName, err);
+			}
+			Ment.webMonkeys.work(
+				this.inSize(),
+				`
+float act = 0.0;
+
+int remaining = i;
+int ifromi = int(remaining / (${this.inHeight * this.inWidth}));
+remaining = remaining - (ifromi * ${this.inHeight * this.inWidth});
+int hfromi = int(remaining / (${this.inWidth}));
+remaining = remaining - (hfromi * ${this.inWidth});
+int jfromi = remaining;
+
+for(int c = 0; c < ${this.scale}; c++){
+for(int b = 0; b < ${this.scale}; b++){
+
+act += ${this.gpuErrorArrayName}(ifromi * ${this.outHeight * this.outWidth} + (((hfromi * ${this.scale}) + c) * ${
+					this.outWidth
+				}) + (jfromi * ${this.scale} + b));
+
+};
+};
+
+${this.gpuCostsArrayName}(i) := act;
+				`
+			);
+		}
+
+		inSize() {
+			return this.inHeight * this.inWidth * this.inDepth;
+		}
+
+		outSize() {
+			return this.outHeight * this.outWidth * this.inDepth;
+		}
+
+		get outData() {
+			return Ment.webMonkeys
+				.get(this.gpuOutDataName)
+				.slice(this.gpuOutDataStartIndex, this.gpuOutDataStartIndex + this.outSize());
+		}
+
+		get inData() {
+			return Ment.webMonkeys.get(this.gpuInDataName).slice(this.gpuInDataStartIndex, this.gpuInDataStartIndex + this.inSize());
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "outData" ||
+					key == "costs" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl"
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new UpscalingLayerGPU([saveObject.inWidth, saveObject.inHeight, saveObject.inDepth], saveObject.scale);
+			return layer;
+		}
+	}
+
+	Ment.UpscalingLayerGPU = UpscalingLayerGPU;
+	Ment.UpscalingGPU = UpscalingLayerGPU;
+	Ment.UpscaleGPU = UpscalingLayerGPU;
+	Ment.UpScalingGPU = UpscalingLayerGPU;
+	Ment.UpscalingLayerGPU = UpscalingLayerGPU;
+}
+
 {
 	/*
         Gives the gradients "momentum" down the slope. Nothing special to it but
@@ -3904,6 +7444,76 @@ Im sorry but I had to choose one
 
 {
 	/*
+        Gives the gradients "momentum" down the slope. Nothing special to it but
+		it is rumored that it increased training speed a lot! I think it might be 
+		a good idea to use this instead of SGD
+
+		Super excited about it. 
+    */
+	class MomentumGPU {
+		constructor(momentum = 0.9) {
+			this.netObject; //will be set to the net object
+			this.lastGrads = [];
+			this.momentum = momentum; // a constant which represents how strong the gradients "momentum" will be
+		} //END OF CONSTRUCTOR
+
+		initialize() {
+			//we need to get "this.lastGrads" list the right size. It needs to be as long as there are gradients in this network.
+			let pag = this.netObject.getParamsAndGrads();
+			for (var j = 0; j < pag.length; j += 2) {
+				let grads = pag[j + 1];
+				Ment.webMonkeys.set(this.lastGrads[this.lastGrads.push(Ment.makeid(8)) - 1], Ment.webMonkeys.getLen(grads));
+			}
+		}
+		applyGradients(paramsAndGrads) {
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				// for (var k = 0; k < params.length; k++) {
+				// 	params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
+				// 	this.lastGrads[gradCounter] =
+				// 		(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
+				// 	grads[k] = 0;
+				// 	gradCounter++;
+				// }
+				Ment.webMonkeys.work(
+					Ment.webMonkeys.getLen(params),
+					`
+float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(1)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
+
+;
+
+${params}(i) := act;
+
+`
+				);
+
+				Ment.webMonkeys.work(
+					Ment.webMonkeys.getLen(params),
+					`
+float act = (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
+
+;
+
+${this.lastGrads[j / 2]}(i) := act;
+
+`
+				);
+
+				Ment.webMonkeys.fill(grads, 0);
+			}
+		}
+	} //END OF Momentum CLASS DECLARATION
+
+	Ment.MomentumGPU = MomentumGPU;
+}
+
+{
+	/*
         This is the basic white girl of optimizers. Doesn't even do anything to the gradient.
         batch size is already built in to the network so we dont even have to do that here
     */
@@ -3928,4 +7538,44 @@ Im sorry but I had to choose one
 	} //END OF SGD CLASS DECLARATION
 
 	Ment.SGD = SGD;
+}
+
+{
+	/*
+       SGD except it works for GPU AI instead of cpu ai
+    */
+	class SGDGPU {
+		constructor() {
+			this.netObject; //will be set to the net object
+		} //END OF CONSTRUCTOR
+
+		//this function gets called after this.netObject is set by the network.
+		initialize() {}
+
+		applyGradients(paramsAndGrads) {
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				// params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate;
+				// grads[k] = 0;
+				let len = Ment.webMonkeys.getLen(params);
+				Ment.webMonkeys.work(
+					len,
+					`
+float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)};
+
+;
+
+${params}(i) := act;
+
+`
+				);
+				Ment.webMonkeys.fill(grads, 0);
+			}
+		}
+	} //END OF SGD CLASS DECLARATION
+
+	Ment.SGDGPU = SGDGPU;
 }
