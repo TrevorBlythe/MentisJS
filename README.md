@@ -2,6 +2,10 @@
 
 A javascript machine learning library. It can train with backpropagation and neural evolution.
 
+# Online Demos
+
+https://trevorblythe.github.io/MentisJS/
+
 # Installation
 
 The entire library is located in "Mentis.js"
