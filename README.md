@@ -272,5 +272,27 @@ network_on_gpu.backward(data, true);
 
 Everything else is basically the same. DONT BE SUPRISED WHEN ITS SLOW ON YOUR FIRST "forward" CALL, IT IS JUST INITIALIZING THE SHADERS!! All calls after that should be very fast.
 
+# Backpropagating error/grads instead of expected
+
+If you wanna do this, there is a parameter in the "backwards" function you can change.
+
+MentisJS has a weird definition of error. Usually you would subract error from actual value to get the expected value, but for this library its the opposite.
+
+Error + ActualOutput = ExpectedValue
+
+```javascript
+network.backward(Expected/Grads, CalcLoss?, BackPropGradsInstead?);
+```
+
+## Getting grads/error from the network
+
+Every Layer has its own set of grads. For cpu you can just do this.
+
+```javascript
+network.layers[0].costs;
+```
+
+# End
+
 I think i might be done with this passion project. Open up "index.html" for lots of cool examples.
-trevorblythe82@gmail.com
+trevorblythe82@gmail.com <--- Ask me questions?
