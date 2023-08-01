@@ -371,17 +371,16 @@ var Ment = Ment || {};
 				} else {
 					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
-
-				Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
-				Ment.webMonkeys.work(
-					this.layers[0].inSize(),
-					`
+			}
+			Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
+			Ment.webMonkeys.work(
+				this.layers[0].inSize(),
+				`
 float act = ${this.gpuFirstLayerInput}(i);
 
 ${this.layers[0].gpuInDataName}(i) := act;
-				`
-				);
-			}
+			`
+			);
 			// this.layers[0].forward(data);
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].forward();
