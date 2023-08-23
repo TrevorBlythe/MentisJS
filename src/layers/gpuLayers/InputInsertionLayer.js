@@ -100,7 +100,7 @@ ${this.gpuCostsArrayName}(i) := act;
 
 		save() {
 			this.savedSize = this.inSize();
-			this.savedInputSize = this.currentInput.length;
+			this.savedInputSize = Ment.webMonkeys.getLen(this.currentInputName);
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (

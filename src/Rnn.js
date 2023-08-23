@@ -147,10 +147,18 @@ var Ment = Ment || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				let sus = jsonObj["layer" + i].type;
+				if (jsonObj["layer" + i].type.endsWith("GPU")) {
+					sus = jsonObj["layer" + i].type.slice(0, -3);
+				}
+				let layer = Ment[sus].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
-			let ret = new Ment.Rnn(layers, jsonObj.optimizer);
+			let sus = jsonObj.optimizer;
+			if (sus.endsWith("GPU")) {
+				sus = sus.slice(0, -3);
+			}
+			let ret = new Ment.Rnn(layers, sus);
 			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;

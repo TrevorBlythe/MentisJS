@@ -145,10 +145,18 @@ var Ment = Ment || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				let sus = jsonObj["layer" + i].type;
+				if (jsonObj["layer" + i].type.endsWith("GPU")) {
+					sus = jsonObj["layer" + i].type.slice(0, -3);
+				}
+				let layer = Ment[sus].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
-			let ret = new Ment.Net(layers, jsonObj.optimizer);
+			let sus = jsonObj.optimizer;
+			if (sus.endsWith("GPU")) {
+				sus = sus.slice(0, -3);
+			}
+			let ret = new Ment.Net(layers, sus);
 			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
@@ -372,15 +380,17 @@ var Ment = Ment || {};
 					throw "ONLY INPUT ARRAYS INTO FORWARDS FUNCTION! you inputted: " + data.constructor.name;
 				}
 			}
-			Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
-			Ment.webMonkeys.work(
-				this.layers[0].inSize(),
-				`
+			if (data) {
+				Ment.webMonkeys.set(this.gpuFirstLayerInput, data);
+				Ment.webMonkeys.work(
+					this.layers[0].inSize(),
+					`
 float act = ${this.gpuFirstLayerInput}(i);
 
 ${this.layers[0].gpuInDataName}(i) := act;
 			`
-			);
+				);
+			}
 			// this.layers[0].forward(data);
 			for (var i = 0; i < this.layers.length; i++) {
 				this.layers[i].forward();
@@ -768,10 +778,18 @@ var Ment = Ment || {};
 			let jsonObj = JSON.parse(json);
 			let layers = [];
 			for (var i = 0; i < jsonObj.layerAmount; i++) {
-				let layer = Ment[jsonObj["layer" + i].type].load(jsonObj["layer" + i].layerData);
+				let sus = jsonObj["layer" + i].type;
+				if (jsonObj["layer" + i].type.endsWith("GPU")) {
+					sus = jsonObj["layer" + i].type.slice(0, -3);
+				}
+				let layer = Ment[sus].load(jsonObj["layer" + i].layerData);
 				layers.push(layer);
 			}
-			let ret = new Ment.Rnn(layers, jsonObj.optimizer);
+			let sus = jsonObj.optimizer;
+			if (sus.endsWith("GPU")) {
+				sus = sus.slice(0, -3);
+			}
+			let ret = new Ment.Rnn(layers, sus);
 			ret.learningRate = jsonObj.learningRate;
 			ret.batchSize = jsonObj.batchSize;
 			return ret;
@@ -803,11 +821,8 @@ var Ment = Ment || {};
 			for (var i = 0; i < this.layers.length; i++) {
 				let layer = this.layers[i];
 				layer.gpuInDataName = state;
-				if (i > 0) {
-					this.layers[i - 1].gpuOutDataName = state;
-				}
+				layer.gpuOutDataName = state;
 			}
-			this.layers[this.layers.length - 1].gpuOutDataName = state;
 		}
 
 		pushNewState() {
@@ -825,16 +840,25 @@ var Ment = Ment || {};
 				this.setState(this.currentState);
 			}
 			if (data == undefined) {
-				//todo you dont need to make a whole new array here it should get copied by the layers forward function
-				// data = new Float32Array(this.layers[this.layers.length - 1].outData);
-				Ment.webMonkeys.work(
-					this.layers[0].inSize(),
+				if (this.trainingMode) {
+					Ment.webMonkeys.work(
+						this.layers[0].inSize(),
+						`
+${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${this.savedStates[this.currentState - 1]}(i + ${
+							this.layers[this.layers.length - 1].gpuOutDataStartIndex
+						});
 					`
+					);
+				} else {
+					Ment.webMonkeys.work(
+						this.layers[0].inSize(),
+						`
 ${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
-						this.layers[this.layers.length - 1].gpuOutDataName
-					}(i + ${this.layers[this.layers.length - 1].gpuOutDataStartIndex});
-				`
-				);
+							this.layers[this.layers.length - 1].gpuOutDataName
+						}(i + ${this.layers[this.layers.length - 1].gpuOutDataStartIndex});
+					`
+					);
+				}
 			}
 			let ret = super.forward(data);
 			//save the state
@@ -5189,7 +5213,38 @@ Im sorry but I had to choose one
 			this.gpuFilterW = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			let temp = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			for (var i = 0; i < filters * inDepth * filterWidth * filterHeight; i++) {
-				temp[i] = 0.3 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+				temp[i] = 0.05 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+			}
+			for (var a = 0; a < 3; a++) {
+				let newFilterw = temp.slice(0);
+				for (var f = 0; f < this.filters; f++) {
+					for (var d = 0; d < this.inDepth; d++) {
+						for (var x = 0; x < this.filterWidth; x++) {
+							for (var y = 0; y < this.filterHeight; y++) {
+								let count = 0;
+								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+								let indR = [
+									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indL = [
+									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indD = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indU = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								if (x < filterWidth - 1) count += temp[indR];
+								if (x > 1) count += temp[indL];
+								if (y < filterHeight - 1) count += temp[indD];
+								if (y > 1) count += temp[indU];
+								newFilterw[ind] += count / 5;
+							}
+						}
+					}
+				}
+				temp = newFilterw;
 			}
 			Ment.webMonkeys.set(this.gpuFilterW, temp);
 
@@ -5590,7 +5645,38 @@ ${this.gpuBiasGradsName}(i) := act;
 			this.gpuFilterW = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			let temp = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			for (var i = 0; i < filters * inDepth * filterWidth * filterHeight; i++) {
-				temp[i] = 0.3 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+				temp[i] = 0.05 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+			}
+			for (var a = 0; a < 3; a++) {
+				let newFilterw = temp.slice(0);
+				for (var f = 0; f < this.filters; f++) {
+					for (var d = 0; d < this.inDepth; d++) {
+						for (var x = 0; x < this.filterWidth; x++) {
+							for (var y = 0; y < this.filterHeight; y++) {
+								let count = 0;
+								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+								let indR = [
+									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indL = [
+									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indD = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								let indU = [
+									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
+								];
+								if (x < filterWidth - 1) count += temp[indR];
+								if (x > 1) count += temp[indL];
+								if (y < filterHeight - 1) count += temp[indD];
+								if (y > 1) count += temp[indU];
+								newFilterw[ind] += count / 5;
+							}
+						}
+					}
+				}
+				temp = newFilterw;
 			}
 			Ment.webMonkeys.set(this.gpuFilterW, temp);
 
@@ -6526,7 +6612,7 @@ ${this.gpuCostsArrayName}(i) := act;
 
 		save() {
 			this.savedSize = this.inSize();
-			this.savedInputSize = this.currentInput.length;
+			this.savedInputSize = Ment.webMonkeys.getLen(this.currentInputName);
 			let ret = JSON.stringify(this, function (key, value) {
 				//here we define what we need to save
 				if (

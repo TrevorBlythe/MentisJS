@@ -20,11 +20,8 @@ var Ment = Ment || {};
 			for (var i = 0; i < this.layers.length; i++) {
 				let layer = this.layers[i];
 				layer.gpuInDataName = state;
-				if (i > 0) {
-					this.layers[i - 1].gpuOutDataName = state;
-				}
+				layer.gpuOutDataName = state;
 			}
-			this.layers[this.layers.length - 1].gpuOutDataName = state;
 		}
 
 		pushNewState() {
@@ -42,16 +39,25 @@ var Ment = Ment || {};
 				this.setState(this.currentState);
 			}
 			if (data == undefined) {
-				//todo you dont need to make a whole new array here it should get copied by the layers forward function
-				// data = new Float32Array(this.layers[this.layers.length - 1].outData);
-				Ment.webMonkeys.work(
-					this.layers[0].inSize(),
+				if (this.trainingMode) {
+					Ment.webMonkeys.work(
+						this.layers[0].inSize(),
+						`
+${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${this.savedStates[this.currentState - 1]}(i + ${
+							this.layers[this.layers.length - 1].gpuOutDataStartIndex
+						});
 					`
+					);
+				} else {
+					Ment.webMonkeys.work(
+						this.layers[0].inSize(),
+						`
 ${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
-						this.layers[this.layers.length - 1].gpuOutDataName
-					}(i + ${this.layers[this.layers.length - 1].gpuOutDataStartIndex});
-				`
-				);
+							this.layers[this.layers.length - 1].gpuOutDataName
+						}(i + ${this.layers[this.layers.length - 1].gpuOutDataStartIndex});
+					`
+					);
+				}
 			}
 			let ret = super.forward(data);
 			//save the state
