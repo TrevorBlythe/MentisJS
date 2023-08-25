@@ -1,6 +1,6 @@
 # Mentis JS machine learning/evolution <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/logo.png?raw=true" width = 100px>
 
-A javascript machine learning library. It can train with backpropagation and neural evolution.
+A javascript machine learning/Deep learning library. It can train with backpropagation and neural evolution.
 
 # Online Demos
 
