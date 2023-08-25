@@ -20,9 +20,9 @@
 			this.scale = scale;
 			this.nextLayer; //the connected layer
 			this.previousLayer; //the previousLayer
-			this.inData = new Float32Array(inWidth * inHeight * inDepth); //the inData
-			this.outData = new Float32Array(this.outWidth * this.outHeight * inDepth);
-			this.costs = new Float32Array(this.inData.length); //costs for each activation in "inData"
+			this.inData = new Float64Array(inWidth * inHeight * inDepth); //the inData
+			this.outData = new Float64Array(this.outWidth * this.outHeight * inDepth);
+			this.costs = new Float64Array(this.inData.length); //costs for each activation in "inData"
 		}
 		inSizeDimensions() {
 			return [this.inWidth, this.inHeight, this.inDepth];

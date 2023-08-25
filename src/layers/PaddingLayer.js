@@ -14,8 +14,8 @@
 
 			pad = pad || 2;
 			padwith = padwith || 0;
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.outData = new Float32Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.outData = new Float64Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
 			this.pad = pad;
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
@@ -23,7 +23,7 @@
 			this.padwith = padwith;
 			this.outData.fill(padwith);
 			this.inData.fill(0);
-			this.costs = new Float32Array(this.inData.length);
+			this.costs = new Float64Array(this.inData.length);
 			this.costs.fill(0);
 		}
 
@@ -71,7 +71,7 @@
 			if (!err) {
 				err = this.nextLayer.costs;
 			}
-			this.costs.fill(0);
+			// this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {

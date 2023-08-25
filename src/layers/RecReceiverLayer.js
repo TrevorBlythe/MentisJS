@@ -22,8 +22,8 @@
 		}
 
 		set previousLayer(layer) {
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -51,12 +51,12 @@
 				if (this.pl.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
 			} else if (this.mode == "concat") {
-				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float32Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
 			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
 
@@ -92,12 +92,12 @@
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(this.previousLayer.outSize());
+				this.outData = new Float64Array(this.previousLayer.outSize());
 			} else if (this.mode == "concat") {
-				this.outData = new Float32Array(this.previousLayer.outSize() + this.emitter.outSize());
+				this.outData = new Float64Array(this.previousLayer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float32Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
 			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
 

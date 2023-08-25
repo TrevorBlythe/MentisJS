@@ -80,7 +80,7 @@ var Ment = Ment || {};
 		}
 
 		forward(data) {
-			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
+			if (data != undefined && !Array.isArray(data) && !data.constructor.name.endsWith("Array")) {
 				if (typeof data == "number") {
 					data = [data];
 				} else {
@@ -183,7 +183,7 @@ var Ment = Ment || {};
 				//first calculate the error (expected - actual) and pass it to
 				//the last layer.
 				if (!backPropErrorInstead) {
-					err = new Float32Array(lastlayer.outData.length);
+					err = new Float64Array(lastlayer.outData.length);
 					for (var i = 0; i < lastlayer.outData.length; i++) {
 						//for every outAct in last layer
 						err[i] = expected[i] - lastlayer.outData[i];

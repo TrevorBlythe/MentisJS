@@ -116,6 +116,7 @@ var go = function () {
 						max = net.layers[net.layers.length - 1].outData[j];
 						ind = j;
 					}
+
 					document.getElementById(names[i] + "out").innerHTML += greenBox(net.layers[net.layers.length - 1].outData[j] * 255);
 				}
 

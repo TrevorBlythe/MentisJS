@@ -4,9 +4,9 @@
 		constructor(id) {
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(0); //the inData
-			this.outData = new Float32Array(0); //will be init when "connect" is called.
-			this.costs = new Float32Array(0); //costs for each neuron
+			this.inData = new Float64Array(0); //the inData
+			this.outData = new Float64Array(0); //will be init when "connect" is called.
+			this.costs = new Float64Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.pl = undefined;
@@ -17,11 +17,11 @@
 		}
 
 		set previousLayer(layer) {
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 
-			this.outData = new Float32Array(layer.outSize());
+			this.outData = new Float64Array(layer.outSize());
 		}
 
 		forward(inData) {

@@ -78,15 +78,15 @@ var Ment = Ment || {};
 			//could be optimized by just copying instead of straight up replacing the arrays? (both slow options)
 			let state = this.savedStates[this.savedStates.push([]) - 1];
 			for (var i = 0; i < this.layers.length; i++) {
-				state.push(new Float32Array(this.layers[i].inData));
+				state.push(new Float64Array(this.layers[i].inData));
 			}
-			state.push(new Float32Array(this.layers[this.layers.length - 1].outData));
+			state.push(new Float64Array(this.layers[this.layers.length - 1].outData));
 		}
 
 		forward(data) {
 			if (data == undefined) {
 				//todo you dont need to make a whole new array here it should get copied by the layers forward function
-				data = new Float32Array(this.layers[this.layers.length - 1].outData);
+				data = new Float64Array(this.layers[this.layers.length - 1].outData);
 			}
 			let ret = super.forward(data);
 			//save the state
@@ -131,7 +131,7 @@ var Ment = Ment || {};
 				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
 					throw "Size Mismatch in RNN. In data and out data are different dimensions.";
 				}
-				expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
+				expected = new Float64Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
 					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
 				}

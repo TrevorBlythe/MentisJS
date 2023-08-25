@@ -13,15 +13,15 @@
 			let outDepth = outDim[2];
 
 			pad = pad || 2;
-			this.outData = new Float32Array(outWidth * outHeight * outDepth);
-			this.inData = new Float32Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
+			this.outData = new Float64Array(outWidth * outHeight * outDepth);
+			this.inData = new Float64Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
 			this.pad = pad;
 			this.outWidth = outWidth;
 			this.outHeight = outHeight;
 			this.outDepth = outDepth;
 			this.inData.fill(0);
 			this.outData.fill(0);
-			this.costs = new Float32Array(this.inData.length);
+			this.costs = new Float64Array(this.inData.length);
 			this.costs.fill(0);
 		}
 

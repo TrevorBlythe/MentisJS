@@ -24,9 +24,9 @@
 			load(json) -- returns a layer  EX: FCLayer.load(layer.save()); //makes a copy of "layer"
 			
 		REQUIRED FEILDS:
-			inData:Float32Array
-			outData:Float32Array
-			costs:Float32Array
+			inData:Float64Array
+			outData:Float64Array
+			costs:Float64Array
 			gpuEnabled:Boolean
 			
 			----Everything above is the bare minimum for your layer to work at all--------------
@@ -56,14 +56,14 @@
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
-			this.bs = new Float32Array(outSize); //the bias sensitivities to error
+			this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
+			this.bs = new Float64Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(inSize); //the inData
-			this.outData = new Float32Array(outSize);
-			this.w = new Float32Array(inSize * outSize); //this will store the weights
-			this.b = new Float32Array(outSize); //this will store the biases (biases are for the outData (next layer))
-			this.costs = new Float32Array(inSize); //costs for each neuron
+			this.inData = new Float64Array(inSize); //the inData
+			this.outData = new Float64Array(outSize);
+			this.w = new Float64Array(inSize * outSize); //this will store the weights
+			this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
+			this.costs = new Float64Array(inSize); //costs for each neuron
 
 			for (var j = 0; j < inSize; j++) {
 				//----init random weights
@@ -83,26 +83,29 @@
 			} ///---------adding random biases
 		}
 
-		forward(inData) {
+		forward(input) {
 			// console.log(inData);
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw inputError(this, inData);
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
 				}
 				//Fun fact: the fastest way to copy an array in javascript is to use a For Loop
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
 			// console.log(this.inData);
-
-			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = 0; //reset outData activation
-				for (var j = 0; j < this.inSize(); j++) {
-					this.outData[h] += this.inData[j] * this.w[h + j * this.outSize()]; // the dirty deed
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			for (var h = 0; h < outSize; h++) {
+				outData[h] = biases[h]; //reset outData activation
+				for (var j = 0; j < inSize; j++) {
+					outData[h] += inData[j] * weights[h + j * outSize]; // the dirty deed
 				}
-
-				this.outData[h] += this.b[h];
 			}
 		}
 
@@ -111,21 +114,29 @@
 				err = this.nextLayer.costs;
 			}
 
-			for (var i = 0; i < this.inSize(); i++) {
-				this.costs[i] = 0;
-				for (var j = 0; j < this.outSize(); j++) {
+			const inData = this.inData;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			const costs = this.costs;
+			const weightGrads = this.ws;
+			const biasGrads = this.bs;
+
+			for (var i = 0; i < inSize; i++) {
+				costs[i] = 0;
+				for (var j = 0; j < outSize; j++) {
 					//activation times error = change to the weight.
-					this.ws[j + i * this.outSize()] += this.inData[i] * err[j] * 2;
-					this.costs[i] += this.w[j + i * this.outSize()] * err[j] * 2;
+					weightGrads[j + i * outSize] += inData[i] * err[j] * 2;
+					costs[i] += weights[j + i * outSize] * err[j] * 2;
 				}
 			}
 
-			for (var j = 0; j < this.outSize(); j++) {
-				this.bs[j] += err[j]; //bias grad so easy
+			for (var j = 0; j < outSize; j++) {
+				biasGrads[j] += err[j]; //bias grad so easy
 			}
 			//finish averaging the costs : required code
-			for (var i = 0; i < this.inSize(); i++) {
-				this.costs[i] = this.costs[i] / this.outSize();
+			for (var i = 0; i < inSize; i++) {
+				costs[i] = costs[i] / outSize;
 			}
 		}
 

@@ -3,11 +3,11 @@
 		//this layer outputs the inputs with no changes
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size); //will be init when "connect" is called.
-			this.b = new Float32Array(size);
-			this.bs = new Float32Array(size);
-			this.costs = new Float32Array(size); //costs for each neuron
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size); //will be init when "connect" is called.
+			this.b = new Float64Array(size);
+			this.bs = new Float64Array(size);
+			this.costs = new Float64Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -21,11 +21,11 @@
 			// try to connect to it
 			if (this.inData.length == 0) {
 				//if not already initialized
-				this.inData = new Float32Array(layer.outSize());
-				this.outData = new Float32Array(layer.outSize());
-				this.costs = new Float32Array(layer.outSize());
-				this.b = new Float32Array(layer.outSize());
-				this.bs = new Float32Array(layer.outSize());
+				this.inData = new Float64Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
+				this.costs = new Float64Array(layer.outSize());
+				this.b = new Float64Array(layer.outSize());
+				this.bs = new Float64Array(layer.outSize());
 				for (var i = 0; i < this.b.length; i++) {
 					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 				}

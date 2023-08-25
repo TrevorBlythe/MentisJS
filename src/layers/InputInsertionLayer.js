@@ -12,10 +12,10 @@
 				throw "You need to define size and input size for InputInsertionLayer";
 			}
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size + inputSize); //will be init when "connect" is called.
-			this.costs = new Float32Array(size); //costs for each neuron
-			this.currentInput = new Float32Array(inputSize);
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size + inputSize); //will be init when "connect" is called.
+			this.costs = new Float64Array(size); //costs for each neuron
+			this.currentInput = new Float64Array(inputSize);
 			this.pl; //reference to previous layer
 		}
 
@@ -32,9 +32,9 @@
 			// try to connect to it
 			// if (this.inData.length == 0) {
 			// 	//if not already initialized
-			// 	this.inData = new Float32Array(layer.outSize());
-			// 	this.outData = new Float32Array(layer.outSize());
-			// 	this.costs = new Float32Array(layer.outSize());
+			// 	this.inData = new Float64Array(layer.outSize());
+			// 	this.outData = new Float64Array(layer.outSize());
+			// 	this.costs = new Float64Array(layer.outSize());
 			// }
 			this.pl = layer;
 		}

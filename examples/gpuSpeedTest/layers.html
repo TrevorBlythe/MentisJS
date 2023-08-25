@@ -6,7 +6,6 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="../../index.css" />
 		<script src="../../Mentis.js"></script>
-		<script src="../../WebMonkeys.js"></script>
 		<title>MentisJS</title>
 		<style>
 			* {
@@ -104,14 +103,15 @@
 					var large = () => {
 						var element = document.getElementById('convResults');
 						if(!initializedcpu){
-						cpuLayer = new Net([new FC(10,3000),new FC(3000,3000)]);
+						 cpuLayer = new Net([new Deconv([32,32,3],[10,10],100,2)]);
 						}
 						let input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
+						let output = new Float32Array(cpuLayer.layers[0].outSize()); fillRan(output);
 						const t0 = performance.now();
 						cpuLayer.forward(input);
-						// cpuLayer.backward(input);
+						cpuLayer.backward(output);
 						const t1 = performance.now();
-						console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
+						// console.log(`Call to doSomething took ${t1 - t0} milliseconds.`);
 						element.innerHTML = "Time to forward and backward pass on cpu (milliseconds): " + (t1 - t0);
 					}
 

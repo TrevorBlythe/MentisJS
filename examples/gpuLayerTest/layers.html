@@ -120,7 +120,7 @@
 						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
 						wrongness -= getWrongness(cpuLayer.layers[0].filterws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuFilterWGrads));
 						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
-
+					
 						console.log(wrongness);
 
 						element.innerHTML = `

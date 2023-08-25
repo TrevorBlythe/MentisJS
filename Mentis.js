@@ -80,7 +80,7 @@ var Ment = Ment || {};
 		}
 
 		forward(data) {
-			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
+			if (data != undefined && !Array.isArray(data) && !data.constructor.name.endsWith("Array")) {
 				if (typeof data == "number") {
 					data = [data];
 				} else {
@@ -183,7 +183,7 @@ var Ment = Ment || {};
 				//first calculate the error (expected - actual) and pass it to
 				//the last layer.
 				if (!backPropErrorInstead) {
-					err = new Float32Array(lastlayer.outData.length);
+					err = new Float64Array(lastlayer.outData.length);
 					for (var i = 0; i < lastlayer.outData.length; i++) {
 						//for every outAct in last layer
 						err[i] = expected[i] - lastlayer.outData[i];
@@ -373,7 +373,7 @@ var Ment = Ment || {};
 		}
 
 		forward(data) {
-			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
+			if (data != undefined && !Array.isArray(data) && !data.constructor.name.endsWith("Array")) {
 				if (typeof data == "number") {
 					data = [data];
 				} else {
@@ -709,15 +709,15 @@ var Ment = Ment || {};
 			//could be optimized by just copying instead of straight up replacing the arrays? (both slow options)
 			let state = this.savedStates[this.savedStates.push([]) - 1];
 			for (var i = 0; i < this.layers.length; i++) {
-				state.push(new Float32Array(this.layers[i].inData));
+				state.push(new Float64Array(this.layers[i].inData));
 			}
-			state.push(new Float32Array(this.layers[this.layers.length - 1].outData));
+			state.push(new Float64Array(this.layers[this.layers.length - 1].outData));
 		}
 
 		forward(data) {
 			if (data == undefined) {
 				//todo you dont need to make a whole new array here it should get copied by the layers forward function
-				data = new Float32Array(this.layers[this.layers.length - 1].outData);
+				data = new Float64Array(this.layers[this.layers.length - 1].outData);
 			}
 			let ret = super.forward(data);
 			//save the state
@@ -762,7 +762,7 @@ var Ment = Ment || {};
 				if (this.layers[0].inSize() != this.layers[this.layers.length - 1].outSize()) {
 					throw "Size Mismatch in RNN. In data and out data are different dimensions.";
 				}
-				expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
+				expected = new Float64Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
 					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
 				}
@@ -1613,7 +1613,7 @@ var Ment = Ment || {};
 				} else {
 					var length = lengthOrArray.length;
 					var textureSide = fitTextureSide(length);
-					if (lengthOrArray instanceof Array || lengthOrArray instanceof Float32Array || lengthOrArray instanceof Float64Array) {
+					if (lengthOrArray instanceof Array || lengthOrArray.constructor.name.endsWith("Array")) {
 						// upload JS Numbers as Floats
 						var array = new Uint8Array(textureSide * textureSide * 4);
 						for (var i = 0, l = lengthOrArray.length; i < l; ++i) {
@@ -2024,13 +2024,20 @@ var Ment = Ment || {};
 				stringify: stringify,
 				log: log,
 			};
-
+			var ENVIRONMENT_IS_WEB = typeof window === "object";
+			var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
+			var ENVIRONMENT_IS_NODE =
+				typeof process === "object" && typeof require === "function" && !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_WORKER;
+			if (ENVIRONMENT_IS_NODE) {
+				console.log(
+					"I think nodegl is an outdated library so if this doesnt work on node comment out 'return init()' but gpu wont be an option "
+				);
+			}
 			return init();
+			// }
 		}
 
-		if (typeof window === "object") exports.WebMonkeys = WebMonkeys;
-
-		if (typeof module !== "undefined") module.exports = WebMonkeys;
+		Ment.webMonkeys = WebMonkeys();
 	});
 
 	function load(root, factory) {
@@ -2045,7 +2052,6 @@ var Ment = Ment || {};
 		// browser globals
 		else factory(root);
 	}
-	Ment.webMonkeys = WebMonkeys();
 }
 
 //Base layer for all activations to inherit from
@@ -2054,9 +2060,9 @@ var Ment = Ment || {};
 	class ActivationBase {
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size);
-			this.outData = new Float32Array(size);
-			this.costs = new Float32Array(size); //costs for each neuron
+			this.inData = new Float64Array(size);
+			this.outData = new Float64Array(size);
+			this.costs = new Float64Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -2067,9 +2073,9 @@ var Ment = Ment || {};
 			// try to connect to it
 			if (this.inData.length == 0) {
 				//if not already initialized
-				this.inData = new Float32Array(layer.outSize());
-				this.outData = new Float32Array(layer.outSize());
-				this.costs = new Float32Array(layer.outSize());
+				this.inData = new Float64Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
+				this.costs = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -2167,13 +2173,13 @@ var Ment = Ment || {};
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
+			this.outData = new Float64ArrayArray(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.maxIndexes = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.costs.length).fill(1);
+			this.inData = new Float64ArrayArray(inWidth * inHeight * inDepth);
+			this.costs = new Float64ArrayArray(inWidth * inHeight * inDepth);
+			this.maxIndexes = new Float64ArrayArray(this.outData.length);
+			this.accessed = new Float64ArrayArray(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Average Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -2323,11 +2329,11 @@ var Ment = Ment || {};
 		//this layer outputs the inputs with no changes
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size); //will be init when "connect" is called.
-			this.b = new Float32Array(size);
-			this.bs = new Float32Array(size);
-			this.costs = new Float32Array(size); //costs for each neuron
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size); //will be init when "connect" is called.
+			this.b = new Float64Array(size);
+			this.bs = new Float64Array(size);
+			this.costs = new Float64Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -2341,11 +2347,11 @@ var Ment = Ment || {};
 			// try to connect to it
 			if (this.inData.length == 0) {
 				//if not already initialized
-				this.inData = new Float32Array(layer.outSize());
-				this.outData = new Float32Array(layer.outSize());
-				this.costs = new Float32Array(layer.outSize());
-				this.b = new Float32Array(layer.outSize());
-				this.bs = new Float32Array(layer.outSize());
+				this.inData = new Float64Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
+				this.costs = new Float64Array(layer.outSize());
+				this.b = new Float64Array(layer.outSize());
+				this.bs = new Float64Array(layer.outSize());
 				for (var i = 0; i < this.b.length; i++) {
 					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 				}
@@ -2478,18 +2484,18 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.outData = new Float32Array(
+			this.filterw = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
-
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.accessed = new Float64Array(this.inData.length); //to average out the costs
+			this.createAccessedMap();
 			this.inData.fill(0); //to prevent mishap
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.b = new Float32Array(this.outData.length);
-			this.bs = new Float32Array(this.outData.length);
+			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
 			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
@@ -2569,38 +2575,48 @@ Im sorry but I had to choose one
 			];
 		}
 
-		forward(inData) {
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw inputError(this, inData);
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
 				}
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
-			this.outData.fill(0);
-
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			outData.fill(0);
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH + ba;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.outData[odi] += this.inData[k + jGAIWBA] * this.filterw[k + jFWHFWIH];
+						const ba = b * stride;
+						outData[odi] += biases[odi];
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[odi] += inData[k + jGAIWBA] * filterw[k + jFWHFWIH];
 								}
 							}
 						}
-						this.outData[odi] += this.b[odi];
 					}
 				}
 			}
@@ -2611,26 +2627,37 @@ Im sorry but I had to choose one
 				err = this.nextLayer.costs;
 			}
 			this.costs.fill(0); //reset the costs
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			const costs = this.costs;
+
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err[odi];
-									this.accessed[k + jGAIWBA]++;
-									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err[odi];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									costs[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
+									filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
 								}
 							}
 						}
@@ -2638,13 +2665,43 @@ Im sorry but I had to choose one
 				}
 			}
 			//---------------------------------End of monstrosity-----------------
-			for (var i = 0; i < this.outData.length; i++) {
+			for (var i = 0; i < this.outSize(); i++) {
 				this.bs[i] += err[i];
 			}
 			if (ConvLayer.averageOutCosts) {
-				for (var i = 0; i < this.costs.length; i++) {
-					this.costs[i] /= this.accessed[i];
-					this.accessed[i] = 0;
+				for (var i = 0; i < costs.length; i++) {
+					costs[i] /= this.accessed[i];
+				}
+			}
+		}
+
+		createAccessedMap() {
+			//This function creates an array the same size as the input image.
+			//The values will represent the amount of times a kernel touches that particular pixel.
+			//This is good to compute before hand so you can save on compute time.
+			//We need these values for the sole purpose of averaging out the error of the input image
+			this.accessed.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									this.accessed[k + jGAIWBA]++;
+								}
+							}
+						}
+					}
 				}
 			}
 		}
@@ -2728,9 +2785,9 @@ Im sorry but I had to choose one
 		//this layer outputs the inputs with no changes
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size); //will be init when "connect" is called.
-			this.costs = new Float32Array(size); //costs for each neuron
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size); //will be init when "connect" is called.
+			this.costs = new Float64Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -2741,9 +2798,9 @@ Im sorry but I had to choose one
 			// try to connect to it
 			if (this.inData.length == 0) {
 				//if not already initialized
-				this.inData = new Float32Array(layer.outSize());
-				this.outData = new Float32Array(layer.outSize());
-				this.costs = new Float32Array(layer.outSize());
+				this.inData = new Float64Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
+				this.costs = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -2844,18 +2901,19 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.inData = new Float32Array(
+			this.filterw = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.inData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
-			this.outData = new Float32Array(inWidth * inHeight * inDepth);
+			this.outData = new Float64Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
-			this.costs = new Float32Array(this.inData.length);
-			this.b = new Float32Array(this.outData.length);
-			this.bs = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.inData.length).fill(0);
+			this.costs = new Float64Array(this.inData.length);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			this.accessed = new Float64Array(this.inData.length);
+			this.makeAccessedMap();
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
@@ -2934,36 +2992,46 @@ Im sorry but I had to choose one
 			];
 		}
 
-		forward(inData) {
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw Ment.inputError(this, inData);
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw Ment.inputError(this, input);
 				}
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
 
 			this.outData.fill(0);
+			const inData = this.inData;
+			const outData = this.outData;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
 
 			//-------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH + ba;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.outData[k + jGAIWBA] += this.inData[odi] * this.filterw[k + jFWHFWIH];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[k + jGAIWBA] += inData[odi] * filterw[k + jFWHFWIH];
 								}
 							}
 						}
@@ -2972,8 +3040,8 @@ Im sorry but I had to choose one
 			}
 			//-------------End of monstrosity-----------------
 
-			for (var i = 0; i < this.outData.length; i++) {
-				this.outData[i] += this.b[i];
+			for (var i = 0; i < outData.length; i++) {
+				outData[i] += this.b[i];
 			}
 		}
 
@@ -2982,26 +3050,35 @@ Im sorry but I had to choose one
 				err = this.nextLayer.costs;
 			}
 			this.costs.fill(0); //reset the costs
-
+			const costs = this.costs;
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[odi] += this.filterw[k + jFWHFWIH] * err[k + jGAIWBA];
-									this.accessed[odi]++;
-									this.filterws[k + jFWHFWIH] += this.inData[odi] * err[k + jGAIWBA];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									costs[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
+									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -3013,9 +3090,33 @@ Im sorry but I had to choose one
 				this.bs[i] += err[i];
 			}
 			if (DeconvLayer.averageOutCosts) {
-				for (var i = 0; i < this.inSize(); i++) {
-					this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-					this.accessed[i] = 0;
+				for (var i = 0; i < this.inData.length; i++) {
+					costs[i] = costs[i] / this.accessed[i];
+				}
+			}
+		}
+
+		makeAccessedMap() {
+			this.accessed.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						for (var h = 0; h < this.inDepth; h++) {
+							for (var j = 0; j < this.filterHeight; j++) {
+								for (var k = 0; k < this.filterWidth; k++) {
+									this.accessed[odi]++;
+								}
+							}
+						}
+					}
+				}
+			}
+			for (var i = 0; i < this.accessed.length; i++) {
+				if (this.accessed[i] < 0) {
+					this.accessed[i] = 1; //prevent divide by zero
 				}
 			}
 		}
@@ -3114,15 +3215,15 @@ Im sorry but I had to choose one
 			let outDepth = outDim[2];
 
 			pad = pad || 2;
-			this.outData = new Float32Array(outWidth * outHeight * outDepth);
-			this.inData = new Float32Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
+			this.outData = new Float64Array(outWidth * outHeight * outDepth);
+			this.inData = new Float64Array((outWidth + pad * 2) * (outHeight + pad * 2) * outDepth);
 			this.pad = pad;
 			this.outWidth = outWidth;
 			this.outHeight = outHeight;
 			this.outDepth = outDepth;
 			this.inData.fill(0);
 			this.outData.fill(0);
-			this.costs = new Float32Array(this.inData.length);
+			this.costs = new Float64Array(this.inData.length);
 			this.costs.fill(0);
 		}
 
@@ -3258,9 +3359,9 @@ Im sorry but I had to choose one
 			load(json) -- returns a layer  EX: FCLayer.load(layer.save()); //makes a copy of "layer"
 			
 		REQUIRED FEILDS:
-			inData:Float32Array
-			outData:Float32Array
-			costs:Float32Array
+			inData:Float64Array
+			outData:Float64Array
+			costs:Float64Array
 			gpuEnabled:Boolean
 			
 			----Everything above is the bare minimum for your layer to work at all--------------
@@ -3290,14 +3391,14 @@ Im sorry but I had to choose one
 	class FCLayer {
 		constructor(inSize, outSize, useBias) {
 			this.useBias = useBias == undefined ? true : useBias;
-			this.ws = new Float32Array(inSize * outSize); //the weights sensitivities to error
-			this.bs = new Float32Array(outSize); //the bias sensitivities to error
+			this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
+			this.bs = new Float64Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(inSize); //the inData
-			this.outData = new Float32Array(outSize);
-			this.w = new Float32Array(inSize * outSize); //this will store the weights
-			this.b = new Float32Array(outSize); //this will store the biases (biases are for the outData (next layer))
-			this.costs = new Float32Array(inSize); //costs for each neuron
+			this.inData = new Float64Array(inSize); //the inData
+			this.outData = new Float64Array(outSize);
+			this.w = new Float64Array(inSize * outSize); //this will store the weights
+			this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
+			this.costs = new Float64Array(inSize); //costs for each neuron
 
 			for (var j = 0; j < inSize; j++) {
 				//----init random weights
@@ -3317,26 +3418,29 @@ Im sorry but I had to choose one
 			} ///---------adding random biases
 		}
 
-		forward(inData) {
+		forward(input) {
 			// console.log(inData);
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw inputError(this, inData);
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
 				}
 				//Fun fact: the fastest way to copy an array in javascript is to use a For Loop
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
 			// console.log(this.inData);
-
-			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = 0; //reset outData activation
-				for (var j = 0; j < this.inSize(); j++) {
-					this.outData[h] += this.inData[j] * this.w[h + j * this.outSize()]; // the dirty deed
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			for (var h = 0; h < outSize; h++) {
+				outData[h] = biases[h]; //reset outData activation
+				for (var j = 0; j < inSize; j++) {
+					outData[h] += inData[j] * weights[h + j * outSize]; // the dirty deed
 				}
-
-				this.outData[h] += this.b[h];
 			}
 		}
 
@@ -3345,21 +3449,29 @@ Im sorry but I had to choose one
 				err = this.nextLayer.costs;
 			}
 
-			for (var i = 0; i < this.inSize(); i++) {
-				this.costs[i] = 0;
-				for (var j = 0; j < this.outSize(); j++) {
+			const inData = this.inData;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			const costs = this.costs;
+			const weightGrads = this.ws;
+			const biasGrads = this.bs;
+
+			for (var i = 0; i < inSize; i++) {
+				costs[i] = 0;
+				for (var j = 0; j < outSize; j++) {
 					//activation times error = change to the weight.
-					this.ws[j + i * this.outSize()] += this.inData[i] * err[j] * 2;
-					this.costs[i] += this.w[j + i * this.outSize()] * err[j] * 2;
+					weightGrads[j + i * outSize] += inData[i] * err[j] * 2;
+					costs[i] += weights[j + i * outSize] * err[j] * 2;
 				}
 			}
 
-			for (var j = 0; j < this.outSize(); j++) {
-				this.bs[j] += err[j]; //bias grad so easy
+			for (var j = 0; j < outSize; j++) {
+				biasGrads[j] += err[j]; //bias grad so easy
 			}
 			//finish averaging the costs : required code
-			for (var i = 0; i < this.inSize(); i++) {
-				this.costs[i] = this.costs[i] / this.outSize();
+			for (var i = 0; i < inSize; i++) {
+				costs[i] = costs[i] / outSize;
 			}
 		}
 
@@ -3454,9 +3566,9 @@ Im sorry but I had to choose one
 		//this layer outputs the inputs with no changes
 		constructor(size) {
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size); //will be init when "connect" is called.
-			this.costs = new Float32Array(size); //costs for each neuron
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size); //will be init when "connect" is called.
+			this.costs = new Float64Array(size); //costs for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -3467,9 +3579,9 @@ Im sorry but I had to choose one
 			// try to connect to it
 			if (this.inData.length == 0) {
 				//if not already initialized
-				this.inData = new Float32Array(layer.outSize());
-				this.outData = new Float32Array(layer.outSize());
-				this.costs = new Float32Array(layer.outSize());
+				this.inData = new Float64Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
+				this.costs = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -3562,10 +3674,10 @@ Im sorry but I had to choose one
 				throw "You need to define size and input size for InputInsertionLayer";
 			}
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(size); //the inData
-			this.outData = new Float32Array(size + inputSize); //will be init when "connect" is called.
-			this.costs = new Float32Array(size); //costs for each neuron
-			this.currentInput = new Float32Array(inputSize);
+			this.inData = new Float64Array(size); //the inData
+			this.outData = new Float64Array(size + inputSize); //will be init when "connect" is called.
+			this.costs = new Float64Array(size); //costs for each neuron
+			this.currentInput = new Float64Array(inputSize);
 			this.pl; //reference to previous layer
 		}
 
@@ -3582,9 +3694,9 @@ Im sorry but I had to choose one
 			// try to connect to it
 			// if (this.inData.length == 0) {
 			// 	//if not already initialized
-			// 	this.inData = new Float32Array(layer.outSize());
-			// 	this.outData = new Float32Array(layer.outSize());
-			// 	this.costs = new Float32Array(layer.outSize());
+			// 	this.inData = new Float64Array(layer.outSize());
+			// 	this.outData = new Float64Array(layer.outSize());
+			// 	this.costs = new Float64Array(layer.outSize());
 			// }
 			this.pl = layer;
 		}
@@ -3744,13 +3856,13 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
+			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.maxIndexes = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.costs.length).fill(1);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.maxIndexes = new Float64Array(this.outData.length);
+			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -3793,7 +3905,7 @@ Im sorry but I had to choose one
 					this.inData[i] = inData[i];
 				}
 			}
-			this.outData.fill(0);
+			// this.outData.fill(0);
 
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const ga = g * this.stride;
@@ -3910,13 +4022,13 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
+			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.minIndexes = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.costs.length).fill(1);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.minIndexes = new Float64Array(this.outData.length);
+			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Min Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -4062,8 +4174,8 @@ Im sorry but I had to choose one
 
 			pad = pad || 2;
 			padwith = padwith || 0;
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.outData = new Float32Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.outData = new Float64Array((inWidth + pad * 2) * (inHeight + pad * 2) * inDepth);
 			this.pad = pad;
 			this.inWidth = inWidth;
 			this.inHeight = inHeight;
@@ -4071,7 +4183,7 @@ Im sorry but I had to choose one
 			this.padwith = padwith;
 			this.outData.fill(padwith);
 			this.inData.fill(0);
-			this.costs = new Float32Array(this.inData.length);
+			this.costs = new Float64Array(this.inData.length);
 			this.costs.fill(0);
 		}
 
@@ -4119,7 +4231,7 @@ Im sorry but I had to choose one
 			if (!err) {
 				err = this.nextLayer.costs;
 			}
-			this.costs.fill(0);
+			// this.costs.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {
@@ -4202,9 +4314,9 @@ Im sorry but I had to choose one
 		constructor(id) {
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(0); //the inData
-			this.outData = new Float32Array(0); //will be init when "connect" is called.
-			this.costs = new Float32Array(0); //costs for each neuron
+			this.inData = new Float64Array(0); //the inData
+			this.outData = new Float64Array(0); //will be init when "connect" is called.
+			this.costs = new Float64Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.savedOutData;
@@ -4219,12 +4331,12 @@ Im sorry but I had to choose one
 			if (layer.constructor.name == "RecReceiverLayer" && layer.id == this.id) {
 				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween and giving it a size)";
 			}
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 
-			this.outData = new Float32Array(layer.outSize());
-			this.savedOutData = new Float32Array(layer.outSize());
+			this.outData = new Float64Array(layer.outSize());
+			this.savedOutData = new Float64Array(layer.outSize());
 			this.savedOutData.fill(0);
 		}
 
@@ -4343,8 +4455,8 @@ Im sorry but I had to choose one
 		}
 
 		set previousLayer(layer) {
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -4372,12 +4484,12 @@ Im sorry but I had to choose one
 				if (this.pl.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
 			} else if (this.mode == "concat") {
-				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float32Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
 			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
 
@@ -4413,12 +4525,12 @@ Im sorry but I had to choose one
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(this.previousLayer.outSize());
+				this.outData = new Float64Array(this.previousLayer.outSize());
 			} else if (this.mode == "concat") {
-				this.outData = new Float32Array(this.previousLayer.outSize() + this.emitter.outSize());
+				this.outData = new Float64Array(this.previousLayer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float32Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float32Array(this.emitter.outSize());
+			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
 			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
 		}
 
@@ -4583,9 +4695,9 @@ Im sorry but I had to choose one
 		constructor(id) {
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
-			this.inData = new Float32Array(0); //the inData
-			this.outData = new Float32Array(0); //will be init when "connect" is called.
-			this.costs = new Float32Array(0); //costs for each neuron
+			this.inData = new Float64Array(0); //the inData
+			this.outData = new Float64Array(0); //will be init when "connect" is called.
+			this.costs = new Float64Array(0); //costs for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.pl = undefined;
@@ -4596,11 +4708,11 @@ Im sorry but I had to choose one
 		}
 
 		set previousLayer(layer) {
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 
-			this.outData = new Float32Array(layer.outSize());
+			this.outData = new Float64Array(layer.outSize());
 		}
 
 		forward(inData) {
@@ -4702,8 +4814,8 @@ Im sorry but I had to choose one
 		}
 
 		set previousLayer(layer) {
-			this.inData = new Float32Array(layer.outSize());
-			this.costs = new Float32Array(layer.outSize());
+			this.inData = new Float64Array(layer.outSize());
+			this.costs = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -4725,11 +4837,11 @@ Im sorry but I had to choose one
 				if (layer.outSize() != this.emitter.outSize()) {
 					throw "emitter size must equal the size of the previous layer of the corresponding receiver layer";
 				}
-				this.outData = new Float32Array(layer.outSize());
+				this.outData = new Float64Array(layer.outSize());
 			} else if (this.mode == "concat") {
-				this.outData = new Float32Array(layer.outSize() + this.emitter.outSize());
+				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float32Array(this.emitter.outSize());
+			this.costsForEmitter = new Float64Array(this.emitter.outSize());
 		}
 
 		//we dont look in front because residual data only goes forwards.
@@ -4986,9 +5098,9 @@ Im sorry but I had to choose one
 			this.scale = scale;
 			this.nextLayer; //the connected layer
 			this.previousLayer; //the previousLayer
-			this.inData = new Float32Array(inWidth * inHeight * inDepth); //the inData
-			this.outData = new Float32Array(this.outWidth * this.outHeight * inDepth);
-			this.costs = new Float32Array(this.inData.length); //costs for each activation in "inData"
+			this.inData = new Float64Array(inWidth * inHeight * inDepth); //the inData
+			this.outData = new Float64Array(this.outWidth * this.outHeight * inDepth);
+			this.costs = new Float64Array(this.inData.length); //costs for each activation in "inData"
 		}
 		inSizeDimensions() {
 			return [this.inWidth, this.inHeight, this.inDepth];
@@ -5356,7 +5468,6 @@ Im sorry but I had to choose one
 			Ment.webMonkeys.work(
 				this.filters * this.hMFHPO * this.wMFWPO,
 				`
-float act = 0.0;
 int ifromi = int(i / ${this.hMFHPO * this.wMFWPO});
 int gfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO}) / ${this.wMFWPO});
 int bfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO} - gfromi * ${this.wMFWPO}));
@@ -5368,6 +5479,7 @@ int ga = gfromi * ${this.stride};
 int gWMFWPO = gfromi * ${this.wMFWPO};
 int odi = bfromi + gWMFWPO + iHMFWMF;
 int ba = bfromi * ${this.stride};
+float act = ${this.gpuBiasName}(odi);
 
 for (int h = 0; h < ${this.inDepth}; h++) {
 	int hWIH = h * ${this.wIH} + ba;
@@ -5381,7 +5493,6 @@ for (int h = 0; h < ${this.inDepth}; h++) {
 		}
 	}
 }
-act += ${this.gpuBiasName}(odi);
 
 ;
 

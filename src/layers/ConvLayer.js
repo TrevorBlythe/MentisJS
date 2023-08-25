@@ -48,18 +48,18 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.outData = new Float32Array(
+			this.filterw = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
-
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.accessed = new Float64Array(this.inData.length); //to average out the costs
+			this.createAccessedMap();
 			this.inData.fill(0); //to prevent mishap
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.b = new Float32Array(this.outData.length);
-			this.bs = new Float32Array(this.outData.length);
+			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
 			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
@@ -139,38 +139,48 @@ Im sorry but I had to choose one
 			];
 		}
 
-		forward(inData) {
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw inputError(this, inData);
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
 				}
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
-			this.outData.fill(0);
-
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			outData.fill(0);
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH + ba;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.outData[odi] += this.inData[k + jGAIWBA] * this.filterw[k + jFWHFWIH];
+						const ba = b * stride;
+						outData[odi] += biases[odi];
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[odi] += inData[k + jGAIWBA] * filterw[k + jFWHFWIH];
 								}
 							}
 						}
-						this.outData[odi] += this.b[odi];
 					}
 				}
 			}
@@ -181,26 +191,37 @@ Im sorry but I had to choose one
 				err = this.nextLayer.costs;
 			}
 			this.costs.fill(0); //reset the costs
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			const costs = this.costs;
+
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[k + jGAIWBA] += this.filterw[k + jFWHFWIH] * err[odi];
-									this.accessed[k + jGAIWBA]++;
-									this.filterws[k + jFWHFWIH] += this.inData[k + jGAIWBA] * err[odi];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									costs[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
+									filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
 								}
 							}
 						}
@@ -208,13 +229,43 @@ Im sorry but I had to choose one
 				}
 			}
 			//---------------------------------End of monstrosity-----------------
-			for (var i = 0; i < this.outData.length; i++) {
+			for (var i = 0; i < this.outSize(); i++) {
 				this.bs[i] += err[i];
 			}
 			if (ConvLayer.averageOutCosts) {
-				for (var i = 0; i < this.costs.length; i++) {
-					this.costs[i] /= this.accessed[i];
-					this.accessed[i] = 0;
+				for (var i = 0; i < costs.length; i++) {
+					costs[i] /= this.accessed[i];
+				}
+			}
+		}
+
+		createAccessedMap() {
+			//This function creates an array the same size as the input image.
+			//The values will represent the amount of times a kernel touches that particular pixel.
+			//This is good to compute before hand so you can save on compute time.
+			//We need these values for the sole purpose of averaging out the error of the input image
+			this.accessed.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									this.accessed[k + jGAIWBA]++;
+								}
+							}
+						}
+					}
 				}
 			}
 		}

@@ -292,7 +292,7 @@ var Ment = Ment || {};
 				} else {
 					var length = lengthOrArray.length;
 					var textureSide = fitTextureSide(length);
-					if (lengthOrArray instanceof Array || lengthOrArray instanceof Float32Array || lengthOrArray instanceof Float64Array) {
+					if (lengthOrArray instanceof Array || lengthOrArray.constructor.name.endsWith("Array")) {
 						// upload JS Numbers as Floats
 						var array = new Uint8Array(textureSide * textureSide * 4);
 						for (var i = 0, l = lengthOrArray.length; i < l; ++i) {
@@ -703,13 +703,20 @@ var Ment = Ment || {};
 				stringify: stringify,
 				log: log,
 			};
-
+			var ENVIRONMENT_IS_WEB = typeof window === "object";
+			var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
+			var ENVIRONMENT_IS_NODE =
+				typeof process === "object" && typeof require === "function" && !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_WORKER;
+			if (ENVIRONMENT_IS_NODE) {
+				console.log(
+					"I think nodegl is an outdated library so if this doesnt work on node comment out 'return init()' but gpu wont be an option "
+				);
+			}
 			return init();
+			// }
 		}
 
-		if (typeof window === "object") exports.WebMonkeys = WebMonkeys;
-
-		if (typeof module !== "undefined") module.exports = WebMonkeys;
+		Ment.webMonkeys = WebMonkeys();
 	});
 
 	function load(root, factory) {
@@ -724,5 +731,4 @@ var Ment = Ment || {};
 		// browser globals
 		else factory(root);
 	}
-	Ment.webMonkeys = WebMonkeys();
 }

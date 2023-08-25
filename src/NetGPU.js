@@ -116,7 +116,7 @@ var Ment = Ment || {};
 		}
 
 		forward(data) {
-			if (data != undefined && !Array.isArray(data) && data.constructor.name != "Float32Array") {
+			if (data != undefined && !Array.isArray(data) && !data.constructor.name.endsWith("Array")) {
 				if (typeof data == "number") {
 					data = [data];
 				} else {

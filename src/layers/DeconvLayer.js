@@ -32,18 +32,19 @@
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.filterw = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.filterws = new Float32Array(filters * inDepth * filterWidth * filterHeight);
-			this.inData = new Float32Array(
+			this.filterw = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.inData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
-			this.outData = new Float32Array(inWidth * inHeight * inDepth);
+			this.outData = new Float64Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
-			this.costs = new Float32Array(this.inData.length);
-			this.b = new Float32Array(this.outData.length);
-			this.bs = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.inData.length).fill(0);
+			this.costs = new Float64Array(this.inData.length);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			this.accessed = new Float64Array(this.inData.length);
+			this.makeAccessedMap();
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
@@ -122,36 +123,46 @@
 			];
 		}
 
-		forward(inData) {
-			if (inData) {
-				if (inData.length != this.inSize()) {
-					throw Ment.inputError(this, inData);
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw Ment.inputError(this, input);
 				}
-				for (var i = 0; i < inData.length; i++) {
-					this.inData[i] = inData[i];
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
 				}
 			}
 
 			this.outData.fill(0);
+			const inData = this.inData;
+			const outData = this.outData;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
 
 			//-------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH + ba;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.outData[k + jGAIWBA] += this.inData[odi] * this.filterw[k + jFWHFWIH];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[k + jGAIWBA] += inData[odi] * filterw[k + jFWHFWIH];
 								}
 							}
 						}
@@ -160,8 +171,8 @@
 			}
 			//-------------End of monstrosity-----------------
 
-			for (var i = 0; i < this.outData.length; i++) {
-				this.outData[i] += this.b[i];
+			for (var i = 0; i < outData.length; i++) {
+				outData[i] += this.b[i];
 			}
 		}
 
@@ -170,26 +181,35 @@
 				err = this.nextLayer.costs;
 			}
 			this.costs.fill(0); //reset the costs
-
+			const costs = this.costs;
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
 				const iFWIHID = i * this.fWIHID;
 				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * this.stride;
+					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * this.stride;
-						for (var h = 0; h < this.inDepth; h++) {
-							const hWIH = h * this.wIH;
-							const hFWIH = h * this.fWIH + iFWIHID;
-							for (var j = 0; j < this.filterHeight; j++) {
-								const jGAIWBA = (j + ga) * this.inWidth + hWIH + ba;
-								const jFWHFWIH = j * this.filterWidth + hFWIH;
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.costs[odi] += this.filterw[k + jFWHFWIH] * err[k + jGAIWBA];
-									this.accessed[odi]++;
-									this.filterws[k + jFWHFWIH] += this.inData[odi] * err[k + jGAIWBA];
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									costs[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
+									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -201,9 +221,33 @@
 				this.bs[i] += err[i];
 			}
 			if (DeconvLayer.averageOutCosts) {
-				for (var i = 0; i < this.inSize(); i++) {
-					this.costs[i] = this.costs[i] / (this.accessed[i] > 0 ? this.accessed[i] : 1);
-					this.accessed[i] = 0;
+				for (var i = 0; i < this.inData.length; i++) {
+					costs[i] = costs[i] / this.accessed[i];
+				}
+			}
+		}
+
+		makeAccessedMap() {
+			this.accessed.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						for (var h = 0; h < this.inDepth; h++) {
+							for (var j = 0; j < this.filterHeight; j++) {
+								for (var k = 0; k < this.filterWidth; k++) {
+									this.accessed[odi]++;
+								}
+							}
+						}
+					}
+				}
+			}
+			for (var i = 0; i < this.accessed.length; i++) {
+				if (this.accessed[i] < 0) {
+					this.accessed[i] = 1; //prevent divide by zero
 				}
 			}
 		}

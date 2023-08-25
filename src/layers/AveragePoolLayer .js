@@ -28,13 +28,13 @@
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
+			this.outData = new Float64ArrayArray(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.maxIndexes = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.costs.length).fill(1);
+			this.inData = new Float64ArrayArray(inWidth * inHeight * inDepth);
+			this.costs = new Float64ArrayArray(inWidth * inHeight * inDepth);
+			this.maxIndexes = new Float64ArrayArray(this.outData.length);
+			this.accessed = new Float64ArrayArray(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Average Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}

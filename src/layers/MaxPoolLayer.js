@@ -28,13 +28,13 @@
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.outData = new Float32Array(
+			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
-			this.inData = new Float32Array(inWidth * inHeight * inDepth);
-			this.costs = new Float32Array(inWidth * inHeight * inDepth);
-			this.maxIndexes = new Float32Array(this.outData.length);
-			this.accessed = new Float32Array(this.costs.length).fill(1);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.maxIndexes = new Float64Array(this.outData.length);
+			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -77,7 +77,7 @@
 					this.inData[i] = inData[i];
 				}
 			}
-			this.outData.fill(0);
+			// this.outData.fill(0);
 
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const ga = g * this.stride;

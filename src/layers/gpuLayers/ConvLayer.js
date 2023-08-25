@@ -182,7 +182,6 @@
 			Ment.webMonkeys.work(
 				this.filters * this.hMFHPO * this.wMFWPO,
 				`
-float act = 0.0;
 int ifromi = int(i / ${this.hMFHPO * this.wMFWPO});
 int gfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO}) / ${this.wMFWPO});
 int bfromi = int((i - ifromi * ${this.hMFHPO * this.wMFWPO} - gfromi * ${this.wMFWPO}));
@@ -194,6 +193,7 @@ int ga = gfromi * ${this.stride};
 int gWMFWPO = gfromi * ${this.wMFWPO};
 int odi = bfromi + gWMFWPO + iHMFWMF;
 int ba = bfromi * ${this.stride};
+float act = ${this.gpuBiasName}(odi);
 
 for (int h = 0; h < ${this.inDepth}; h++) {
 	int hWIH = h * ${this.wIH} + ba;
@@ -207,7 +207,6 @@ for (int h = 0; h < ${this.inDepth}; h++) {
 		}
 	}
 }
-act += ${this.gpuBiasName}(odi);
 
 ;
 

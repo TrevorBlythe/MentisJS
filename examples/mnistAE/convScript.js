@@ -30,9 +30,10 @@ let greenBox = function (p) {
 var net = new Ment.Net([
 	new Ment.Conv([28, 28, 1], [10, 10], 5, 3),
 	new Ment.LRelu(),
-	new Ment.Conv([7, 7, 5], [3, 3], 3, 1),
+	new Ment.Conv([7, 7, 5], [3, 3], 2, 1),
 	new Ment.Sig(),
-	new Ment.DeConv([7, 7, 5], [3, 3], 3, 1),
+
+	new Ment.DeConv([7, 7, 5], [3, 3], 2, 1),
 	new Ment.LRelu(),
 	new Ment.DeConv([28, 28, 1], [10, 10], 5, 3),
 	new Ment.Relu(),
