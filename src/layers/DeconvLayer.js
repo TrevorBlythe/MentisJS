@@ -50,39 +50,39 @@
 			}
 			//init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				this.filterw[i] = (1 * Math.random() * (Math.random() > 0.5 ? -1 : 1)) / this.filters;
 			}
-			for (var a = 0; a < 3; a++) {
-				let newFilterw = this.filterw.slice(0);
-				for (var f = 0; f < this.filters; f++) {
-					for (var d = 0; d < this.inDepth; d++) {
-						for (var x = 0; x < this.filterWidth; x++) {
-							for (var y = 0; y < this.filterHeight; y++) {
-								let count = 0;
-								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
-								let indR = [
-									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indL = [
-									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indD = [
-									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indU = [
-									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
-								];
-								if (x < filterWidth - 1) count += this.filterw[indR];
-								if (x > 1) count += this.filterw[indL];
-								if (y < filterHeight - 1) count += this.filterw[indD];
-								if (y > 1) count += this.filterw[indU];
-								newFilterw[ind] += count / 5;
-							}
-						}
-					}
-				}
-				this.filterw = newFilterw;
-			}
+
+			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
+			// //since most people are not gonna be training on random noise, having patters probably helps
+			// //train it faster
+			// for (var a = 0; a < 3; a++) {
+			// 	let newFilterw = this.filterw.slice(0);
+			// 	for (var f = 0; f < this.filters; f++) {
+			// 		for (var d = 0; d < this.inDepth; d++) {
+			// 			for (var x = 0; x < this.filterWidth; x++) {
+			// 				for (var y = 0; y < this.filterHeight; y++) {
+			// 					let count = 0;
+			// 					let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+			// 					let indR =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indL =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indD =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					let indU =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					if (x < filterWidth - 1) count += this.filterw[indR];
+			// 					if (x > 1) count += this.filterw[indL];
+			// 					if (y < filterHeight - 1) count += this.filterw[indD];
+			// 					if (y > 1) count += this.filterw[indU];
+			// 					newFilterw[ind] += count / 5;
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// 	this.filterw = newFilterw;
+			// }
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
 					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -209,7 +209,7 @@
 								const jFWHFWIH = j * filterWidth + hFWIH;
 								for (var k = 0; k < filterWidth; k++) {
 									costs[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
-									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
+									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA] * 2;
 								}
 							}
 						}

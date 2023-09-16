@@ -41,39 +41,38 @@
 			this.gpuFilterW = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			let temp = new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			for (var i = 0; i < filters * inDepth * filterWidth * filterHeight; i++) {
-				temp[i] = 0.05 * Math.random() * (Math.random() > 0.5 ? -1 : 1); //set random weights
+				temp[i] = (1 * Math.random() * (Math.random() > 0.5 ? -1 : 1)) / this.filters; //set random weights
 			}
-			for (var a = 0; a < 3; a++) {
-				let newFilterw = temp.slice(0);
-				for (var f = 0; f < this.filters; f++) {
-					for (var d = 0; d < this.inDepth; d++) {
-						for (var x = 0; x < this.filterWidth; x++) {
-							for (var y = 0; y < this.filterHeight; y++) {
-								let count = 0;
-								let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
-								let indR = [
-									f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indL = [
-									f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indD = [
-									f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight,
-								];
-								let indU = [
-									f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight,
-								];
-								if (x < filterWidth - 1) count += temp[indR];
-								if (x > 1) count += temp[indL];
-								if (y < filterHeight - 1) count += temp[indD];
-								if (y > 1) count += temp[indU];
-								newFilterw[ind] += count / 5;
-							}
-						}
-					}
-				}
-				temp = newFilterw;
-			}
+			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
+			// //since most people are not gonna be training on random noise, having patters probably helps
+			// //train it faster
+			// for (var a = 0; a < 3; a++) {
+			// 	let newFilterw = temp.slice(0);
+			// 	for (var f = 0; f < this.filters; f++) {
+			// 		for (var d = 0; d < this.inDepth; d++) {
+			// 			for (var x = 0; x < this.filterWidth; x++) {
+			// 				for (var y = 0; y < this.filterHeight; y++) {
+			// 					let count = 0;
+			// 					let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+			// 					let indR =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indL =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indD =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					let indU =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					if (x < filterWidth - 1) count += this.filterw[indR];
+			// 					if (x > 1) count += this.filterw[indL];
+			// 					if (y < filterHeight - 1) count += this.filterw[indD];
+			// 					if (y > 1) count += temp[indU];
+			// 					newFilterw[ind] += count / 5;
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// 	temp = newFilterw;
+			// }
 			Ment.webMonkeys.set(this.gpuFilterW, temp);
 
 			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
@@ -274,7 +273,7 @@ int ba = bfromi * ${this.stride};
 int hWIH = hfromi * ${this.wIH};
 int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
 
-act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA);
+act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA) * 2.0;
 
 
 
