@@ -2028,13 +2028,7 @@ var Ment = Ment || {};
 			var ENVIRONMENT_IS_WORKER = typeof importScripts === "function";
 			var ENVIRONMENT_IS_NODE =
 				typeof process === "object" && typeof require === "function" && !ENVIRONMENT_IS_WEB && !ENVIRONMENT_IS_WORKER;
-			if (ENVIRONMENT_IS_NODE) {
-				console.log(
-					"I think nodegl is an outdated library so if this doesnt work on node comment out 'return init()' but gpu wont be an option "
-				);
-			}
 			return init();
-			// }
 		}
 
 		Ment.webMonkeys = WebMonkeys();
