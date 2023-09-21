@@ -8,6 +8,7 @@ var Ment = Ment || {};
 			this.iteration = 0; //goes up every 'backwards' call, goes back to 0 when 'updateParams' call
 			this.learningRate = 0.01;
 			//Putting this here to keep code from the OG days alive.
+			this.connectLayers();
 			if (optimizer == "SGD") {
 				this.optimizer = new Ment.SGD();
 			} else if (typeof optimizer == "string") {
@@ -17,7 +18,6 @@ var Ment = Ment || {};
 			}
 			this.optimizer.netObject = this; //give it access to the net object so it can get the learning rate and stuff.
 			this.optimizer.initialize();
-			this.connectLayers();
 		} //END OF CONSTRUCTOR
 
 		get inData() {

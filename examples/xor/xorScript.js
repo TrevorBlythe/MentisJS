@@ -9,10 +9,10 @@ let clear = function () {
 
 let ctx = document.getElementById("canvas").getContext("2d");
 
-var net = new Net([new FC(2, 5, false), new Sig(), new FC(5, 5, false), new FC(5, 1, false), new Sig()]);
+var net = new Net([new FC(2, 3, true), new Sig(), new FC(3, 1, true), new Sig()], "Momentum");
 
-net.batchSize = 200;
-net.learningRate = 1;
+net.batchSize = 4;
+net.learningRate = 0.1;
 
 let inputs = [
 	[0, 0],
@@ -25,7 +25,7 @@ let outputs = [[0], [1], [1], [0]];
 
 let doit = function () {
 	clear();
-	for (var i = 0; i < 100; i++) {
+	for (var i = 0; i < 4; i++) {
 		net.train(inputs[i % 4], outputs[i % 4]);
 	}
 	let totalCost = 0;
@@ -65,5 +65,5 @@ let doit = function () {
 	out("input: " + inputs[3] + ", output: " + net.forward([1, 1]).map((x) => x.toPrecision(5)));
 };
 
-let loop = setInterval(doit, 10);
+let loop = setInterval(doit, 5);
 // doit();

@@ -111,13 +111,17 @@ ResReceiver(identificationString, mode (concat, add, average)) //residual receiv
 RecEmitter(identificationString) //reccurrent emitter
 RecReceiver(identificationString, mode (concat, add, average)) //reccurrent receiver
 
-Sigmoid(Size (optional parameter));
+Sigmoid(Size (optional parameter for all activations));
 Tanh(Size);
 Relu(Size);
 LeakyRelu(Size);
 Sine(Size);
+Identity(Size); //an activation that does nothing and provides no real training value
 
 UpscalingLayer([inputHeight, inputWidth, inputDepth], scale)
+
+LayerNormalization(size);
+//very new might have errors/bugs but seems to work
 
 ```
 

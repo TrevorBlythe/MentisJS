@@ -41,13 +41,18 @@
 			<div style="display: inline">
 				<div style="float: right">
 					<textarea id="textinput" name="input" rows="10" cols="50" style="border: 5px solid black">
-var net = new Ment.Net([
-	new Ment.FC(2,5),
-	new Ment.Sig(5),	
-	new Ment.FC(5,5),
-	new Ment.FC(5,1),
-	new Ment.Sig(1),
-]);
+var net = new Net(
+	[new FC(2, 5, false),
+	 new Sig(), 
+	 new LayerNorm(), 
+	 new FC(5, 5, false), 
+	 new FC(5, 1, false), 
+	 new Sig()],
+	"Momentum"
+);
+
+net.batchSize = 4;
+net.learningRate = 0.1;
 
 //this clears the canvas
 ctx.clearRect(0, 0, document.getElementById('canvas').width, document.getElementById('canvas').height);
@@ -78,7 +83,8 @@ ctx.clearRect(0, 0, document.getElementById('canvas').width, document.getElement
 			<br /><br />
 			<p>
 				You can edit the network with this text box and press reload network to reload it. There is a live feed of it training
-				with the total error of the network. It should be pretty low. If not, try giving the learning rate slider a jiggle
+				with the total error of the network. Blink and you will miss it. You can see the weights change in real time.. try
+				reloading and watching the error find its way to zero, almost instantly....
 			</p>
 		</div>
 		<script src="xorScript.js"></script>
