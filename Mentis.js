@@ -4848,7 +4848,7 @@ Im sorry but I had to choose one
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				if (this.outData[j] >= 0) {
+				if (this.outData[j] > 0) {
 					this.costs[j] = err[j];
 				}
 			}
