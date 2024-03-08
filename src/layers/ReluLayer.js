@@ -27,6 +27,8 @@
 			for (var j = 0; j < this.outSize(); j++) {
 				if (this.outData[j] > 0) {
 					this.costs[j] = err[j];
+				} else {
+					this.costs[j] = 0;
 				}
 			}
 		}
