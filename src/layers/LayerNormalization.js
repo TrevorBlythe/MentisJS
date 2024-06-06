@@ -10,7 +10,7 @@
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
 			this.g = new Float64Array(size); //this will store the weights
 			this.b = new Float64Array(size); //this will store the biases (biases are for the outData (next layer))
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.outDataBeforeRescaleAndShift = new Float64Array(size);
 			this.standard_deviation = 1; //this will hold the last computed standard deviations
 			for (var j = 0; j < size; j++) {
@@ -30,7 +30,7 @@
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 				this.valMinusMeanSquared = new Float64Array(layer.outSize());
 				this.outDataBeforeRescaleAndShift = new Float64Array(layer.outSize());
 				this.g = new Float64Array(layer.outSize());
@@ -80,12 +80,12 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			const outSize = this.outSize();
 			const gammas = this.g;
-			const costs = this.costs;
+			const grads = this.grads;
 			const weightGrads = this.gs;
 			const biasGrads = this.bs;
 
@@ -94,7 +94,7 @@
 			for (var j = 0; j < outSize; j++) {
 				weightGrads[j] += this.outDataBeforeRescaleAndShift[j] * err[j];
 				biasGrads[j] += err[j];
-				costs[j] = (gammas[j] * err[j]) / this.standard_deviation;
+				grads[j] = (gammas[j] * err[j]) / this.standard_deviation;
 			}
 		}
 
@@ -135,9 +135,10 @@
 					key == "gs" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
 					key == "outDataBeforeRescaleAndShift" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "standard_deviation" ||

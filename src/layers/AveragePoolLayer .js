@@ -32,9 +32,9 @@
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.costs.length).fill(1);
+			this.accessed = new Float64Array(this.grads.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Average Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -100,16 +100,16 @@
 		}
 
 		backward(err) {
-			this.costs.fill(0);
+			this.grads.fill(0);
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						this.costs[this.maxIndexes[odi]] += err[odi];
+						this.grads[this.maxIndexes[odi]] += err[odi];
 						this.accessed[this.maxIndexes[odi]]++;
 					}
 				}
@@ -125,15 +125,15 @@
 						for (var j = 0; j < this.filterHeight; j++) {
 							const jGAIWBA = (j + ga) * this.inWidth + hWIH;
 							for (var k = 0; k < this.filterWidth; k++) {
-								this.costs[k + jGAIWBA] += err[odi];
+								this.grads[k + jGAIWBA] += err[odi];
 								this.accessed[k + jGAIWBA] += 1;
 							}
 						}
 					}
 				}
 			}
-			for (var i = 0; i < this.costs.length; i++) {
-				this.costs[i] /= this.accessed[i] + this.filterWidth * this.filterHeight; //Average the grad
+			for (var i = 0; i < this.grads.length; i++) {
+				this.grads[i] /= this.accessed[i] + this.filterWidth * this.filterHeight; //Average the grad
 				this.accessed[i] = 0;
 			}
 		}
@@ -142,8 +142,9 @@
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||

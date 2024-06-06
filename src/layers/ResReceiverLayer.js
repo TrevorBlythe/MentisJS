@@ -8,10 +8,10 @@
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
 			this.outData; //will be init when "onConnect" is called.
-			this.costs; //costs for each neuron
+			this.grads; //grads for each neuron
 			this.emitter;
 			this.inDataFromEmitter;
-			this.costsForEmitter;
+			this.gradsForEmitter;
 			this.pl; // holds a reference to previous layer
 		}
 
@@ -21,7 +21,7 @@
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -47,7 +47,7 @@
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
 		}
 
 		//we dont look in front because residual data only goes forwards.
@@ -82,26 +82,26 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			if (this.mode == "concat") {
 				//fixed a very atrocious error
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
+					this.grads[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i];
+					this.gradsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] / 2;
-					this.costsForEmitter[i] = err[i] / 2;
+					this.grads[i] = err[i] / 2;
+					this.gradsForEmitter[i] = err[i] / 2;
 				}
 			} else if (this.mode == "average") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] * 2;
-					this.costsForEmitter[i] = err[i] * 2;
+					this.grads[i] = err[i] * 2;
+					this.gradsForEmitter[i] = err[i] * 2;
 				}
 			}
 		}
@@ -125,11 +125,12 @@
 					key == "bs" ||
 					key == "nl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "costsForEmitter" ||
+					key == "gradsForEmitter" ||
 					key == "inDataFromEmitter"
 				) {
 					return undefined;

@@ -5,7 +5,7 @@
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(size); //the inData
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -18,7 +18,7 @@
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -36,7 +36,7 @@
 		}
 
 		backward(err) {
-			this.costs.fill(0); //best layer
+			this.grads.fill(0); //best layer
 		}
 
 		inSize() {
@@ -54,9 +54,10 @@
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
 				) {

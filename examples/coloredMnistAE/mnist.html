@@ -91,7 +91,7 @@
 		</div>
 		<!-- End of topbar -->
 		<div class="showcaseTitle">
-			<h1>Mnist digits Autoencoder</h1>
+			<h1><b>Randomly Colored </b>Mnist digits Autoencoder</h1>
 		</div>
 		<div class="wrapper">
 			<div class="showcasenet">
@@ -111,16 +111,18 @@
 
 var net = new Ment.Net(
 	[
+		new Ment.ConvParam([28, 28, 3], [1, 1], 1, 1, false, 3, 1),
 		new Ment.DepthWiseConv([28, 28, 1], [10, 10], 6, 3),
 		new Ment.LRelu(0.01),
 		new Ment.DepthWiseConv([7, 7, 6], [3, 3], 6, 1),
 		new Ment.Conv([5, 5, 6], [1, 1], 3, 1),
-		new Ment.Sig(),
+		new Ment.PTanh(), //periodic activation
 
 		new Ment.DepthWiseDeconv([7, 7, 6], [3, 3], 3, 1),
 		new Ment.DeConv([7, 7, 5], [1, 1], 6, 1),
 		new Ment.LRelu(0.01),
-		new Ment.DepthWiseDeconv([28, 28, 1], [10, 10], 5, 3),
+		new Ment.DepthWiseDeconv([28, 28, 5], [10, 10], 5, 3),
+		new Ment.DeConvParam([28, 28, 3], [1, 1], 5, 1, false, 3, 1),
 		new Ment.LRelu(0.01),
 	],
 	new Ment.AdamW(100)
@@ -145,7 +147,7 @@ examplesSeen = 0;
 			<p id="es">examples seen: 0</p>
 			<button onclick="clearInterval(loop); clearInterval(loopTwo)">Stop</button>
 			<button onclick="go();">Go</button><br />
-			<button onclick="net = Ment.Net.load(model);render();">Load pre-trained model</button>
+			<!-- <button onclick="net = Ment.Net.load(model);render();">Load pre-trained model</button> -->
 			<br /><br />
 			<br /><br />
 			<br /><br />
@@ -156,9 +158,12 @@ examplesSeen = 0;
 			<h1>Explanation</h1>
 		</div>
 			<p>
-				Here you can see an Autoencoder being trained live. Press load pre-trained model to load a model that has a bottleneck
-				of only about 5 neurons! It uses DE-CONVOLOUTION layers that can reverse the effects of the convoloution layer. The goal 
-				of a model like this can be many reasons but you can use it to generate more images or classify them.
+				Convolutional layers are really good for structure and specific colors, (like yellow and black stripes for a bee) but for dynamic colors, they struggle to encode the information. This is because the convolutional layers are looking for specific patterns and colors. So I made this to test my dynamic filter convolutional networks.
+				The layer is called ConvParamLayer/DeconvParamLayer and every filter is a small mini Dense Network. Its inputs are any dynamic colors you wanna encode or produce.
+				
+				The Depthwise convolutions after are just there so I can test those to. They are not really needed for this task, but they make it faster.
+
+				And I know this is kind of a pointless example, but I just wanted to show it worked. This is pointless example because you can just do this without a special layer by mapping the random color to white, but the layers are useful for autoencoders that need to encode things like haircolor.
 			</p>
 			<br>
 			<br>

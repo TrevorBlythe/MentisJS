@@ -75,7 +75,7 @@ int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${thi
 
 act = ${this.gpuErrorArrayName}(index);
 
-${this.gpuCostsArrayName}(prop) := act;
+${this.gpuGradsArrayName}(prop) := act;
 				`
 			);
 		}
@@ -104,14 +104,15 @@ ${this.gpuCostsArrayName}(prop) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName"
 				) {
 					return undefined;

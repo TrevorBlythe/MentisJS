@@ -78,7 +78,7 @@ act += ${this.gpuErrorArrayName}(ifromi * ${this.outHeight * this.outWidth} + ((
 };
 };
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -108,8 +108,9 @@ ${this.gpuCostsArrayName}(i) := act;
 					key == "ws" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||

@@ -53,7 +53,7 @@
 			// 	//if not already initialized
 			// 	this.inData = new Float32Array(layer.outSize());
 			// 	this.outData = new Float32Array(layer.outSize());
-			// 	this.costs = new Float32Array(layer.outSize());
+			// 	this.grads = new Float32Array(layer.outSize());
 			// }
 			this.pl = layer;
 		}
@@ -93,7 +93,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -105,13 +105,14 @@ ${this.gpuCostsArrayName}(i) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "currentInput"

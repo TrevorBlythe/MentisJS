@@ -6,7 +6,7 @@
 			this.nextLayer; //the connected layer
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
-			this.gpuCostsFromEmitterName; //gets set by the receiver
+			this.gpuGradsFromEmitterName; //gets set by the receiver
 			this.pl = undefined;
 			this.gpuInDataStartIndex = 0;
 			this.gpuOutDataStartIndex = 0;
@@ -27,29 +27,29 @@
 			this.pl = layer;
 		}
 
-		// initGPUActivations(inDataGpuArrayName, outDataGpuArrayName, costsGpuArrayName, errorGpuArrayName) {
-		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// initGPUActivations(inDataGpuArrayName, outDataGpuArrayName, gradsGpuArrayName, errorGpuArrayName) {
+		// 	//i know its confusing but grads are the erorr of the indata neurons and error is the error of the outdata neurons
 		// 	if (!inDataGpuArrayName) {
 		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!outDataGpuArrayName) {
 		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
-		// 	if (!costsGpuArrayName) {
-		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	if (!gradsGpuArrayName) {
+		// 		this.gpuGradsArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!errorGpuArrayName) {
 		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	this.gpuInDataName = inDataGpuArrayName;
 		// 	this.gpuOutDataName = outDataGpuArrayName;
-		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuGradsArrayName = gradsGpuArrayName;
 		// 	this.gpuErrorArrayName = errorGpuArrayName;
 
 		// 	let temp = new Float32Array(this.inSize());
 		// 	temp.fill(0);
 		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
-		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+		// 	Ment.webMonkeys.set(this.gpuGradsArrayName, temp);
 
 		// 	temp = new Float32Array(this.outSize());
 		// 	temp.fill(0);
@@ -83,11 +83,11 @@ ${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
 			Ment.webMonkeys.work(
 				this.inSize(),
 				`
-float act = (${this.gpuErrorArrayName}(i) + ${this.gpuCostsFromEmitterName}(i)) / 2.0;
+float act = (${this.gpuErrorArrayName}(i) + ${this.gpuGradsFromEmitterName}(i)) / 2.0;
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -110,14 +110,15 @@ ${this.gpuCostsArrayName}(i) := act;
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "gpuCostsFromEmitter" ||
+					key == "gpuGradsFromEmitter" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "emitter"
 				) {

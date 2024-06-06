@@ -8,11 +8,11 @@
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
 			this.outData; //will be init when "onConnect" is called.
-			this.costs; //costs for each neuron
+			this.grads; //grads for each neuron
 			this.emitter;
 			this.inDataFromEmitter;
-			this.costsForEmitter;
-			this.savedCostsForEmitter; //costs one step behind
+			this.gradsForEmitter;
+			this.savedGradsForEmitter; //grads one step behind
 			this.pl; // holds a reference to previous layer
 			this.nl; //next layer
 		}
@@ -23,7 +23,7 @@
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -55,9 +55,9 @@
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
-			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedGradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.emitter.gradsFromReceiver = this.savedGradsForEmitter;
 		}
 
 		get nextLayer() {
@@ -96,9 +96,9 @@
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(this.previousLayer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
-			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedGradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.emitter.gradsFromReceiver = this.savedGradsForEmitter;
 		}
 
 		forward(inData) {
@@ -130,36 +130,36 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			if (this.emitter.where == "behind") {
 				for (var i = 0; i < this.inSize(); i++) {
-					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
+					this.savedGradsForEmitter[i] = this.gradsForEmitter[i];
 				}
 			}
 			if (this.mode == "concat") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
+					this.grads[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i];
+					this.gradsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
-					this.costsForEmitter[i] = err[i];
+					this.grads[i] = err[i];
+					this.gradsForEmitter[i] = err[i];
 				}
 			} else if (this.mode == "average") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] * 2;
-					this.costsForEmitter[i] = err[i] * 2;
+					this.grads[i] = err[i] * 2;
+					this.gradsForEmitter[i] = err[i] * 2;
 				}
 			}
 
 			if (this.emitter.where == "in front") {
 				for (var i = 0; i < this.inSize(); i++) {
-					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
+					this.savedGradsForEmitter[i] = this.gradsForEmitter[i];
 				}
 			}
 		}
@@ -183,12 +183,13 @@
 					key == "nl" ||
 					key == "receiver" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
-					key == "costsForEmitter" ||
+					key == "grads" ||
+					key == "gradsForEmitter" ||
 					key == "inDataFromEmitter" ||
-					key == "savedCostsForEmitter" ||
-					key == "costsFromReceiver" ||
+					key == "savedGradsForEmitter" ||
+					key == "gradsFromReceiver" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "savedOutData"

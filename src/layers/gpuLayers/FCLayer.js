@@ -54,13 +54,13 @@
 				`
 float act = 0.0;
 for (int j = 0; j < ${this.outSize()}; j++) {
-	act += ${this.gpuWeightsName}(j + i * ${this.outSize()}) * ${this.gpuErrorArrayName}(j) * 2.0;
+	act += ${this.gpuWeightsName}(j + i * ${this.outSize()}) * ${this.gpuErrorArrayName}(j);
 }
-act = act / ${this.outSize()}.0;
+
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 
@@ -71,7 +71,7 @@ ${this.gpuCostsArrayName}(i) := act;
 float act = 0.0;
 int j = i - (int(i / ${this.outSize()}) * ${this.outSize()});
 int k = (i - j) / ${this.outSize()};
-act = ${this.gpuInDataName}(k + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(j) * 2.0;
+act = ${this.gpuInDataName}(k + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(j);
 act += ${this.gpuWeightsGradsName}(i);
 
 ;
@@ -115,12 +115,13 @@ ${this.gpuBiasGradsName}(i) := act;
 				if (
 					key == "outData" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "gpuBiasName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "gpuBiasGradsName" ||
 					key == "gpuWeightsName" ||
@@ -163,27 +164,27 @@ ${this.gpuBiasGradsName}(i) := act;
 		// initGPUActivations(
 		// 	inDataGpuArrayName,
 		// 	outDataGpuArrayName,
-		// 	costsGpuArrayName,
+		// 	gradsGpuArrayName,
 		// 	errorGpuArrayName,
 		// 	inDataGPUStartIndex,
 		// 	outDataGPUStartIndex
 		// ) {
-		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// 	//i know its confusing but grads are the erorr of the indata neurons and error is the error of the outdata neurons
 		// 	if (!inDataGpuArrayName) {
 		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!outDataGpuArrayName) {
 		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
-		// 	if (!costsGpuArrayName) {
-		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	if (!gradsGpuArrayName) {
+		// 		this.gpuGradsArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!errorGpuArrayName) {
 		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	this.gpuInDataName = inDataGpuArrayName;
 		// 	this.gpuOutDataName = outDataGpuArrayName;
-		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuGradsArrayName = gradsGpuArrayName;
 		// 	this.gpuErrorArrayName = errorGpuArrayName;
 		// 	this.gpuInDataStartIndex = inDataGPUStartIndex;
 		// 	this.gpuOutDataStartIndex = outDataGPUStartIndex;
@@ -191,7 +192,7 @@ ${this.gpuBiasGradsName}(i) := act;
 		// 	let temp = new Float32Array(this.inSize());
 		// 	temp.fill(0);
 		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
-		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+		// 	Ment.webMonkeys.set(this.gpuGradsArrayName, temp);
 
 		// 	temp = new Float32Array(this.outSize());
 		// 	temp.fill(0);

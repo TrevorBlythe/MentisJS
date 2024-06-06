@@ -1,73 +1,52 @@
 {
 	/*
-		Layer specification:
-
-		Each layer needs an inData and outData array.
-		These arrays should never be replaced because they are shared objects.
-		This means never do this. "this.inData = [];" EXCEPT in the constructor.
-		Replacing the inData or outData array will de-connect the layers.
-
-		Each layer needs a "forward" and a "backward" function. The forward function should
-		be able to take an input array as input or use the data in "this.inData." The same for the 
-		backward function, it should take an array of "expected" values or it should backpropogate
-		based on the cost of the next layer (this.nextLayer.grads).
-
-		REQUIRED FUNCTIONS:
-			inSize()
-			outSize()
-			forward(inData::array)
-			backward(ExpectedOutput::array) -- returns loss of the layer (Expected - outData)^2
-			updateParams(optimizer::string) // optimizer examples: "SGD" "adam" "adagrad" "adadelta"
-			save() -- returns json string of layer
-
-		REQUIRED STATIC FUNCTIONS:
-			load(json) -- returns a layer  EX: FCLayer.load(layer.save()); //makes a copy of "layer"
-			
-		REQUIRED FEILDS:
-			inData:Float64Array
-			outData:Float64Array
-			grads:Float64Array -- the error value of each input neuron
-			
-			----Everything above is the bare minimum for your layer to work at all--------------
-			
-		NOT REQUIRED FUNCTIONS:
-			inSizeDimensions() -- returns array of dimensions i.e. [28,28,3], 
-			this function is used to print layers prettier
-			outSizeDimensions()
-			
-		FEILDS SET BY NET OBJECT:
-			nextLayer -- a reference to the layer after
-			previousLayer -- a reference to preceding layer		
-			you dont have to implement these, they will be set by the net object
-
-		FUNCTIONS FOR EVOLOUTION BASED LEARNING TO WORK:
-			mutate(mutationRate::float, mutationIntensity::float)
-			only required if you want to "evolve" a network
-
-		
-			If you have all this your layer should work inside a real net!
-			If you want it to work for gpu you need to implement the gpu version of the layer
-		
-
+		This is like the FC Layer except it uses a sparse matrix
+		YOU CAN CONSTRUCT IN TWO WAYS
+		SparseLayer(InSize, OutSize, useBias)
+		SparseLayer(FCLayer, Density) // higher density means more weights (0.5 is 50% of the weights are used)
+		//weights get culled off
 	*/
 
-	class FCLayer {
+	class SparseLayer {
 		constructor(inSize, outSize, useBias) {
+			console.log("Dont use SparseLayer i havent fully implemented it yet and it 100% does not work.");
+			if (inSize.constructor.name == "FCLayer") {
+				let layer = inSize;
+				let density = outSize;
+				this.useBias = layer.useBias;
+				this.nextLayer = layer.nextLayer;
+				this.inData = new Float64Array(layer.inData);
+				this.outData = new Float64Array(layer.outData);
+				this.w = new Float64Array(layer.w);
+				this.weightIndexes = new Float64Array(layer.outSize());
+				//fill weightIndexes with 1,2,3,4.....layer.outSize()
+				for (var i = 0; i < layer.outSize(); i++) {
+					this.weightIndexes[i] = i;
+				}
+				this.b = new Float64Array(layer.b);
+				this.ws = new Float64Array(layer.ws);
+				this.bs = new Float64Array(layer.bs);
+				this.grads = new Float64Array(layer.grads);
+				this.cullWeights(density);
+				return;
+			}
 			this.useBias = useBias == undefined ? true : useBias;
-			this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
-			this.bs = new Float64Array(outSize); //the bias sensitivities to error
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(inSize); //the inData
 			this.outData = new Float64Array(outSize);
-			this.w = new Float64Array(inSize * outSize); //this will store the weights
+
+			this.w = new Float64Array(inSize * outSize); //this will store the weights, in no particular order
+			//but the index of the weights does correspond the in the input data index it is connected to
+			this.weightIndexes = new Float64Array(inSize * outSize); //this will store the index of the outData the weight connects to
 			this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
+			this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
+			this.bs = new Float64Array(outSize); //the bias sensitivities to error
 			this.grads = new Float64Array(inSize); //grads for each neuron
 
 			for (var j = 0; j < inSize; j++) {
 				//----init random weights
 				for (var h = 0; h < outSize; h++) {
-					// this.w[h + j * outSize] = Math.sqrt(1.0 / inSize) * (Math.random() - 0.5) * 2;
-					this.w[h + j * outSize] = (Math.random() - 0.5) * 2;
+					this.w[h + j * outSize] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
 					this.ws[h + j * outSize] = 0;
 				}
 			} // ---- end init weights
@@ -131,8 +110,8 @@
 				grads[i] = 0;
 				for (var j = 0; j < outSize; j++) {
 					//activation times error = change to the weight.
-					weightGrads[j + i * outSize] += inData[i] * err[j];
-					grads[i] += weights[j + i * outSize] * err[j];
+					weightGrads[j + i * outSize] += inData[i] * err[j] * 2;
+					grads[i] += weights[j + i * outSize] * err[j] * 2;
 				}
 			}
 
@@ -140,9 +119,9 @@
 				biasGrads[j] += err[j]; //bias grad so easy
 			}
 			//finish averaging the grads : required code
-			// for (var i = 0; i < inSize; i++) {
-			// 	grads[i] = grads[i] / outSize;
-			// }
+			for (var i = 0; i < inSize; i++) {
+				grads[i] = grads[i] / outSize;
+			}
 		}
 
 		inSize() {
@@ -214,7 +193,7 @@
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new FCLayer(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
+			let layer = new SparseLayer(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
 			for (var i = 0; i < layer.w.length; i++) {
 				layer.w[i] = saveObject.w[i];
 			}
@@ -227,6 +206,6 @@
 		}
 	}
 
-	Ment.FCLayer = FCLayer;
-	Ment.FC = FCLayer;
+	Ment.SparseLayer = SparseLayer;
+	Ment.Sparse = SparseLayer;
 }

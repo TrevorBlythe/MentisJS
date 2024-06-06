@@ -1,7 +1,5 @@
 {
 	class DeconvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -40,17 +38,15 @@
 			this.outData = new Float64Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
-			this.costs = new Float64Array(this.inData.length);
+			this.grads = new Float64Array(this.inData.length);
 			this.b = new Float64Array(this.outData.length);
 			this.bs = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.inData.length);
-			this.makeAccessedMap();
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
-			//init random weights
+			// init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = (1 * Math.random() * (Math.random() > 0.5 ? -1 : 1)) / this.filters;
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
 			}
 
 			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
@@ -103,6 +99,11 @@
 			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
 		}
 
+		reInitializeFilter(index) {
+			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+			}
+		}
 		inSize() {
 			return this.inData.length;
 		}
@@ -178,10 +179,10 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0); //reset the costs
-			const costs = this.costs;
+			this.grads.fill(0); //reset the grads
+			const grads = this.grads;
 			const inData = this.inData;
 			const filterw = this.filterw;
 			const filterws = this.filterws;
@@ -208,8 +209,8 @@
 								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
 								const jFWHFWIH = j * filterWidth + hFWIH;
 								for (var k = 0; k < filterWidth; k++) {
-									costs[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
-									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA] * 2;
+									grads[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
+									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -219,36 +220,6 @@
 
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += err[i];
-			}
-			if (DeconvLayer.averageOutCosts) {
-				for (var i = 0; i < this.inData.length; i++) {
-					costs[i] = costs[i] / this.accessed[i];
-				}
-			}
-		}
-
-		makeAccessedMap() {
-			this.accessed.fill(0);
-			for (var i = 0; i < this.filters; i++) {
-				const iHMFWMF = i * this.hMFWMF;
-				for (var g = 0; g < this.hMFHPO; g++) {
-					const gWMFWPO = g * this.wMFWPO;
-					for (var b = 0; b < this.wMFWPO; b++) {
-						const odi = b + gWMFWPO + iHMFWMF;
-						for (var h = 0; h < this.inDepth; h++) {
-							for (var j = 0; j < this.filterHeight; j++) {
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.accessed[odi]++;
-								}
-							}
-						}
-					}
-				}
-			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] < 0) {
-					this.accessed[i] = 1; //prevent divide by zero
-				}
 			}
 		}
 
@@ -273,13 +244,13 @@
 					key == "filterws" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "accessed" ||
 					key == "pl" ||
 					key == "bs" ||
 					key == "ws" ||

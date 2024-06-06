@@ -91,7 +91,7 @@ var Ment = Ment || {};
 				// );
 				this.layers[i].gpuInDataName = activationIds[i];
 				this.layers[i].gpuOutDataName = activationIds[i + 1];
-				this.layers[i].gpuCostsArrayName = activationErrorIds[i];
+				this.layers[i].gpuGradsArrayName = activationErrorIds[i];
 				Ment.webMonkeys.set(activationErrorIds[i], this.layers[i].inSize());
 
 				this.layers[i].gpuErrorArrayName = activationErrorIds[i + 1];
@@ -109,7 +109,7 @@ var Ment = Ment || {};
 			Ment.webMonkeys.set(activationsId, runningTotal);
 			this.layers[this.layers.length - 1].gpuInDataName = activationIds[this.layers.length - 1];
 			this.layers[this.layers.length - 1].gpuOutDataName = activationIds[this.layers.length];
-			this.layers[this.layers.length - 1].gpuCostsArrayName = activationErrorIds[this.layers.length - 1];
+			this.layers[this.layers.length - 1].gpuGradsArrayName = activationErrorIds[this.layers.length - 1];
 			Ment.webMonkeys.set(activationErrorIds[this.layers.length - 1], this.layers[this.layers.length - 1].inSize());
 			this.layers[this.layers.length - 1].gpuErrorArrayName = activationErrorIds[this.layers.length];
 			Ment.webMonkeys.set(activationErrorIds[this.layers.length], this.layers[this.layers.length - 1].outSize());
@@ -255,8 +255,8 @@ ${lastLayer.gpuErrorArrayName}(i) := ${this.gpuLastLayerExpectedArrayName}(i) - 
 			lastLayer.backward(); //no need to pass in the error, the above code sets it all up
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				//it automatically grabs the calcualted error from the layer ahead.
-				//Would work the same as if you did backward(nextlayer.costs)
-				//Costs represent the error of the indata neurons
+				//Would work the same as if you did backward(nextlayer.grads)
+				//Grads represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;

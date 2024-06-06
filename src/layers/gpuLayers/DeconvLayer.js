@@ -1,6 +1,6 @@
 {
 	class DeconvLayerGPU {
-		static averageOutCosts = true;
+		static averageOutGrads = true;
 		static averageOutGrads = true;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
@@ -78,7 +78,7 @@
 			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
 
-			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the grads
 
 			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
 			this.gpuBiasGradsName = Ment.makeid(8);
@@ -273,7 +273,7 @@ int ba = bfromi * ${this.stride};
 int hWIH = hfromi * ${this.wIH};
 int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
 
-act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA) * 2.0;
+act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA);
 
 
 
@@ -320,7 +320,7 @@ for (int h = 0; h < ${this.inDepth}; h++) {
 
 ;
 
-${this.gpuCostsArrayName}(odi) := act;
+${this.gpuGradsArrayName}(odi) := act;
 				`
 			);
 		}
@@ -361,8 +361,9 @@ ${this.gpuCostsArrayName}(odi) := act;
 					key == "gpuAccessedMap" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -373,7 +374,7 @@ ${this.gpuCostsArrayName}(odi) := act;
 					key == "ws" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "hMFHPO" ||
 					key == "wMFWPO" ||

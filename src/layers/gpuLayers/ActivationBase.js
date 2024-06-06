@@ -36,12 +36,13 @@
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuBiasName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "gpuBiasGradsName" ||
 					key == "gpuWeightsName" ||

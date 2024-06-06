@@ -104,7 +104,7 @@ var Ment = Ment || {};
 				}
 
 				if (layer.constructor.name == "RecReceiverLayer") {
-					layer.savedCostsForEmitter.fill(0);
+					layer.savedGradsForEmitter.fill(0);
 				}
 			}
 		}
@@ -122,7 +122,7 @@ var Ment = Ment || {};
 			//expected represents error if backProperrorInstead == true
 
 			//in rnns we might not have an expected array.. in this case..
-			//backprop the error (first layers costs) from the "next iteration" (n+1).
+			//backprop the error (first layers grads) from the "next iteration" (n+1).
 			//this will only work if the indata and outdata of the network are the same size.
 			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
@@ -133,7 +133,7 @@ var Ment = Ment || {};
 				}
 				expected = new Float64Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
+					expected[i] = this.layers[0].grads[i]; //from now on "expected" will represent backprop gradient or error.
 				}
 				backPropErrorInstead = true;
 			}

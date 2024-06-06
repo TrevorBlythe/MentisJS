@@ -6,7 +6,7 @@
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(0); //the inData
 			this.outData = new Float64Array(0); //will be init when "connect" is called.
-			this.costs = new Float64Array(0); //costs for each neuron
+			this.grads = new Float64Array(0); //grads for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.savedOutData;
@@ -22,7 +22,7 @@
 				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween and giving it a size)";
 			}
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 
 			this.outData = new Float64Array(layer.outSize());
@@ -61,11 +61,11 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outData.length; j++) {
-				this.costs[j] = (err[j] + this.costsFromReceiver[j]) / 2;
+				this.grads[j] = (err[j] + this.gradsFromReceiver[j]) / 2;
 			}
 		}
 
@@ -86,14 +86,15 @@
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "bs" ||
 					key == "ws" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "emitter" ||
-					key == "costsFromReceiver"
+					key == "gradsFromReceiver"
 				) {
 					return undefined;
 				}

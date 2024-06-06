@@ -21,8 +21,8 @@
 			this.outDepth = outDepth;
 			this.inData.fill(0);
 			this.outData.fill(0);
-			this.costs = new Float64Array(this.inData.length);
-			this.costs.fill(0);
+			this.grads = new Float64Array(this.inData.length);
+			this.grads.fill(0);
 		}
 
 		forward(inData) {
@@ -56,14 +56,14 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 			for (var i = 0; i < this.outDepth; i++) {
 				for (var j = 0; j < this.outHeight; j++) {
 					for (var h = 0; h < this.outWidth; h++) {
 						let prop = i * this.outHeight * this.outWidth + j * this.outWidth + h;
-						this.costs[
+						this.grads[
 							(j + 1) * this.pad * 2 +
 								-this.pad +
 								this.pad * (this.outWidth + this.pad * 2) +
@@ -100,12 +100,12 @@
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "pl" ||
-					key == "accessed"
+					key == "pl"
 				) {
 					return undefined;
 				}

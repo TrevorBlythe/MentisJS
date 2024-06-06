@@ -6,7 +6,7 @@
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<link rel="stylesheet" href="../../index.css" />
 		<script src="../../Mentis.js"></script>
-		<script src="../../WebMonkeys.js"></script>
+		<!-- <script src="../../WebMonkeys.js"></script> -->
 		<title>MentisJS</title>
 		<style>
 			* {
@@ -117,7 +117,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						wrongness -= getWrongness(cpuLayer.layers[0].filterws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuFilterWGrads));
 						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
 					
@@ -152,7 +152,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						wrongness -= getWrongness(cpuLayer.layers[0].filterws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuFilterWGrads));
 						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
 
@@ -192,7 +192,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						wrongness -= getWrongness(cpuLayer.layers[0].ws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuWeightsGradsName));
 						wrongness -= getWrongness(cpuLayer.layers[0].bs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuBiasGradsName));
 						console.log(wrongness);
@@ -231,7 +231,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -266,7 +266,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -300,7 +300,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -340,11 +340,11 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 
 						wrongness -= getWrongness(cpuLayer.layers[2].inData, gpuLayer.layers[2].inData);
 						wrongness -= getWrongness(cpuLayer.layers[2].outData, gpuLayer.layers[2].outData);
-						wrongness -= getWrongness(cpuLayer.layers[2].costs, Ment.webMonkeys.get(gpuLayer.layers[2].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[2].grads, Ment.webMonkeys.get(gpuLayer.layers[2].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -367,7 +367,7 @@
 					var testLeaky = () => {
 						
 						var element = document.getElementById('leakyResults');
-						var cpuLayer = new Net([new Ment.LRelu(69)]);
+						var cpuLayer = new Net([new Ment.LRelu(0.01, 69)]);
 						var gpuLayer = NetGPU.load(cpuLayer.save());
 
 						var input = new Float32Array(cpuLayer.layers[0].inSize()); fillRan(input);
@@ -379,7 +379,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -414,7 +414,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -448,7 +448,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -482,7 +482,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -520,7 +520,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						console.log(wrongness);
 
 						element.innerHTML = `
@@ -567,7 +567,7 @@
 						var wrongness = 100;
 						wrongness -= getWrongness(cpuLayer.layers[0].inData, gpuLayer.layers[0].inData);
 						wrongness -= getWrongness(cpuLayer.layers[0].outData, gpuLayer.layers[0].outData);
-						wrongness -= getWrongness(cpuLayer.layers[0].costs, Ment.webMonkeys.get(gpuLayer.layers[0].gpuCostsArrayName));
+						wrongness -= getWrongness(cpuLayer.layers[0].grads, Ment.webMonkeys.get(gpuLayer.layers[0].gpuGradsArrayName));
 						wrongness -= getWrongness(cpuLayer.layers[0].ws, Ment.webMonkeys.get(gpuLayer.layers[0].gpuWeightsGradsName));
 						console.log(wrongness);
 

@@ -3,7 +3,7 @@
 		//yeah these averaging things wont do antyhing cuz i havent implemented them yet
 		//dont worry the layer will still werk
 		//Proggramming this layer right here gave me schizofrinia!!!
-		static averageOutCosts = true; //probs
+		static averageOutGrads = true; //probs
 		static averageOutGrads = true; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
@@ -75,8 +75,6 @@
 
 			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
-
-			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
 
 			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
 			this.gpuBiasGradsName = Ment.makeid(8); //new Float32Array(this.outData.length);
@@ -274,7 +272,7 @@ act += ${this.gpuFilterW}(kfromi + jFWHFWIH) * ${this.gpuErrorArrayName}(odi);
 
 ;
 
-${this.gpuCostsArrayName}(cdi) := act;
+${this.gpuGradsArrayName}(cdi) := act;
 `
 			);
 
@@ -314,7 +312,7 @@ int ba = bfromi * ${this.stride};
 int hWIH = hfromi * ${this.wIH};
 int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
 
-act += ${this.gpuInDataName}(kfromi + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(odi) * 2.0;
+act += ${this.gpuInDataName}(kfromi + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(odi);
 
 
 
@@ -363,8 +361,9 @@ ${this.gpuBiasGradsName}(i) := act;
 					key == "gpuAccessedMap" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -373,7 +372,7 @@ ${this.gpuBiasGradsName}(i) := act;
 					key == "accessed" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "bs" ||
 					key == "ws" ||

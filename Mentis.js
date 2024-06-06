@@ -32,10 +32,17 @@ var Ment = Ment || {};
 			}
 		}
 
-		get outData() {
-			return [...this.layers[this.layers.length - 1].outData];
+		get inSize() {
+			return this.layers[0].inSize();
 		}
 
+		get outData() {
+			return this.layers[this.layers.length - 1].outData;
+		}
+
+		get outSize() {
+			return this.layers[this.layers.length - 1].outSize();
+		}
 		set outData(arr) {
 			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
 				this.layers[this.layers.length - 1].outData = arr;
@@ -55,6 +62,10 @@ var Ment = Ment || {};
 
 			//this function is always safe to call. some data may get reset though.
 
+			for (let i = 0; i < this.layers.length; i++) {
+				this.layers[i].netObject = this;
+			}
+
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].previousLayer = this.layers[i - 1];
 			}
@@ -65,13 +76,21 @@ var Ment = Ment || {};
 
 			for (var i = 0; i < this.layers.length - 1; i++) {
 				if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+					// A very complex error message that simply states that the layers are not connected properly and gives there dimensions. And it the layer doesnt have any
+					//dimensions, it will check the layer before it if it has the same size.
 					throw `Failure connecting ${
 						this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
 					} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
 						i
-					].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
-						this.layers[i + 1].constructor.name
-					} input size: ${this.layers[i + 1].inSize()}${
+					].outSize()}${
+						this.layers[i].outSizeDimensions
+							? " (" + this.layers[i].outSizeDimensions() + ")"
+							: this.layers[i - 1]
+							? this.layers[i - 1].outSizeDimensions && this.layers[i - 1].outSize() == this.layers[i].inSize()
+								? "(" + this.layers[i - 1].outSizeDimensions() + ")"
+								: ""
+							: ""
+					}, ${this.layers[i + 1].constructor.name} input size: ${this.layers[i + 1].inSize()}${
 						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
 					}`;
 				}
@@ -201,8 +220,8 @@ var Ment = Ment || {};
 			lastlayer.backward(err);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				//it automatically grabs the calcualted error from the layer ahead.
-				//Would work the same as if you did backward(nextlayer.costs)
-				//Costs represent the error of the indata neurons
+				//Would work the same as if you did backward(nextlayer.grads)
+				//Grads represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;
@@ -242,6 +261,36 @@ var Ment = Ment || {};
 						}
 					}
 				}
+			}
+		}
+
+		//adjusting this multiplier might help
+		smoothGradients(gradients, multiplier = 0.7) {
+			// 			  """
+			//   Smoothly adjusts gradients in-place based on their distance from the threshold,
+			//   with a target range of 0 (at threshold) to 2 (far from threshold).
+			//   Args:
+			//     gradients: A list of numbers representing the gradients (modified in-place).
+			//     multiplier: A factor to multiply the mean absolute value by (default: 5).
+			//   """
+			// Calculate mean absolute value
+			// let meanAbs = gradients.reduce((sum, value) => sum + Math.abs(value), 0) / gradients.length;
+			//cannot use reduce function
+			let sum = 0;
+			for (let i = 0; i < gradients.length; i++) {
+				sum += Math.abs(gradients[i]);
+			}
+			const meanAbs = sum / gradients.length;
+
+			// console.log(meanAbs);
+			const threshold = meanAbs * multiplier;
+			// Smooth adjustment function (avoids creating a new array)
+			for (let i = 0; i < gradients.length; i++) {
+				const gradient = gradients[i];
+				const distanceFromThreshold = Math.abs(gradient) - meanAbs;
+				const adjustmentFactor = multiplier / (1 + Math.exp(-distanceFromThreshold)); //sigmoid function
+				// console.log(adjustmentFactor);
+				gradients[i] = adjustmentFactor * gradient;
 			}
 		}
 
@@ -348,7 +397,7 @@ var Ment = Ment || {};
 				// );
 				this.layers[i].gpuInDataName = activationIds[i];
 				this.layers[i].gpuOutDataName = activationIds[i + 1];
-				this.layers[i].gpuCostsArrayName = activationErrorIds[i];
+				this.layers[i].gpuGradsArrayName = activationErrorIds[i];
 				Ment.webMonkeys.set(activationErrorIds[i], this.layers[i].inSize());
 
 				this.layers[i].gpuErrorArrayName = activationErrorIds[i + 1];
@@ -366,7 +415,7 @@ var Ment = Ment || {};
 			Ment.webMonkeys.set(activationsId, runningTotal);
 			this.layers[this.layers.length - 1].gpuInDataName = activationIds[this.layers.length - 1];
 			this.layers[this.layers.length - 1].gpuOutDataName = activationIds[this.layers.length];
-			this.layers[this.layers.length - 1].gpuCostsArrayName = activationErrorIds[this.layers.length - 1];
+			this.layers[this.layers.length - 1].gpuGradsArrayName = activationErrorIds[this.layers.length - 1];
 			Ment.webMonkeys.set(activationErrorIds[this.layers.length - 1], this.layers[this.layers.length - 1].inSize());
 			this.layers[this.layers.length - 1].gpuErrorArrayName = activationErrorIds[this.layers.length];
 			Ment.webMonkeys.set(activationErrorIds[this.layers.length], this.layers[this.layers.length - 1].outSize());
@@ -512,8 +561,8 @@ ${lastLayer.gpuErrorArrayName}(i) := ${this.gpuLastLayerExpectedArrayName}(i) - 
 			lastLayer.backward(); //no need to pass in the error, the above code sets it all up
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				//it automatically grabs the calcualted error from the layer ahead.
-				//Would work the same as if you did backward(nextlayer.costs)
-				//Costs represent the error of the indata neurons
+				//Would work the same as if you did backward(nextlayer.grads)
+				//Grads represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;
@@ -735,7 +784,7 @@ var Ment = Ment || {};
 				}
 
 				if (layer.constructor.name == "RecReceiverLayer") {
-					layer.savedCostsForEmitter.fill(0);
+					layer.savedGradsForEmitter.fill(0);
 				}
 			}
 		}
@@ -753,7 +802,7 @@ var Ment = Ment || {};
 			//expected represents error if backProperrorInstead == true
 
 			//in rnns we might not have an expected array.. in this case..
-			//backprop the error (first layers costs) from the "next iteration" (n+1).
+			//backprop the error (first layers grads) from the "next iteration" (n+1).
 			//this will only work if the indata and outdata of the network are the same size.
 			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
@@ -764,7 +813,7 @@ var Ment = Ment || {};
 				}
 				expected = new Float64Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				for (var i = 0; i < this.layers[0].inSize(); i++) {
-					expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
+					expected[i] = this.layers[0].grads[i]; //from now on "expected" will represent backprop gradient or error.
 				}
 				backPropErrorInstead = true;
 			}
@@ -874,7 +923,7 @@ ${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
 			// 		layer.savedOutData.fill(0);
 			// 	}
 			// 	if (layer.constructor.name == "RecReceiverLayer") {
-			// 		layer.savedCostsForEmitter.fill(0);
+			// 		layer.savedGradsForEmitter.fill(0);
 			// 	}
 			// }
 		}
@@ -892,7 +941,7 @@ ${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
 			//expected represents error if backProperrorInstead == true
 
 			//in rnns we might not have an expected array.. in this case..
-			//backprop the error (first layers costs) from the "next iteration" (n+1).
+			//backprop the error (first layers grads) from the "next iteration" (n+1).
 			//this will only work if the indata and outdata of the network are the same size.
 			//This means you must specify a Final output at least, which makes sense.
 			//you could have a network with different in/out sizes but you would need to specify
@@ -903,13 +952,13 @@ ${this.layers[0].gpuInDataName}(i + ${this.layers[0].gpuInDataStartIndex}) := ${
 				}
 				// expected = new Float32Array(this.layers[0].inSize()); //maybe could just set it as reference instead of copy???
 				// for (var i = 0; i < this.layers[0].inSize(); i++) {
-				// 	expected[i] = this.layers[0].costs[i]; //from now on "expected" will represent backprop gradient or error.
+				// 	expected[i] = this.layers[0].grads[i]; //from now on "expected" will represent backprop gradient or error.
 				// }
 				// backPropErrorInstead = true;
 				Ment.webMonkeys.work(
 					this.layers[0].inSize(),
 					`
-${this.layers[this.layers.length - 1].gpuErrorArrayName}(i) := ${this.layers[0].gpuCostsArrayName}(i);
+${this.layers[this.layers.length - 1].gpuErrorArrayName}(i) := ${this.layers[0].gpuGradsArrayName}(i);
 				`
 				);
 			}
@@ -1016,9 +1065,7 @@ var Ment = Ment || {};
 	var isBrowser = () => !(typeof window === "undefined");
 	//wrap everything in a namespace to not pollute global
 
-	let clamp = function (num, min, max) {
-		min = min | 0;
-		max = max | 1;
+	let clamp = function (num, min = 0, max = 1) {
 		return Math.max(Math.min(num, max), min);
 	};
 
@@ -1027,7 +1074,7 @@ var Ment = Ment || {};
 	};
 
 	let bounce = function (num, minmax) {
-		minmax = minmax | 3;
+		minmax = minmax || 3;
 		if (Math.abs(num) > minmax) {
 			var t = (minmax * num) / Math.abs(num);
 			num = t - (num - t);
@@ -1082,8 +1129,8 @@ var Ment = Ment || {};
 		const ctx = options.ctx;
 		const x = options.x;
 		const y = options.y;
-		const scale = options.scale | 20;
-		const spread = options.spread | 3;
+		const scale = options.scale || 20;
+		const spread = options.spread || 3;
 		let background = options.background;
 		if (background == undefined) {
 			background = "white";
@@ -1184,8 +1231,8 @@ var Ment = Ment || {};
 			ctx.restore();
 			if (layer.outSizeDimensions && options.showAsImage) {
 				wid = layer.outSizeDimensions()[0];
-				hei = layer.outSizeDimensions()[1] | 1;
-				dep = layer.outSizeDimensions()[2] | 1;
+				hei = layer.outSizeDimensions()[1] || 1;
+				dep = layer.outSizeDimensions()[2] || 1;
 				for (var g = 0; g < dep; g++) {
 					for (var h = 0; h < hei; h++) {
 						for (var j = 0; j < wid; j++) {
@@ -1211,7 +1258,7 @@ var Ment = Ment || {};
 		let x = options.x;
 		let y = options.y;
 		let scale = options.scale;
-		let spread = options.spread | 3; //pixel space between layers default is 3 pixels
+		let spread = options.spread || 3; //pixel space between layers default is 3 pixels
 		let background = options.background;
 
 		let maxSize = 1;
@@ -2056,7 +2103,7 @@ var Ment = Ment || {};
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(size);
 			this.outData = new Float64Array(size);
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -2069,7 +2116,7 @@ var Ment = Ment || {};
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -2100,11 +2147,11 @@ var Ment = Ment || {};
 
 		backward(err, actFunctionPrime) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
-				this.costs[j] = err[j] * actFunctionPrime(this.inData[j]);
+				this.grads[j] = err[j] * actFunctionPrime(this.inData[j]);
 			}
 		}
 
@@ -2115,8 +2162,9 @@ var Ment = Ment || {};
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl"
@@ -2171,9 +2219,9 @@ var Ment = Ment || {};
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.costs.length).fill(1);
+			this.accessed = new Float64Array(this.grads.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Average Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -2239,16 +2287,16 @@ var Ment = Ment || {};
 		}
 
 		backward(err) {
-			this.costs.fill(0);
+			this.grads.fill(0);
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						this.costs[this.maxIndexes[odi]] += err[odi];
+						this.grads[this.maxIndexes[odi]] += err[odi];
 						this.accessed[this.maxIndexes[odi]]++;
 					}
 				}
@@ -2264,15 +2312,15 @@ var Ment = Ment || {};
 						for (var j = 0; j < this.filterHeight; j++) {
 							const jGAIWBA = (j + ga) * this.inWidth + hWIH;
 							for (var k = 0; k < this.filterWidth; k++) {
-								this.costs[k + jGAIWBA] += err[odi];
+								this.grads[k + jGAIWBA] += err[odi];
 								this.accessed[k + jGAIWBA] += 1;
 							}
 						}
 					}
 				}
 			}
-			for (var i = 0; i < this.costs.length; i++) {
-				this.costs[i] /= this.accessed[i] + this.filterWidth * this.filterHeight; //Average the grad
+			for (var i = 0; i < this.grads.length; i++) {
+				this.grads[i] /= this.accessed[i] + this.filterWidth * this.filterHeight; //Average the grad
 				this.accessed[i] = 0;
 			}
 		}
@@ -2281,8 +2329,9 @@ var Ment = Ment || {};
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -2327,7 +2376,7 @@ var Ment = Ment || {};
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
 			this.b = new Float64Array(size);
 			this.bs = new Float64Array(size);
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -2343,7 +2392,7 @@ var Ment = Ment || {};
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 				this.b = new Float64Array(layer.outSize());
 				this.bs = new Float64Array(layer.outSize());
 				for (var i = 0; i < this.b.length; i++) {
@@ -2369,10 +2418,10 @@ var Ment = Ment || {};
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var j = 0; j < this.outData.length; j++) {
-				this.costs[j] = err[j];
+				this.grads[j] = err[j];
 				this.bs[j] += err[j];
 			}
 		}
@@ -2393,8 +2442,9 @@ var Ment = Ment || {};
 				if (
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
 				) {
@@ -2448,7 +2498,7 @@ Im sorry but I had to choose one
 */
 
 	class ConvLayer {
-		static averageOutCosts = false; //probs
+		static averageOutGrads = false; //probs
 		static averageOutGrads = false; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
@@ -2484,19 +2534,17 @@ Im sorry but I had to choose one
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.accessed = new Float64Array(this.inData.length); //to average out the costs
-			this.createAccessedMap();
 			this.inData.fill(0); //to prevent mishap
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.b = new Float64Array(this.outData.length);
 			this.bs = new Float64Array(this.outData.length);
 			this.useBias = bias;
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
-			//init random weights
+			// init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = (1 * Math.random() * (Math.random() > 0.5 ? -1 : 1)) / this.filters;
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
 			}
 
 			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
@@ -2547,6 +2595,12 @@ Im sorry but I had to choose one
 			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
 			this.fWIH = this.filterWidth * this.filterHeight;
 			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+		}
+
+		reInitializeFilter(index) {
+			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+			}
 		}
 
 		inSize() {
@@ -2618,9 +2672,9 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0); //reset the costs
+			this.grads.fill(0); //reset the grads
 			const inData = this.inData;
 			const filterw = this.filterw;
 			const filterws = this.filterws;
@@ -2631,7 +2685,7 @@ Im sorry but I had to choose one
 			const wIH = this.wIH;
 			const fWIH = this.fWIH;
 			const stride = this.stride;
-			const costs = this.costs;
+			const grads = this.grads;
 
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
@@ -2650,8 +2704,8 @@ Im sorry but I had to choose one
 								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
 								const jFWHFWIH = j * filterWidth + hFWIH;
 								for (var k = 0; k < filterWidth; k++) {
-									costs[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
-									filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi] * 2;
+									grads[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
+									filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
 								}
 							}
 						}
@@ -2662,52 +2716,9 @@ Im sorry but I had to choose one
 			for (var i = 0; i < this.outSize(); i++) {
 				this.bs[i] += err[i];
 			}
-			if (ConvLayer.averageOutCosts) {
-				for (var i = 0; i < costs.length; i++) {
-					costs[i] /= this.accessed[i];
-				}
-			}
-		}
-
-		createAccessedMap() {
-			//This function creates an array the same size as the input image.
-			//The values will represent the amount of times a kernel touches that particular pixel.
-			//This is good to compute before hand so you can save on compute time.
-			//We need these values for the sole purpose of averaging out the error of the input image
-			this.accessed.fill(0);
-			for (var i = 0; i < this.filters; i++) {
-				const iHMFWMF = i * this.hMFWMF;
-				const iFWIHID = i * this.fWIHID;
-				for (var g = 0; g < this.hMFHPO; g++) {
-					const ga = g * stride;
-					const gWMFWPO = g * this.wMFWPO;
-					for (var b = 0; b < this.wMFWPO; b++) {
-						const odi = b + gWMFWPO + iHMFWMF;
-						const ba = b * stride;
-						for (var h = 0; h < inDepth; h++) {
-							const hWIH = h * wIH;
-							const hFWIH = h * fWIH + iFWIHID;
-							for (var j = 0; j < filterHeight; j++) {
-								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
-								const jFWHFWIH = j * filterWidth + hFWIH;
-								for (var k = 0; k < filterWidth; k++) {
-									this.accessed[k + jGAIWBA]++;
-								}
-							}
-						}
-					}
-				}
-			}
 		}
 
 		getParamsAndGrads(forUpdate = true) {
-			if (forUpdate) {
-				if (ConvLayer.averageOutGrads) {
-					for (var i = 0; i < this.filterws.length; i++) {
-						this.filterws[i] /= this.filters;
-					}
-				}
-			}
 			if (this.useBias) {
 				return [this.filterw, this.filterws, this.b, this.bs];
 			} else {
@@ -2721,14 +2732,14 @@ Im sorry but I had to choose one
 					key == "filterws" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl" ||
-					key == "accessed" ||
 					key == "bs" ||
 					key == "ws" ||
 					key == "hMFHPO" ||
@@ -2775,13 +2786,320 @@ Im sorry but I had to choose one
 }
 
 {
+	class ConvParamLayer {
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true, filterInputSize = 3, filterNetDepth = 1) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.useBias = useBias;
+
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.outData = new Float64Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
+			this.outData.fill(0); //to prevent mishap
+			this.grads = new Float64Array(this.inData.length);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+
+			this.filterWArrays = [];
+			// this.filterWArrays.push(filterArchitecture);
+			// if (this.filterWArrays[0].outSize != filterWidth * filterHeight * inDepth) {
+			// 	let layer = this.filterWArrays[0];
+			// 	throw `Filter architecture wrong for layer ${this.constructor.name + " " + this.id} : ${
+			// 		layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize
+			// 	} but expected size ${filterWidth * filterHeight * inDepth}`;
+			// }
+			// this.filterWArrays[0].errArr = new Float64Array(filterWidth * filterHeight * inDepth);
+			for (var i = 0; i < filters; i++) {
+				var filterNetLayers = [];
+				filterNetLayers.push(new Ment.FCLayer(filterInputSize, filterWidth * filterHeight * inDepth));
+
+				for (var j = 1; j < filterNetDepth; j++) {
+					filterNetLayers.push(new Ment.Tanh()); //tanh so the generated weights are between -1 and 1
+					filterNetLayers.push(new Ment.FCLayer(filterWidth * filterHeight * inDepth, filterWidth * filterHeight * inDepth));
+				}
+				this.filterWArrays.push(new Ment.Net(filterNetLayers, new Ment.SGD()));
+				this.filterWArrays[i].errArr = new Float64Array(filterWidth * filterHeight * inDepth);
+				this.filterWArrays[i].learningRate = 0.0;
+				//the training/learning will be handled by the parent layer so we set the learning rate to 0
+				//the parent layer will act as a proxy to the params/grads with the
+				//getParamsAndGrads function
+				this.filterWArrays[i].batchSize = Infinity;
+			}
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+		}
+
+		forwardFilter(input) {
+			for (var i = 0; i < this.filters; i++) {
+				this.filterWArrays[i].forward(input);
+			}
+		}
+
+		setFilterFeild(feild, value) {
+			for (var i = 0; i < this.filters; i++) {
+				this.filterWArrays[i][feild] = value;
+			}
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		inSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		outSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
+				}
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
+				}
+			}
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			outData.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						outData[odi] += biases[odi];
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH; // + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[odi] += inData[k + jGAIWBA] * this.filterWArrays[i].outData[k + jFWHFWIH];
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.grads;
+			}
+			this.grads.fill(0); //reset the grads
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			const grads = this.grads;
+
+			//-----------------------------Beginning of monstrosity-----------------
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH; // + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									grads[k + jGAIWBA] += this.filterWArrays[i].outData[k + jFWHFWIH] * err[odi];
+									this.filterWArrays[i].errArr[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
+								}
+							}
+						}
+					}
+				}
+			}
+			for (var i = 0; i < this.filters; i++) {
+				this.filterWArrays[i].backward(this.filterWArrays[i].errArr, false, true);
+				//reset error
+				// console.log(this.filterWArrays[i].err);
+				this.filterWArrays[i].errArr.fill(0.0);
+			}
+			//---------------------------------End of monstrosity-----------------
+			for (var i = 0; i < this.outSize(); i++) {
+				this.bs[i] += err[i];
+			}
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			let ret = [];
+			for (var i = 0; i < this.filterWArrays.length; i++) {
+				let tempPag = this.filterWArrays[i].getParamsAndGrads();
+				for (var j = 0; j < tempPag.length; j++) {
+					ret.push(tempPag[j]);
+				}
+			}
+			if (this.useBias) {
+				ret.push(this.b);
+				ret.push(this.bs);
+				return ret;
+			} else {
+				return ret;
+			}
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "netObject" ||
+					key == "outData" ||
+					key == "grads" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b") ||
+					key == "filterWArrays"
+				) {
+					if (key == "filterWArrays") {
+						let rett = [];
+						for (var i = 0; i < value.length; i++) {
+							rett.push(value[i].save());
+						}
+						return rett;
+					}
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
+			let saveObject = JSON.parse(json);
+			let layer = new ConvParamLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias,
+				saveObject.filterWArrays[0].inSize
+			);
+			// console.log(saveObject.filterWArrays);
+			if (saveObject.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
+			for (var i = 0; i < layer.filterWArrays.length; i++) {
+				layer.filterWArrays[i] = Ment.Net.load(saveObject.filterWArrays[i]);
+				layer.filterWArrays[i].errArr = new Float64Array(saveObject.filterWidth * saveObject.filterHeight * saveObject.inDepth);
+				layer.filterWArrays[i].learningRate = 0;
+				layer.filterWArrays[i].batchSize = Infinity;
+			}
+			return layer;
+		}
+	}
+
+	Ment.convParamLayer = ConvParamLayer;
+	Ment.ConvParamLayer = ConvParamLayer;
+	Ment.convParam = ConvParamLayer;
+	Ment.ConvParam = ConvParamLayer;
+
+	//only uncomment if you know what your doing
+}
+
+{
 	class DataBlockLayer {
 		//this layer outputs the inputs with no changes
 		constructor(size) {
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(size); //the inData
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -2794,7 +3112,7 @@ Im sorry but I had to choose one
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -2812,7 +3130,7 @@ Im sorry but I had to choose one
 		}
 
 		backward(err) {
-			this.costs.fill(0); //best layer
+			this.grads.fill(0); //best layer
 		}
 
 		inSize() {
@@ -2830,9 +3148,10 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
 				) {
@@ -2863,8 +3182,6 @@ Im sorry but I had to choose one
 
 {
 	class DeconvLayer {
-		static averageOutCosts = false;
-		static averageOutGrads = false;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
 				throw (
@@ -2903,17 +3220,15 @@ Im sorry but I had to choose one
 			this.outData = new Float64Array(inWidth * inHeight * inDepth);
 			this.inData.fill(0); //to prevent mishap
 			this.outData.fill(0); //to prevent mishap
-			this.costs = new Float64Array(this.inData.length);
+			this.grads = new Float64Array(this.inData.length);
 			this.b = new Float64Array(this.outData.length);
 			this.bs = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.inData.length);
-			this.makeAccessedMap();
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
-			//init random weights
+			// init random weights
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = (1 * Math.random() * (Math.random() > 0.5 ? -1 : 1)) / this.filters;
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
 			}
 
 			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
@@ -2966,6 +3281,11 @@ Im sorry but I had to choose one
 			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
 		}
 
+		reInitializeFilter(index) {
+			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+			}
+		}
 		inSize() {
 			return this.inData.length;
 		}
@@ -3041,10 +3361,10 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0); //reset the costs
-			const costs = this.costs;
+			this.grads.fill(0); //reset the grads
+			const grads = this.grads;
 			const inData = this.inData;
 			const filterw = this.filterw;
 			const filterws = this.filterws;
@@ -3071,8 +3391,8 @@ Im sorry but I had to choose one
 								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
 								const jFWHFWIH = j * filterWidth + hFWIH;
 								for (var k = 0; k < filterWidth; k++) {
-									costs[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
-									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA] * 2;
+									grads[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
+									filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
 								}
 							}
 						}
@@ -3082,36 +3402,6 @@ Im sorry but I had to choose one
 
 			for (var i = 0; i < this.outData.length; i++) {
 				this.bs[i] += err[i];
-			}
-			if (DeconvLayer.averageOutCosts) {
-				for (var i = 0; i < this.inData.length; i++) {
-					costs[i] = costs[i] / this.accessed[i];
-				}
-			}
-		}
-
-		makeAccessedMap() {
-			this.accessed.fill(0);
-			for (var i = 0; i < this.filters; i++) {
-				const iHMFWMF = i * this.hMFWMF;
-				for (var g = 0; g < this.hMFHPO; g++) {
-					const gWMFWPO = g * this.wMFWPO;
-					for (var b = 0; b < this.wMFWPO; b++) {
-						const odi = b + gWMFWPO + iHMFWMF;
-						for (var h = 0; h < this.inDepth; h++) {
-							for (var j = 0; j < this.filterHeight; j++) {
-								for (var k = 0; k < this.filterWidth; k++) {
-									this.accessed[odi]++;
-								}
-							}
-						}
-					}
-				}
-			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] < 0) {
-					this.accessed[i] = 1; //prevent divide by zero
-				}
 			}
 		}
 
@@ -3136,13 +3426,13 @@ Im sorry but I had to choose one
 					key == "filterws" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "accessed" ||
 					key == "pl" ||
 					key == "bs" ||
 					key == "ws" ||
@@ -3195,6 +3485,302 @@ Im sorry but I had to choose one
 }
 
 {
+	class DeconvParamLayer {
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true, filterInputSize = 3, filterNetDepth = 1) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.useBias = useBias;
+
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterInputSize = filterInputSize;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.inData = new Float64Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			this.outData = new Float64Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
+			this.outData.fill(0); //to prevent mishap
+			this.grads = new Float64Array(this.inData.length);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+
+			this.filterWArrays = [];
+			// this.filterWArrays.push(filterArchitecture);
+			// if (this.filterWArrays[0].outSize != filterWidth * filterHeight * inDepth) {
+			// 	let layer = this.filterWArrays[0];
+			// 	throw `Filter architecture wrong for layer ${this.constructor.name + " " + this.id} : ${
+			// 		layer.outSizeDimensions ? "," + layer.outSizeDimensions() : layer.outSize
+			// 	} but expected size ${filterWidth * filterHeight * inDepth}`;
+			// }
+			// this.filterWArrays[0].errArr = new Float64Array(filterWidth * filterHeight * inDepth);
+			for (var i = 0; i < filters; i++) {
+				var filterNetLayers = [];
+				filterNetLayers.push(new Ment.FCLayer(filterInputSize, filterWidth * filterHeight * inDepth));
+				for (var j = 1; j < filterNetDepth; j++) {
+					filterNetLayers.push(new Ment.Tanh()); //tanh so the generated weights are between -1 and 1
+					filterNetLayers.push(new Ment.FCLayer(filterWidth * filterHeight * inDepth, filterWidth * filterHeight * inDepth));
+				}
+				this.filterWArrays.push(new Ment.Net(filterNetLayers, new Ment.SGD()));
+				this.filterWArrays[i].errArr = new Float64Array(filterWidth * filterHeight * inDepth);
+				this.filterWArrays[i].learningRate = 0.0;
+				//the training/learning will be handled by the parent layer so we set the learning rate to 0
+				//the parent layer will act as a proxy to the params/grads with the
+				//getParamsAndGrads function
+				this.filterWArrays[i].batchSize = Infinity;
+			}
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+		}
+
+		forwardFilter(input) {
+			for (var i = 0; i < this.filters; i++) {
+				// console.log(this.filterWArrays[i].outData);
+				this.filterWArrays[i].forward(input);
+			}
+		}
+
+		setFilterFeild(feild, value) {
+			for (var i = 0; i < this.filters; i++) {
+				this.filterWArrays[i][feild] = value;
+			}
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		outSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		inSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw Ment.inputError(this, input);
+				}
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
+				}
+			}
+
+			this.outData.fill(0);
+			const inData = this.inData;
+			const outData = this.outData;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+
+			//-------------Beginning of monstrosity-----------------
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH + ba;
+							const hFWIH = h * fWIH; // + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									outData[k + jGAIWBA] += inData[odi] * this.filterWArrays[i].outData[k + jFWHFWIH];
+								}
+							}
+						}
+					}
+				}
+			}
+			//-------------End of monstrosity-----------------
+
+			for (var i = 0; i < outData.length; i++) {
+				outData[i] += this.b[i];
+			}
+		}
+
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.grads;
+			}
+			this.grads.fill(0); //reset the grads
+
+			const grads = this.grads;
+			const inData = this.inData;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIHID;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						for (var h = 0; h < inDepth; h++) {
+							const hWIH = h * wIH;
+							const hFWIH = h * fWIH; // + iFWIHID;
+							for (var j = 0; j < filterHeight; j++) {
+								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+								const jFWHFWIH = j * filterWidth + hFWIH;
+								for (var k = 0; k < filterWidth; k++) {
+									grads[odi] += this.filterWArrays[i].layers[0].outData[k + jFWHFWIH] * err[k + jGAIWBA];
+									this.filterWArrays[i].errArr[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
+								}
+							}
+						}
+					}
+				}
+			}
+
+			//backprop all the filters
+			for (var i = 0; i < this.filters; i++) {
+				this.filterWArrays[i].backward(this.filterWArrays[i].errArr, false, true);
+				//reset error
+				// console.log(this.filterWArrays[i].err);
+				this.filterWArrays[i].errArr.fill(0.0);
+			}
+			for (var i = 0; i < this.outData.length; i++) {
+				this.bs[i] += err[i];
+			}
+		}
+
+		save() {
+			//FUTURE ME FIX THIS
+			//It is saving useless information and taking up space
+			// in the json file fix it l8er
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "netObject" ||
+					key == "outData" ||
+					key == "grads" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b") ||
+					key == "filterWArrays"
+				) {
+					if (key == "filterWArrays") {
+						let rett = [];
+						for (var i = 0; i < value.length; i++) {
+							rett.push(value[i].save());
+						}
+						return rett;
+					}
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
+			let saveObject = JSON.parse(json);
+			// console.log();
+			let layer = new DeconvParamLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias,
+				saveObject.filterInputSize
+			);
+			// console.log(saveObject.filterWArrays);
+			if (saveObject.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
+			for (var i = 0; i < layer.filterWArrays.length; i++) {
+				layer.filterWArrays[i] = Ment.Net.load(saveObject.filterWArrays[i]);
+				layer.filterWArrays[i].errArr = new Float64Array(saveObject.filterWidth * saveObject.filterHeight * saveObject.inDepth);
+				layer.filterWArrays[i].learningRate = 0;
+				layer.filterWArrays[i].batchSize = Infinity;
+			}
+			return layer;
+		}
+	}
+
+	Ment.DeconvParamLayer = DeconvParamLayer;
+	Ment.DeConvParamLayer = DeconvParamLayer;
+	Ment.DeconvParam = DeconvParamLayer;
+	Ment.DeConvParam = DeconvParamLayer;
+}
+
+{
 	class DepaddingLayer {
 		constructor(outDim, pad) {
 			if (outDim.length != 3) {
@@ -3217,8 +3803,8 @@ Im sorry but I had to choose one
 			this.outDepth = outDepth;
 			this.inData.fill(0);
 			this.outData.fill(0);
-			this.costs = new Float64Array(this.inData.length);
-			this.costs.fill(0);
+			this.grads = new Float64Array(this.inData.length);
+			this.grads.fill(0);
 		}
 
 		forward(inData) {
@@ -3252,14 +3838,14 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 			for (var i = 0; i < this.outDepth; i++) {
 				for (var j = 0; j < this.outHeight; j++) {
 					for (var h = 0; h < this.outWidth; h++) {
 						let prop = i * this.outHeight * this.outWidth + j * this.outWidth + h;
-						this.costs[
+						this.grads[
 							(j + 1) * this.pad * 2 +
 								-this.pad +
 								this.pad * (this.outWidth + this.pad * 2) +
@@ -3296,12 +3882,12 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "pl" ||
-					key == "accessed"
+					key == "pl"
 				) {
 					return undefined;
 				}
@@ -3329,6 +3915,579 @@ Im sorry but I had to choose one
 
 {
 	/*
+Only difference is the filter depths are 1 and they only go over one depth of the input
+*/
+
+	class DepthWiseConvLayer {
+		constructor(inDim, filterDim, filters = 3, stride = 1, bias = false) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+
+			if (filters % inDim[2] != 0) {
+				throw "DepthwiseConvLayer error: The amount of filters must be a multiple of the input depth";
+			}
+
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.filterw = new Float64Array(filters * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * filterWidth * filterHeight);
+			this.outData = new Float64Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			this.inData = new Float64Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			this.useBias = bias;
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+
+			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterw[i] = 3 * (Math.random() - 0.5);
+			}
+
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+			} else {
+				this.b.fill(0);
+			}
+			//Everything below here is precalculated constants used in forward/backward
+			//to optimize this and make sure we are as effeiciant as possible.
+			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			//note to self i changed this so it might be big breaky breaky
+			this.fWIHID = this.filterHeight * this.filterWidth;
+		}
+
+		reInitializeFilter(index) {
+			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
+				this.filterw[i] = 3 * (Math.random() - 0.5);
+			}
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		inSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		outSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
+				}
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
+				}
+			}
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			outData.fill(0);
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIH;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						outData[odi] += biases[odi];
+						// for (var h = 0; h < inDepth; h++) {
+						//since this is depthwise the depth we operate on will depend on the index of the filter
+						const h = i % inDepth;
+						const hWIH = h * wIH + ba;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								outData[odi] += inData[k + jGAIWBA] * filterw[k + jFWHFWIH];
+							}
+						}
+						// }
+					}
+				}
+			}
+		}
+
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.grads;
+			}
+			this.grads.fill(0); //reset the grads
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			const grads = this.grads;
+
+			//-----------------------------Beginning of monstrosity-----------------
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIH;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						// for (var h = 0; h < inDepth; h++) {
+						const h = i % inDepth;
+						const hWIH = h * wIH;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								grads[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
+								filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
+							}
+						}
+						// }
+					}
+				}
+			}
+			//---------------------------------End of monstrosity-----------------
+			for (var i = 0; i < this.outSize(); i++) {
+				this.bs[i] += err[i];
+			}
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			if (this.useBias) {
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
+			}
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "netObject" ||
+					key == "netObject" ||
+					key == "outData" ||
+					key == "grads" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b")
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new DepthWiseConvLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias
+			);
+			for (var i = 0; i < layer.filterw.length; i++) {
+				layer.filterw[i] = saveObject.filterw[i];
+			}
+			if (saveObject.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
+			return layer;
+		}
+	}
+
+	Ment.DepthWiseConvLayer = DepthWiseConvLayer;
+	Ment.DepthWiseConv = DepthWiseConvLayer;
+	Ment.DWConv = DepthWiseConvLayer;
+}
+
+{
+	class DepthWiseDeconvLayer {
+		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = false) {
+			if (inDim.length != 3) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing dimensions parameter. \n" +
+					"First parameter in layer must be an 3 length array, width height and depth"
+				);
+			}
+			let inWidth = inDim[0];
+			let inHeight = inDim[1];
+			let inDepth = inDim[2];
+
+			if (filterDim.length != 2) {
+				throw (
+					this.constructor.name +
+					" parameter error: Missing filter dimensions parameter. \n" +
+					"First parameter in layer must be an 2 length array, width height. (filter depth is always the input depth)"
+				);
+			}
+			let filterWidth = filterDim[0];
+			let filterHeight = filterDim[1];
+			this.useBias = useBias;
+
+			this.filters = filters; //the amount of filters
+			this.inWidth = inWidth;
+			this.inHeight = inHeight;
+			this.inDepth = inDepth;
+			this.filterWidth = filterWidth;
+			this.filterHeight = filterHeight;
+			this.stride = stride;
+			this.filterw = new Float64Array(filters * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * filterWidth * filterHeight);
+			this.inData = new Float64Array(
+				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
+			);
+			this.outData = new Float64Array(inWidth * inHeight * inDepth);
+			this.inData.fill(0); //to prevent mishap
+			this.outData.fill(0); //to prevent mishap
+			this.grads = new Float64Array(this.inData.length);
+			this.b = new Float64Array(this.outData.length);
+			this.bs = new Float64Array(this.outData.length);
+			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
+				throw "Conv layer error: filters cannot be bigger than the input";
+			}
+			//init random weights
+			for (var i = 0; i < this.filterw.length; i++) {
+				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+			}
+
+			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
+			// //since most people are not gonna be training on random noise, having patters probably helps
+			// //train it faster
+			// for (var a = 0; a < 3; a++) {
+			// 	let newFilterw = this.filterw.slice(0);
+			// 	for (var f = 0; f < this.filters; f++) {
+			// 		for (var d = 0; d < this.inDepth; d++) {
+			// 			for (var x = 0; x < this.filterWidth; x++) {
+			// 				for (var y = 0; y < this.filterHeight; y++) {
+			// 					let count = 0;
+			// 					let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
+			// 					let indR =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indL =
+			// 						f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight;
+			// 					let indD =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					let indU =
+			// 						f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight;
+			// 					if (x < filterWidth - 1) count += this.filterw[indR];
+			// 					if (x > 1) count += this.filterw[indL];
+			// 					if (y < filterHeight - 1) count += this.filterw[indD];
+			// 					if (y > 1) count += this.filterw[indU];
+			// 					newFilterw[ind] += count / 5;
+			// 				}
+			// 			}
+			// 		}
+			// 	}
+			// 	this.filterw = newFilterw;
+			// }
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+			} else {
+				this.b.fill(0);
+			}
+			//Everything below here is precalculated constants used in forward/backward
+			//to optimize this and make sure we are as effeiciant as possible.
+			//DONT CHANGE THESE OR BIG BREAKY BREAKY!
+
+			this.hMFHPO = Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride);
+			this.wMFWPO = Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride);
+			this.hMFWMF = this.hMFHPO * this.wMFWPO;
+			this.wIH = this.inWidth * this.inHeight;
+			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
+			this.fWIH = this.filterWidth * this.filterHeight;
+			//note to self I changed this so it might be big breaky breaky
+			this.fWIHID = this.filterHeight * this.filterWidth;
+		}
+
+		reInitializeFilter(index) {
+			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
+				this.filterw[i] = 3 * (Math.random() - 0.5);
+			}
+		}
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		outSizeDimensions() {
+			return [this.inWidth, this.inHeight, this.inDepth];
+		}
+
+		inSizeDimensions() {
+			return [
+				Math.ceil((this.inWidth - this.filterWidth + 1) / this.stride),
+				Math.ceil((this.inHeight - this.filterHeight + 1) / this.stride),
+				this.filters,
+			];
+		}
+
+		forward(input) {
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw Ment.inputError(this, input);
+				}
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
+				}
+			}
+
+			const inData = this.inData;
+			const outData = this.outData;
+			const filterw = this.filterw;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+
+			outData.fill(0);
+			//-------------Beginning of monstrosity-----------------
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIH;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						// for (var h = 0; h < inDepth; h++) {
+						const h = i % inDepth;
+						const hWIH = h * wIH + ba;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								outData[k + jGAIWBA] += inData[odi] * filterw[k + jFWHFWIH];
+							}
+						}
+						// }
+					}
+				}
+			}
+			//-------------End of monstrosity-----------------
+
+			for (var i = 0; i < outData.length; i++) {
+				outData[i] += this.b[i];
+			}
+		}
+
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.grads;
+			}
+			this.grads.fill(0); //reset the grads
+			const grads = this.grads;
+			const inData = this.inData;
+			const filterw = this.filterw;
+			const filterws = this.filterws;
+			const filterWidth = this.filterWidth;
+			const filterHeight = this.filterHeight;
+			const inWidth = this.inWidth;
+			const inDepth = this.inDepth;
+			const wIH = this.wIH;
+			const fWIH = this.fWIH;
+			const stride = this.stride;
+			for (var i = 0; i < this.filters; i++) {
+				const iHMFWMF = i * this.hMFWMF;
+				const iFWIHID = i * this.fWIH;
+				for (var g = 0; g < this.hMFHPO; g++) {
+					const ga = g * stride;
+					const gWMFWPO = g * this.wMFWPO;
+					for (var b = 0; b < this.wMFWPO; b++) {
+						const odi = b + gWMFWPO + iHMFWMF;
+						const ba = b * stride;
+						// for (var h = 0; h < inDepth; h++) {
+						const h = i % inDepth;
+						const hWIH = h * wIH;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								grads[odi] += filterw[k + jFWHFWIH] * err[k + jGAIWBA];
+								filterws[k + jFWHFWIH] += inData[odi] * err[k + jGAIWBA];
+							}
+						}
+						// }
+					}
+				}
+			}
+
+			for (var i = 0; i < this.outData.length; i++) {
+				this.bs[i] += err[i];
+			}
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			if (this.useBias) {
+				return [this.filterw, this.filterws, this.b, this.bs];
+			} else {
+				return [this.filterw, this.filterws];
+			}
+		}
+
+		save() {
+			let ret = JSON.stringify(this, function (key, value) {
+				if (
+					key == "filterws" ||
+					key == "filterbs" ||
+					key == "inData" ||
+					key == "netObject" ||
+					key == "netObject" ||
+					key == "outData" ||
+					key == "grads" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == "bs" ||
+					key == "ws" ||
+					key == "hMFHPO" ||
+					key == "wMFWPO" ||
+					key == "hMFWMF" ||
+					key == "wIH" ||
+					key == "wIHID" ||
+					key == "fWIH" ||
+					key == "fWIHID" ||
+					key == (this.useBias ? null : "b") //maybe bad
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			return ret;
+		}
+
+		static load(json) {
+			//inWidth, inHeight, inDepth, filterWidth, filterHeight, filters = 3, stride = 1,
+			let saveObject = JSON.parse(json);
+			let layer = new DepthWiseDeconvLayer(
+				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
+				[saveObject.filterWidth, saveObject.filterHeight],
+				saveObject.filters,
+				saveObject.stride,
+				saveObject.useBias
+			);
+			for (var i = 0; i < layer.filterw.length; i++) {
+				layer.filterw[i] = saveObject.filterw[i];
+			}
+			if (saveObject.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
+			return layer;
+		}
+	}
+
+	Ment.DepthWiseDeconvLayer = DepthWiseDeconvLayer;
+	Ment.DWDeConvLayer = DepthWiseDeconvLayer;
+	Ment.DepthWiseDeconv = DepthWiseDeconvLayer;
+	Ment.DWDeConv = DepthWiseDeconvLayer;
+
+	//only uncomment if you know what your doing
+}
+
+{
+	/*
 		Layer specification:
 
 		Each layer needs an inData and outData array.
@@ -3339,7 +4498,7 @@ Im sorry but I had to choose one
 		Each layer needs a "forward" and a "backward" function. The forward function should
 		be able to take an input array as input or use the data in "this.inData." The same for the 
 		backward function, it should take an array of "expected" values or it should backpropogate
-		based on the cost of the next layer (this.nextLayer.costs).
+		based on the cost of the next layer (this.nextLayer.grads).
 
 		REQUIRED FUNCTIONS:
 			inSize()
@@ -3355,29 +4514,27 @@ Im sorry but I had to choose one
 		REQUIRED FEILDS:
 			inData:Float64Array
 			outData:Float64Array
-			costs:Float64Array
-			gpuEnabled:Boolean
+			grads:Float64Array -- the error value of each input neuron
 			
 			----Everything above is the bare minimum for your layer to work at all--------------
 			
 		NOT REQUIRED FUNCTIONS:
-			inSizeDimensions() -- returns array of dimensions i.e. [28,28,3]
+			inSizeDimensions() -- returns array of dimensions i.e. [28,28,3], 
+			this function is used to print layers prettier
 			outSizeDimensions()
 			
 		FEILDS SET BY NET OBJECT:
-			lr -- aka learning rate 
 			nextLayer -- a reference to the layer after
 			previousLayer -- a reference to preceding layer		
+			you dont have to implement these, they will be set by the net object
 
 		FUNCTIONS FOR EVOLOUTION BASED LEARNING TO WORK:
 			mutate(mutationRate::float, mutationIntensity::float)
+			only required if you want to "evolve" a network
 
-		FUNCTIONS FOR GPU SUPPORT TO WORK:
-			enableGPUMode() -- this should at least make "this.gpuEnabled" true.
-
-
+		
 			If you have all this your layer should work inside a real net!
-
+			If you want it to work for gpu you need to implement the gpu version of the layer
 		
 
 	*/
@@ -3392,12 +4549,13 @@ Im sorry but I had to choose one
 			this.outData = new Float64Array(outSize);
 			this.w = new Float64Array(inSize * outSize); //this will store the weights
 			this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
-			this.costs = new Float64Array(inSize); //costs for each neuron
+			this.grads = new Float64Array(inSize); //grads for each neuron
 
 			for (var j = 0; j < inSize; j++) {
 				//----init random weights
 				for (var h = 0; h < outSize; h++) {
-					this.w[h + j * outSize] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+					// this.w[h + j * outSize] = Math.sqrt(1.0 / inSize) * (Math.random() - 0.5) * 2;
+					this.w[h + j * outSize] = (Math.random() - 0.5) * 2;
 					this.ws[h + j * outSize] = 0;
 				}
 			} // ---- end init weights
@@ -3412,6 +4570,9 @@ Im sorry but I had to choose one
 			} ///---------adding random biases
 		}
 
+		//this is the forward function
+		//it takes an input array and feeds it through the layer
+		//it will also use the inData if no input is given
 		forward(input) {
 			// console.log(inData);
 			if (input) {
@@ -3438,35 +4599,38 @@ Im sorry but I had to choose one
 			}
 		}
 
+		//explain what this layer is actualy doing
+		//this is the backward function
+		//it takes an array of expected values and calculates the error
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			const inData = this.inData;
 			const outSize = this.outSize();
 			const weights = this.w;
 			const inSize = this.inSize();
-			const costs = this.costs;
+			const grads = this.grads;
 			const weightGrads = this.ws;
 			const biasGrads = this.bs;
 
 			for (var i = 0; i < inSize; i++) {
-				costs[i] = 0;
+				grads[i] = 0;
 				for (var j = 0; j < outSize; j++) {
 					//activation times error = change to the weight.
-					weightGrads[j + i * outSize] += inData[i] * err[j] * 2;
-					costs[i] += weights[j + i * outSize] * err[j] * 2;
+					weightGrads[j + i * outSize] += inData[i] * err[j];
+					grads[i] += weights[j + i * outSize] * err[j];
 				}
 			}
 
 			for (var j = 0; j < outSize; j++) {
 				biasGrads[j] += err[j]; //bias grad so easy
 			}
-			//finish averaging the costs : required code
-			for (var i = 0; i < inSize; i++) {
-				costs[i] = costs[i] / outSize;
-			}
+			//finish averaging the grads : required code
+			// for (var i = 0; i < inSize; i++) {
+			// 	grads[i] = grads[i] / outSize;
+			// }
 		}
 
 		inSize() {
@@ -3512,8 +4676,9 @@ Im sorry but I had to choose one
 					key == "ws" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -3546,7 +4711,6 @@ Im sorry but I had to choose one
 					layer.b[i] = saveObject.b[i];
 				}
 			}
-			layer.lr = saveObject.lr;
 			return layer;
 		}
 	}
@@ -3562,7 +4726,7 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(size); //the inData
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 		}
 
@@ -3575,7 +4739,7 @@ Im sorry but I had to choose one
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 			}
 			this.pl = layer;
 		}
@@ -3596,11 +4760,11 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outData.length; j++) {
-				this.costs[j] = err[j];
+				this.grads[j] = err[j];
 			}
 		}
 
@@ -3619,9 +4783,10 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
 				) {
@@ -3670,7 +4835,7 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(size); //the inData
 			this.outData = new Float64Array(size + inputSize); //will be init when "connect" is called.
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.currentInput = new Float64Array(inputSize);
 			this.pl; //reference to previous layer
 		}
@@ -3690,7 +4855,7 @@ Im sorry but I had to choose one
 			// 	//if not already initialized
 			// 	this.inData = new Float64Array(layer.outSize());
 			// 	this.outData = new Float64Array(layer.outSize());
-			// 	this.costs = new Float64Array(layer.outSize());
+			// 	this.grads = new Float64Array(layer.outSize());
 			// }
 			this.pl = layer;
 		}
@@ -3715,13 +4880,13 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			//the currentInput is not something trainable so we just ignore
 			//the error it causes and backprop everything else
 			for (var j = 0; j < this.inData.length; j++) {
-				this.costs[j] = err[j];
+				this.grads[j] = err[j];
 			}
 		}
 
@@ -3740,9 +4905,10 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "currentInput"
@@ -3784,7 +4950,7 @@ Im sorry but I had to choose one
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
 			this.g = new Float64Array(size); //this will store the weights
 			this.b = new Float64Array(size); //this will store the biases (biases are for the outData (next layer))
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.outDataBeforeRescaleAndShift = new Float64Array(size);
 			this.standard_deviation = 1; //this will hold the last computed standard deviations
 			for (var j = 0; j < size; j++) {
@@ -3804,7 +4970,7 @@ Im sorry but I had to choose one
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 				this.valMinusMeanSquared = new Float64Array(layer.outSize());
 				this.outDataBeforeRescaleAndShift = new Float64Array(layer.outSize());
 				this.g = new Float64Array(layer.outSize());
@@ -3854,12 +5020,12 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			const outSize = this.outSize();
 			const gammas = this.g;
-			const costs = this.costs;
+			const grads = this.grads;
 			const weightGrads = this.gs;
 			const biasGrads = this.bs;
 
@@ -3868,7 +5034,7 @@ Im sorry but I had to choose one
 			for (var j = 0; j < outSize; j++) {
 				weightGrads[j] += this.outDataBeforeRescaleAndShift[j] * err[j];
 				biasGrads[j] += err[j];
-				costs[j] = (gammas[j] * err[j]) / this.standard_deviation;
+				grads[j] = (gammas[j] * err[j]) / this.standard_deviation;
 			}
 		}
 
@@ -3909,9 +5075,10 @@ Im sorry but I had to choose one
 					key == "gs" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
 					key == "outDataBeforeRescaleAndShift" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "standard_deviation" ||
@@ -3955,10 +5122,14 @@ Im sorry but I had to choose one
 
 {
 	class LeakyReluLayer extends Ment.ActivationBase {
-		static leakySlope = 0.01;
-
-		constructor(size) {
-			super(size);
+		constructor(customSlope, size) {
+			if (customSlope > 1) {
+				console.log(
+					"WARNING: the leaky relu constructor parameters have been changed. The first parameter is now the slope of the negative side of the function, which should be around 0.1. The second parameter is now the size of the layer. The old constructor parameters were (size, customSlope). Please update your code. Sorry for the inconvenience. To silence this warning, delete this line of code. And by the way, you dont even have to provide the size parameter anymore, it gets set automaticaly when the layer is connected, unless this is the very first layer in the network."
+				);
+			}
+			super(size); //size gets set automaticaly when the layer is connected.
+			this.customSlope = customSlope || 0.1;
 		}
 
 		forward(inData) {
@@ -3972,27 +5143,27 @@ Im sorry but I had to choose one
 			}
 
 			for (var h = 0; h < this.outSize(); h++) {
-				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * LeakyReluLayer.leakySlope;
+				this.outData[h] = this.inData[h] > 0 ? this.inData[h] : this.inData[h] * this.customSlope;
 			}
 		}
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
 				if (this.outData[j] >= 0) {
-					this.costs[j] = err[j];
+					this.grads[j] = err[j];
 				} else {
-					this.costs[j] = err[j] * LeakyReluLayer.leakySlope;
+					this.grads[j] = err[j] * this.customSlope;
 				}
 			}
 		}
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new LeakyReluLayer(saveObject.savedSize);
+			let layer = new LeakyReluLayer(saveObject.savedSize, saveObject.customSlope);
 			return layer;
 		}
 	}
@@ -4035,9 +5206,8 @@ Im sorry but I had to choose one
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -4107,24 +5277,17 @@ Im sorry but I had to choose one
 		}
 
 		backward(err) {
-			this.costs.fill(0);
+			this.grads.fill(0);
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						this.costs[this.maxIndexes[odi]] += err[odi];
-						this.accessed[this.maxIndexes[odi]]++;
+						this.grads[this.maxIndexes[odi]] += err[odi];
 					}
-				}
-			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] != 0) {
-					this.costs[i] /= this.accessed[i]; //Average it yeah!!!
-					this.accessed[i] = 0;
 				}
 			}
 		}
@@ -4133,8 +5296,9 @@ Im sorry but I had to choose one
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -4201,9 +5365,8 @@ Im sorry but I had to choose one
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.minIndexes = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Min Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -4273,24 +5436,17 @@ Im sorry but I had to choose one
 		}
 
 		backward(err) {
-			this.costs.fill(0);
+			this.grads.fill(0);
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						this.costs[this.minIndexes[odi]] += err[odi];
-						this.accessed[this.minIndexes[odi]]++;
+						this.grads[this.minIndexes[odi]] += err[odi];
 					}
-				}
-			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] != 0) {
-					this.costs[i] /= this.accessed[i]; //Average it yeah!!!
-					this.accessed[i] = 0;
 				}
 			}
 		}
@@ -4299,8 +5455,9 @@ Im sorry but I had to choose one
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -4358,8 +5515,8 @@ Im sorry but I had to choose one
 			this.padwith = padwith;
 			this.outData.fill(padwith);
 			this.inData.fill(0);
-			this.costs = new Float64Array(this.inData.length);
-			this.costs.fill(0);
+			this.grads = new Float64Array(this.inData.length);
+			this.grads.fill(0);
 		}
 
 		// const handler = {
@@ -4404,15 +5561,15 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			// this.costs.fill(0);
+			// this.grads.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {
 					for (var h = 0; h < this.inWidth; h++) {
 						let prop = i * this.inHeight * this.inWidth + j * this.inWidth + h;
-						this.costs[prop] =
+						this.grads[prop] =
 							err[
 								(j + 1) * this.pad * 2 +
 									-this.pad +
@@ -4450,8 +5607,9 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl"
@@ -4484,6 +5642,59 @@ Im sorry but I had to choose one
 }
 
 {
+	class PeriodicTanhLayer extends Ment.ActivationBase {
+		// I came up with this one myself lol
+		Tanh(z) {
+			return Math.tanh(Math.sin(z) * 4);
+		}
+
+		TanhPrime(x) {
+			//2 / (Math.exp(x) + Math.exp(-x))
+			let y = Math.cos(2 * x);
+			let ret;
+			if (y > 0) {
+				ret = Math.cos(x) * Math.cos(2 * x) * Math.cos(2 * x);
+			} else {
+				ret = -x * 0.001;
+			}
+
+			return ret;
+		}
+
+		constructor(size) {
+			super(size);
+		}
+
+		forward(inData) {
+			super.forward(inData, this.Tanh);
+		}
+
+		backward(expected) {
+			return super.backward(expected, this.TanhPrime);
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new PeriodicTanhLayer(saveObject.savedSize);
+			return layer;
+		}
+	}
+
+	Ment.PeriodicTanhLayer = PeriodicTanhLayer;
+	Ment.PeriodicTanh = PeriodicTanhLayer;
+	Ment.PeriodicTanh = PeriodicTanhLayer;
+	Ment.PTanh = PeriodicTanhLayer;
+}
+
+{
 	class RecEmitterLayer {
 		//Glorified Identity layer, only difference it has an ID and reference to the receiver with same ID
 		constructor(id) {
@@ -4491,7 +5702,7 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(0); //the inData
 			this.outData = new Float64Array(0); //will be init when "connect" is called.
-			this.costs = new Float64Array(0); //costs for each neuron
+			this.grads = new Float64Array(0); //grads for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.savedOutData;
@@ -4507,7 +5718,7 @@ Im sorry but I had to choose one
 				throw "You can't put a RecReceiver right before its corressponding RecEmitter. (because it doesnt know the output size) (try adding a dummy layer inbetween and giving it a size)";
 			}
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 
 			this.outData = new Float64Array(layer.outSize());
@@ -4546,11 +5757,11 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outData.length; j++) {
-				this.costs[j] = (err[j] + this.costsFromReceiver[j]) / 2;
+				this.grads[j] = (err[j] + this.gradsFromReceiver[j]) / 2;
 			}
 		}
 
@@ -4571,14 +5782,15 @@ Im sorry but I had to choose one
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "bs" ||
 					key == "ws" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "emitter" ||
-					key == "costsFromReceiver"
+					key == "gradsFromReceiver"
 				) {
 					return undefined;
 				}
@@ -4616,11 +5828,11 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
 			this.outData; //will be init when "onConnect" is called.
-			this.costs; //costs for each neuron
+			this.grads; //grads for each neuron
 			this.emitter;
 			this.inDataFromEmitter;
-			this.costsForEmitter;
-			this.savedCostsForEmitter; //costs one step behind
+			this.gradsForEmitter;
+			this.savedGradsForEmitter; //grads one step behind
 			this.pl; // holds a reference to previous layer
 			this.nl; //next layer
 		}
@@ -4631,7 +5843,7 @@ Im sorry but I had to choose one
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -4663,9 +5875,9 @@ Im sorry but I had to choose one
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
-			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedGradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.emitter.gradsFromReceiver = this.savedGradsForEmitter;
 		}
 
 		get nextLayer() {
@@ -4704,9 +5916,9 @@ Im sorry but I had to choose one
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(this.previousLayer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
-			this.savedCostsForEmitter = new Float64Array(this.emitter.outSize());
-			this.emitter.costsFromReceiver = this.savedCostsForEmitter;
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.savedGradsForEmitter = new Float64Array(this.emitter.outSize());
+			this.emitter.gradsFromReceiver = this.savedGradsForEmitter;
 		}
 
 		forward(inData) {
@@ -4738,36 +5950,36 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			if (this.emitter.where == "behind") {
 				for (var i = 0; i < this.inSize(); i++) {
-					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
+					this.savedGradsForEmitter[i] = this.gradsForEmitter[i];
 				}
 			}
 			if (this.mode == "concat") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
+					this.grads[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i];
+					this.gradsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
-					this.costsForEmitter[i] = err[i];
+					this.grads[i] = err[i];
+					this.gradsForEmitter[i] = err[i];
 				}
 			} else if (this.mode == "average") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] * 2;
-					this.costsForEmitter[i] = err[i] * 2;
+					this.grads[i] = err[i] * 2;
+					this.gradsForEmitter[i] = err[i] * 2;
 				}
 			}
 
 			if (this.emitter.where == "in front") {
 				for (var i = 0; i < this.inSize(); i++) {
-					this.savedCostsForEmitter[i] = this.costsForEmitter[i];
+					this.savedGradsForEmitter[i] = this.gradsForEmitter[i];
 				}
 			}
 		}
@@ -4791,12 +6003,13 @@ Im sorry but I had to choose one
 					key == "nl" ||
 					key == "receiver" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
-					key == "costsForEmitter" ||
+					key == "grads" ||
+					key == "gradsForEmitter" ||
 					key == "inDataFromEmitter" ||
-					key == "savedCostsForEmitter" ||
-					key == "costsFromReceiver" ||
+					key == "savedGradsForEmitter" ||
+					key == "gradsFromReceiver" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "savedOutData"
@@ -4844,14 +6057,14 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
 				if (this.outData[j] > 0) {
-					this.costs[j] = err[j];
-				}else{
-					this.costs[j] = 0;
+					this.grads[j] = err[j];
+				} else {
+					this.grads[j] = 0;
 				}
 			}
 		}
@@ -4874,7 +6087,7 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(0); //the inData
 			this.outData = new Float64Array(0); //will be init when "connect" is called.
-			this.costs = new Float64Array(0); //costs for each neuron
+			this.grads = new Float64Array(0); //grads for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.pl = undefined;
@@ -4886,7 +6099,7 @@ Im sorry but I had to choose one
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 
 			this.outData = new Float64Array(layer.outSize());
@@ -4910,14 +6123,14 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 
 			for (var i = 0; i < this.outData.length; i++) {
-				this.costs[i] += err[i];
-				this.costs[i] += this.receiver.costsForEmitter[i];
-				this.costs[i] /= 2;
+				this.grads[i] += err[i];
+				this.grads[i] += this.receiver.gradsForEmitter[i];
+				this.grads[i] /= 2;
 			}
 		}
 
@@ -4938,8 +6151,9 @@ Im sorry but I had to choose one
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "emitter"
@@ -4979,10 +6193,10 @@ Im sorry but I had to choose one
 			this.nextLayer; //the connected layer
 			this.inData; //the inData
 			this.outData; //will be init when "onConnect" is called.
-			this.costs; //costs for each neuron
+			this.grads; //grads for each neuron
 			this.emitter;
 			this.inDataFromEmitter;
-			this.costsForEmitter;
+			this.gradsForEmitter;
 			this.pl; // holds a reference to previous layer
 		}
 
@@ -4992,7 +6206,7 @@ Im sorry but I had to choose one
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 			//time to find this layers soulmate
 			let found = false;
@@ -5018,7 +6232,7 @@ Im sorry but I had to choose one
 			} else if (this.mode == "concat") {
 				this.outData = new Float64Array(layer.outSize() + this.emitter.outSize());
 			}
-			this.costsForEmitter = new Float64Array(this.emitter.outSize());
+			this.gradsForEmitter = new Float64Array(this.emitter.outSize());
 		}
 
 		//we dont look in front because residual data only goes forwards.
@@ -5053,26 +6267,26 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			if (this.mode == "concat") {
 				//fixed a very atrocious error
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i];
+					this.grads[i] = err[i];
 				}
 				for (var i = this.inData.length; i < this.inData.length + this.inDataFromEmitter.length; i++) {
-					this.costsForEmitter[i - this.inData.length] = err[i];
+					this.gradsForEmitter[i - this.inData.length] = err[i];
 				}
 			} else if (this.mode == "add") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] / 2;
-					this.costsForEmitter[i] = err[i] / 2;
+					this.grads[i] = err[i] / 2;
+					this.gradsForEmitter[i] = err[i] / 2;
 				}
 			} else if (this.mode == "average") {
 				for (var i = 0; i < this.inData.length; i++) {
-					this.costs[i] = err[i] * 2;
-					this.costsForEmitter[i] = err[i] * 2;
+					this.grads[i] = err[i] * 2;
+					this.gradsForEmitter[i] = err[i] * 2;
 				}
 			}
 		}
@@ -5096,11 +6310,12 @@ Im sorry but I had to choose one
 					key == "bs" ||
 					key == "nl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "costsForEmitter" ||
+					key == "gradsForEmitter" ||
 					key == "inDataFromEmitter"
 				) {
 					return undefined;
@@ -5213,6 +6428,218 @@ Im sorry but I had to choose one
 }
 
 {
+	/*
+		This is like the FC Layer except it uses a sparse matrix
+		YOU CAN CONSTRUCT IN TWO WAYS
+		SparseLayer(InSize, OutSize, useBias)
+		SparseLayer(FCLayer, Density) // higher density means more weights (0.5 is 50% of the weights are used)
+		//weights get culled off
+	*/
+
+	class SparseLayer {
+		constructor(inSize, outSize, useBias) {
+			console.log("Dont use SparseLayer i havent fully implemented it yet and it 100% does not work.");
+			if (inSize.constructor.name == "FCLayer") {
+				let layer = inSize;
+				let density = outSize;
+				this.useBias = layer.useBias;
+				this.nextLayer = layer.nextLayer;
+				this.inData = new Float64Array(layer.inData);
+				this.outData = new Float64Array(layer.outData);
+				this.w = new Float64Array(layer.w);
+				this.weightIndexes = new Float64Array(layer.outSize());
+				//fill weightIndexes with 1,2,3,4.....layer.outSize()
+				for (var i = 0; i < layer.outSize(); i++) {
+					this.weightIndexes[i] = i;
+				}
+				this.b = new Float64Array(layer.b);
+				this.ws = new Float64Array(layer.ws);
+				this.bs = new Float64Array(layer.bs);
+				this.grads = new Float64Array(layer.grads);
+				this.cullWeights(density);
+				return;
+			}
+			this.useBias = useBias == undefined ? true : useBias;
+			this.nextLayer; //the connected layer
+			this.inData = new Float64Array(inSize); //the inData
+			this.outData = new Float64Array(outSize);
+
+			this.w = new Float64Array(inSize * outSize); //this will store the weights, in no particular order
+			//but the index of the weights does correspond the in the input data index it is connected to
+			this.weightIndexes = new Float64Array(inSize * outSize); //this will store the index of the outData the weight connects to
+			this.b = new Float64Array(outSize); //this will store the biases (biases are for the outData (next layer))
+			this.ws = new Float64Array(inSize * outSize); //the weights sensitivities to error
+			this.bs = new Float64Array(outSize); //the bias sensitivities to error
+			this.grads = new Float64Array(inSize); //grads for each neuron
+
+			for (var j = 0; j < inSize; j++) {
+				//----init random weights
+				for (var h = 0; h < outSize; h++) {
+					this.w[h + j * outSize] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+					this.ws[h + j * outSize] = 0;
+				}
+			} // ---- end init weights
+
+			for (var j = 0; j < outSize; j++) {
+				if (this.useBias == false) {
+					this.b[j] = 0;
+				} else {
+					this.b[j] = 1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
+				}
+				this.bs[j] = 0;
+			} ///---------adding random biases
+		}
+
+		//this is the forward function
+		//it takes an input array and feeds it through the layer
+		//it will also use the inData if no input is given
+		forward(input) {
+			// console.log(inData);
+			if (input) {
+				if (input.length != this.inSize()) {
+					throw inputError(this, input);
+				}
+				//Fun fact: the fastest way to copy an array in javascript is to use a For Loop
+				for (var i = 0; i < input.length; i++) {
+					this.inData[i] = input[i];
+				}
+			}
+			// console.log(this.inData);
+			const outData = this.outData;
+			const inData = this.inData;
+			const biases = this.b;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			for (var h = 0; h < outSize; h++) {
+				outData[h] = biases[h]; //reset outData activation
+				for (var j = 0; j < inSize; j++) {
+					outData[h] += inData[j] * weights[h + j * outSize]; // the dirty deed
+				}
+			}
+		}
+
+		//explain what this layer is actualy doing
+		//this is the backward function
+		//it takes an array of expected values and calculates the error
+		backward(err) {
+			if (!err) {
+				err = this.nextLayer.grads;
+			}
+
+			const inData = this.inData;
+			const outSize = this.outSize();
+			const weights = this.w;
+			const inSize = this.inSize();
+			const grads = this.grads;
+			const weightGrads = this.ws;
+			const biasGrads = this.bs;
+
+			for (var i = 0; i < inSize; i++) {
+				grads[i] = 0;
+				for (var j = 0; j < outSize; j++) {
+					//activation times error = change to the weight.
+					weightGrads[j + i * outSize] += inData[i] * err[j] * 2;
+					grads[i] += weights[j + i * outSize] * err[j] * 2;
+				}
+			}
+
+			for (var j = 0; j < outSize; j++) {
+				biasGrads[j] += err[j]; //bias grad so easy
+			}
+			//finish averaging the grads : required code
+			for (var i = 0; i < inSize; i++) {
+				grads[i] = grads[i] / outSize;
+			}
+		}
+
+		inSize() {
+			return this.inData.length;
+		}
+
+		outSize() {
+			return this.outData.length;
+		}
+
+		getParamsAndGrads(forUpdate = true) {
+			if (this.useBias) {
+				return [this.w, this.ws, this.b, this.bs];
+			} else {
+				return [this.w, this.ws];
+			}
+		}
+
+		mutate(mutationRate, mutationIntensity) {
+			for (var i = 0; i < this.w.length; i++) {
+				if (Math.random() < mutationRate) {
+					this.w[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+				}
+			}
+			if (this.useBias) {
+				for (var i = 0; i < this.b.length; i++) {
+					if (Math.random() < mutationRate) {
+						this.b[i] += Math.random() * mutationIntensity * (Math.random() > 0.5 ? -1 : 1);
+					}
+				}
+			}
+		}
+
+		save() {
+			// we cant see the length of arrays after saving them in JSON
+			// for some reason so we are adding temp variables so we know
+			// the sizes;
+			this.savedInSize = this.inSize();
+			this.savedOutSize = this.outSize();
+			let ret = JSON.stringify(this, function (key, value) {
+				//here we define what we need to save
+				if (
+					key == "ws" ||
+					key == "bs" ||
+					key == "inData" ||
+					key == "netObject" ||
+					key == "outData" ||
+					key == "grads" ||
+					key == "gpuEnabled" ||
+					key == "trainIterations" ||
+					key == "nextLayer" ||
+					key == "previousLayer" ||
+					key == "pl" ||
+					key == (this.useBias ? null : "b")
+				) {
+					return undefined;
+				}
+
+				return value;
+			});
+
+			//This is how you delete object properties btw.
+			delete this.savedInSize;
+			delete this.savedOutSize;
+
+			return ret;
+		}
+		//hey if your enjoying my library contact me trevorblythe82@gmail.com
+
+		static load(json) {
+			let saveObject = JSON.parse(json);
+			let layer = new SparseLayer(saveObject.savedInSize, saveObject.savedOutSize, saveObject.useBias);
+			for (var i = 0; i < layer.w.length; i++) {
+				layer.w[i] = saveObject.w[i];
+			}
+			if (layer.useBias) {
+				for (var i = 0; i < layer.b.length; i++) {
+					layer.b[i] = saveObject.b[i];
+				}
+			}
+			return layer;
+		}
+	}
+
+	Ment.SparseLayer = SparseLayer;
+	Ment.Sparse = SparseLayer;
+}
+
+{
 	class TanhLayer extends Ment.ActivationBase {
 		tanh(z) {
 			return Math.tanh(z);
@@ -5277,7 +6704,7 @@ Im sorry but I had to choose one
 			this.previousLayer; //the previousLayer
 			this.inData = new Float64Array(inWidth * inHeight * inDepth); //the inData
 			this.outData = new Float64Array(this.outWidth * this.outHeight * inDepth);
-			this.costs = new Float64Array(this.inData.length); //costs for each activation in "inData"
+			this.grads = new Float64Array(this.inData.length); //grads for each activation in "inData"
 		}
 		inSizeDimensions() {
 			return [this.inWidth, this.inHeight, this.inDepth];
@@ -5313,16 +6740,16 @@ Im sorry but I had to choose one
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				//this can be optimized
 				for (var h = 0; h < this.inHeight * this.scale; h++) {
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
 						let t = err[i * this.outHeight * this.outWidth + h * this.outWidth + j];
-						this.costs[
+						this.grads[
 							Math.floor(i) * this.inHeight * this.inWidth +
 								Math.floor(h / this.scale) * this.inWidth +
 								Math.floor(j / this.scale)
@@ -5330,8 +6757,8 @@ Im sorry but I had to choose one
 					}
 				}
 			}
-			// for(var i = 0;i<this.costs.length;i++){
-			// 	this.costs[i] /= this.scale;
+			// for(var i = 0;i<this.grads.length;i++){
+			// 	this.grads[i] /= this.scale;
 			// }
 		}
 
@@ -5350,8 +6777,9 @@ Im sorry but I had to choose one
 					key == "ws" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -5381,6 +6809,320 @@ Im sorry but I had to choose one
 	Ment.UpScale = UpscalingLayer;
 	Ment.UpScaling = UpscalingLayer;
 	Ment.UpScalingLayer = UpscalingLayer;
+}
+
+{
+	class Adam {
+		constructor(maxEpochBeforeReset = 100, beta1 = 0.9, beta2 = 0.999, eps = 1e-8) {
+			this.beta1 = beta1;
+			this.beta2 = beta2;
+			this.eps = eps;
+			this.maxEpochBeforeReset = maxEpochBeforeReset;
+			this.netObject; // will be set to the net object
+			this.m = []; // first moment estimates
+			this.v = []; // second moment estimates
+			this.t = 0; // iteration counter
+		}
+
+		initialize() {
+			// Access parameters and gradients from netObject
+			const paramsAndGrads = this.netObject.getParamsAndGrads();
+
+			// Initialize first and second moment estimates for each parameter
+			for (let i = 0; i < paramsAndGrads.length / 2; i++) {
+				const params = paramsAndGrads[i * 2];
+				this.m[i] = new Float64Array(params.length).fill(0.0);
+				this.v[i] = new Float64Array(params.length).fill(0.0);
+			}
+		}
+
+		applyGradients(paramsAndGrads) {
+			this.t += 1;
+			for (let i = 0; i < paramsAndGrads.length / 2; i++) {
+				const params = paramsAndGrads[i * 2];
+				const grads = paramsAndGrads[i * 2 + 1];
+				this.netObject.smoothGradients(grads);
+				for (let k = 0; k < params.length; k++) {
+					// Update first moment estimate
+					this.m[i][k] = this.beta1 * this.m[i][k] + (1 - this.beta1) * grads[k];
+
+					// Update second moment estimate
+					this.v[i][k] = this.beta2 * this.v[i][k] + (1 - this.beta2) * grads[k] * grads[k];
+
+					// Correct bias for first and second moment estimates
+					let correctedM = this.m[i][k] / (1 - Math.pow(this.beta1, this.t));
+					let correctedV = this.v[i][k] / (1 - Math.pow(this.beta2, this.t));
+
+					// Calculate update value with Adam formula using learning rate from netObject
+					let update = (this.netObject.learningRate * correctedM) / (Math.sqrt(correctedV) + this.eps);
+
+					// Update weight parameter
+					params[k] += update;
+				}
+			}
+			if (this.netObject.epoch % this.maxEpochBeforeReset == 0) {
+				this.t = 0;
+				//fill m and v with zero
+				for (let i = 0; i < this.m.length; i++) {
+					this.m[i].fill(0.0);
+					this.v[i].fill(0.0);
+				}
+			}
+		}
+	}
+	Ment.Adam = Adam;
+}
+
+{
+	class AdamW {
+		constructor(maxEpochBeforeReset = 100, beta1 = 0.9, beta2 = 0.999, eps = 1e-8, weightDecay = 0) {
+			this.beta1 = beta1;
+			this.beta2 = beta2;
+			this.eps = eps;
+			this.maxEpochBeforeReset = maxEpochBeforeReset;
+			this.weightDecay = weightDecay;
+			this.netObject; // will be set to the net object
+			this.m = []; // first moment estimates
+			this.v = []; // second moment estimates
+			this.t = 0; // iteration counter
+		}
+
+		initialize() {
+			// Access parameters and gradients from netObject
+			const paramsAndGrads = this.netObject.getParamsAndGrads();
+
+			// Initialize first and second moment estimates for each parameter
+			for (let i = 0; i < paramsAndGrads.length / 2; i++) {
+				const params = paramsAndGrads[i * 2];
+				this.m[i] = new Float64Array(params.length).fill(0.0);
+				this.v[i] = new Float64Array(params.length).fill(0.0);
+			}
+		}
+
+		applyGradients(paramsAndGrads) {
+			this.t += 1;
+			this.weightDecay += this.eps;
+			for (let i = 0; i < paramsAndGrads.length / 2; i++) {
+				const params = paramsAndGrads[i * 2];
+				const grads = paramsAndGrads[i * 2 + 1];
+				this.netObject.smoothGradients(grads);
+				for (let k = 0; k < params.length; k++) {
+					// Update first moment estimate
+					this.m[i][k] = this.beta1 * this.m[i][k] + (1 - this.beta1) * grads[k];
+
+					// Update second moment estimate
+					this.v[i][k] = this.beta2 * this.v[i][k] + (1 - this.beta2) * grads[k] * grads[k];
+
+					// Correct bias for first and second moment estimates
+					let correctedM = this.m[i][k] / (1 - Math.pow(this.beta1, this.t));
+					let correctedV = this.v[i][k] / (1 - Math.pow(this.beta2, this.t));
+
+					// Calculate update value with AdamW formula using learning rate from netObject
+					let update = this.netObject.learningRate * correctedM;
+					update /= Math.sqrt(correctedV) + this.eps;
+
+					// Update weight parameter
+					params[k] += update;
+					params[k] -= this.weightDecay * -params[k];
+				}
+			}
+			if (this.netObject.epoch % this.maxEpochBeforeReset == 0) {
+				this.t = 0;
+				this.weightDecay = 0;
+				//fill m and v with zero
+				for (let i = 0; i < this.m.length; i++) {
+					this.m[i].fill(0.0);
+					this.v[i].fill(0.0);
+				}
+			}
+		}
+	}
+	Ment.AdamW = AdamW;
+	Ment.AdamW = AdamW;
+}
+
+{
+	/*
+        Gives the gradients "momentum" down the slope. Nothing special to it but
+		it is rumored that it increased training speed a lot! I think it might be 
+		a good idea to use this instead of SGD
+
+		Super excited about it. 
+    */
+	class Momentum {
+		constructor(momentum = 0.9) {
+			this.netObject; //will be set to the net object
+			this.lastGrads = [];
+			this.momentum = momentum; // a constant which represents how strong the gradients "momentum" will be
+		} //END OF CONSTRUCTOR
+
+		initialize() {
+			//we need to get "this.lastGrads" list the right size. It needs to be as long as there are gradients in this network.
+			let pag = this.netObject.getParamsAndGrads();
+			var gradCounter = 0;
+			for (var j = 0; j < pag.length; j += 2) {
+				let grads = pag[j + 1];
+				gradCounter += grads.length;
+			}
+			this.lastGrads = new Float32Array(gradCounter);
+			this.lastGrads.fill(0);
+		}
+		applyGradients(paramsAndGrads) {
+			var gradCounter = 0;
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				for (var k = 0; k < params.length; k++) {
+					params[k] +=
+						(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[gradCounter];
+					this.lastGrads[gradCounter] =
+						(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[gradCounter];
+					grads[k] = 0;
+					gradCounter++;
+				}
+			}
+		}
+	} //END OF Momentum CLASS DECLARATION
+
+	Ment.Momentum = Momentum;
+}
+
+{
+	/*
+        Gives the gradients "momentum" down the slope. Nothing special to it but
+		it is rumored that it increased training speed a lot! I think it might be 
+		a good idea to use this instead of SGD
+
+		Super excited about it. 
+    */
+	class MomentumGPU {
+		constructor(momentum = 0.9) {
+			this.netObject; //will be set to the net object
+			this.lastGrads = [];
+			this.momentum = momentum; // a constant which represents how strong the gradients "momentum" will be
+		} //END OF CONSTRUCTOR
+
+		initialize() {
+			//we need to get "this.lastGrads" list the right size. It needs to be as long as there are gradients in this network.
+			let pag = this.netObject.getParamsAndGrads();
+			for (var j = 0; j < pag.length; j += 2) {
+				let grads = pag[j + 1];
+				Ment.webMonkeys.set(this.lastGrads[this.lastGrads.push(Ment.makeid(8)) - 1], Ment.webMonkeys.getLen(grads));
+			}
+		}
+		applyGradients(paramsAndGrads) {
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				// for (var k = 0; k < params.length; k++) {
+				// 	params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
+				// 	this.lastGrads[gradCounter] =
+				// 		(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
+				// 	grads[k] = 0;
+				// 	gradCounter++;
+				// }
+				Ment.webMonkeys.work(
+					Ment.webMonkeys.getLen(params),
+					`
+float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(1)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
+
+;
+
+${params}(i) := act;
+
+`
+				);
+
+				Ment.webMonkeys.work(
+					Ment.webMonkeys.getLen(params),
+					`
+float act = (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
+
+;
+
+${this.lastGrads[j / 2]}(i) := act;
+
+`
+				);
+
+				Ment.webMonkeys.fill(grads, 0);
+			}
+		}
+	} //END OF Momentum CLASS DECLARATION
+
+	Ment.MomentumGPU = MomentumGPU;
+}
+
+{
+	/*
+        This is the basic white girl of optimizers. Doesn't even do anything to the gradient.
+        batch size is already built in to the network so we dont even have to do that here
+    */
+	class SGD {
+		constructor() {
+			this.netObject; //will be set to the net object
+		} //END OF CONSTRUCTOR
+
+		//this function gets called after this.netObject is set by the network.
+		initialize() {}
+
+		applyGradients(paramsAndGrads) {
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				for (var k = 0; k < params.length; k++) {
+					params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate;
+					grads[k] = 0;
+				}
+			}
+		}
+	} //END OF SGD CLASS DECLARATION
+
+	Ment.SGD = SGD;
+}
+
+{
+	/*
+       SGD except it works for GPU AI instead of cpu ai
+    */
+	class SGDGPU {
+		constructor() {
+			this.netObject; //will be set to the net object
+		} //END OF CONSTRUCTOR
+
+		//this function gets called after this.netObject is set by the network.
+		initialize() {}
+
+		applyGradients(paramsAndGrads) {
+			for (var j = 0; j < paramsAndGrads.length; j += 2) {
+				let params = paramsAndGrads[j];
+				let grads = paramsAndGrads[j + 1];
+				// params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate;
+				// grads[k] = 0;
+				let len = Ment.webMonkeys.getLen(params);
+				Ment.webMonkeys.work(
+					len,
+					`
+float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
+						this.netObject.learningRate
+					).toFixed(8)};
+
+;
+
+${params}(i) := act;
+
+`
+				);
+				Ment.webMonkeys.fill(grads, 0);
+			}
+		}
+	} //END OF SGD CLASS DECLARATION
+
+	Ment.SGDGPU = SGDGPU;
 }
 
 //Base layer for all activations to inherit from
@@ -5421,12 +7163,13 @@ Im sorry but I had to choose one
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuBiasName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "gpuBiasGradsName" ||
 					key == "gpuWeightsName" ||
@@ -5466,7 +7209,7 @@ Im sorry but I had to choose one
 		//yeah these averaging things wont do antyhing cuz i havent implemented them yet
 		//dont worry the layer will still werk
 		//Proggramming this layer right here gave me schizofrinia!!!
-		static averageOutCosts = true; //probs
+		static averageOutGrads = true; //probs
 		static averageOutGrads = true; //ehhh
 		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
 			if (inDim.length != 3) {
@@ -5538,8 +7281,6 @@ Im sorry but I had to choose one
 
 			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
-
-			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
 
 			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
 			this.gpuBiasGradsName = Ment.makeid(8); //new Float32Array(this.outData.length);
@@ -5737,7 +7478,7 @@ act += ${this.gpuFilterW}(kfromi + jFWHFWIH) * ${this.gpuErrorArrayName}(odi);
 
 ;
 
-${this.gpuCostsArrayName}(cdi) := act;
+${this.gpuGradsArrayName}(cdi) := act;
 `
 			);
 
@@ -5777,7 +7518,7 @@ int ba = bfromi * ${this.stride};
 int hWIH = hfromi * ${this.wIH};
 int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
 
-act += ${this.gpuInDataName}(kfromi + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(odi) * 2.0;
+act += ${this.gpuInDataName}(kfromi + jGAIWBA + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(odi);
 
 
 
@@ -5826,8 +7567,9 @@ ${this.gpuBiasGradsName}(i) := act;
 					key == "gpuAccessedMap" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -5836,7 +7578,7 @@ ${this.gpuBiasGradsName}(i) := act;
 					key == "accessed" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "bs" ||
 					key == "ws" ||
@@ -5891,7 +7633,7 @@ ${this.gpuBiasGradsName}(i) := act;
 
 {
 	class DeconvLayerGPU {
-		static averageOutCosts = true;
+		static averageOutGrads = true;
 		static averageOutGrads = true;
 		constructor(inDim, filterDim, filters = 3, stride = 1, useBias = true) {
 			if (inDim.length != 3) {
@@ -5969,7 +7711,7 @@ ${this.gpuBiasGradsName}(i) := act;
 			this.gpuFilterWGrads = Ment.makeid(8); //new Float32Array(filters * inDepth * filterWidth * filterHeight);
 			Ment.webMonkeys.set(this.gpuFilterWGrads, filters * inDepth * filterWidth * filterHeight);
 
-			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the costs
+			// this.accessed = new Float32Array(this.inData.length).fill(0); //to average out the grads
 
 			this.gpuBiasName = Ment.makeid(8); //new Float32Array(this.outData.length);
 			this.gpuBiasGradsName = Ment.makeid(8);
@@ -6164,7 +7906,7 @@ int ba = bfromi * ${this.stride};
 int hWIH = hfromi * ${this.wIH};
 int jGAIWBA = (jfromi + ga) * ${this.inWidth} + hWIH + ba;
 
-act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA) * 2.0;
+act += ${this.gpuInDataName}(odi + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(kfromi + jGAIWBA);
 
 
 
@@ -6211,7 +7953,7 @@ for (int h = 0; h < ${this.inDepth}; h++) {
 
 ;
 
-${this.gpuCostsArrayName}(odi) := act;
+${this.gpuGradsArrayName}(odi) := act;
 				`
 			);
 		}
@@ -6252,8 +7994,9 @@ ${this.gpuCostsArrayName}(odi) := act;
 					key == "gpuAccessedMap" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -6264,7 +8007,7 @@ ${this.gpuCostsArrayName}(odi) := act;
 					key == "ws" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "hMFHPO" ||
 					key == "wMFWPO" ||
@@ -6411,7 +8154,7 @@ int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${thi
 
 act = ${this.gpuErrorArrayName}(prop);
 
-${this.gpuCostsArrayName}(index) := act;
+${this.gpuGradsArrayName}(index) := act;
 				`
 			);
 		}
@@ -6424,14 +8167,15 @@ ${this.gpuCostsArrayName}(index) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "accessed"
 				) {
@@ -6515,13 +8259,13 @@ ${this.gpuCostsArrayName}(index) := act;
 				`
 float act = 0.0;
 for (int j = 0; j < ${this.outSize()}; j++) {
-	act += ${this.gpuWeightsName}(j + i * ${this.outSize()}) * ${this.gpuErrorArrayName}(j) * 2.0;
+	act += ${this.gpuWeightsName}(j + i * ${this.outSize()}) * ${this.gpuErrorArrayName}(j);
 }
-act = act / ${this.outSize()}.0;
+
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 
@@ -6532,7 +8276,7 @@ ${this.gpuCostsArrayName}(i) := act;
 float act = 0.0;
 int j = i - (int(i / ${this.outSize()}) * ${this.outSize()});
 int k = (i - j) / ${this.outSize()};
-act = ${this.gpuInDataName}(k + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(j) * 2.0;
+act = ${this.gpuInDataName}(k + ${this.gpuInDataStartIndex}) * ${this.gpuErrorArrayName}(j);
 act += ${this.gpuWeightsGradsName}(i);
 
 ;
@@ -6576,12 +8320,13 @@ ${this.gpuBiasGradsName}(i) := act;
 				if (
 					key == "outData" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "gpuBiasName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "gpuBiasGradsName" ||
 					key == "gpuWeightsName" ||
@@ -6624,27 +8369,27 @@ ${this.gpuBiasGradsName}(i) := act;
 		// initGPUActivations(
 		// 	inDataGpuArrayName,
 		// 	outDataGpuArrayName,
-		// 	costsGpuArrayName,
+		// 	gradsGpuArrayName,
 		// 	errorGpuArrayName,
 		// 	inDataGPUStartIndex,
 		// 	outDataGPUStartIndex
 		// ) {
-		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// 	//i know its confusing but grads are the erorr of the indata neurons and error is the error of the outdata neurons
 		// 	if (!inDataGpuArrayName) {
 		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!outDataGpuArrayName) {
 		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
-		// 	if (!costsGpuArrayName) {
-		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	if (!gradsGpuArrayName) {
+		// 		this.gpuGradsArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!errorGpuArrayName) {
 		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	this.gpuInDataName = inDataGpuArrayName;
 		// 	this.gpuOutDataName = outDataGpuArrayName;
-		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuGradsArrayName = gradsGpuArrayName;
 		// 	this.gpuErrorArrayName = errorGpuArrayName;
 		// 	this.gpuInDataStartIndex = inDataGPUStartIndex;
 		// 	this.gpuOutDataStartIndex = outDataGPUStartIndex;
@@ -6652,7 +8397,7 @@ ${this.gpuBiasGradsName}(i) := act;
 		// 	let temp = new Float32Array(this.inSize());
 		// 	temp.fill(0);
 		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
-		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+		// 	Ment.webMonkeys.set(this.gpuGradsArrayName, temp);
 
 		// 	temp = new Float32Array(this.outSize());
 		// 	temp.fill(0);
@@ -6745,7 +8490,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -6757,12 +8502,13 @@ ${this.gpuCostsArrayName}(i) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
@@ -6851,7 +8597,7 @@ ${this.gpuCostsArrayName}(i) := act;
 			// 	//if not already initialized
 			// 	this.inData = new Float32Array(layer.outSize());
 			// 	this.outData = new Float32Array(layer.outSize());
-			// 	this.costs = new Float32Array(layer.outSize());
+			// 	this.grads = new Float32Array(layer.outSize());
 			// }
 			this.pl = layer;
 		}
@@ -6891,7 +8637,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -6903,13 +8649,14 @@ ${this.gpuCostsArrayName}(i) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "pl" ||
 					key == "outData" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "currentInput"
@@ -6980,7 +8727,7 @@ if(${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) < 0.0){
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -7073,7 +8820,7 @@ int index = (jfromi + 1) * ${this.pad} * 2 + -${this.pad} + ${this.pad} * (${thi
 
 act = ${this.gpuErrorArrayName}(index);
 
-${this.gpuCostsArrayName}(prop) := act;
+${this.gpuGradsArrayName}(prop) := act;
 				`
 			);
 		}
@@ -7102,14 +8849,15 @@ ${this.gpuCostsArrayName}(prop) := act;
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName"
 				) {
 					return undefined;
@@ -7147,7 +8895,7 @@ ${this.gpuCostsArrayName}(prop) := act;
 			this.nextLayer; //the connected layer
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
-			this.gpuCostsFromEmitterName; //gets set by the receiver
+			this.gpuGradsFromEmitterName; //gets set by the receiver
 			this.pl = undefined;
 			this.gpuInDataStartIndex = 0;
 			this.gpuOutDataStartIndex = 0;
@@ -7168,29 +8916,29 @@ ${this.gpuCostsArrayName}(prop) := act;
 			this.pl = layer;
 		}
 
-		// initGPUActivations(inDataGpuArrayName, outDataGpuArrayName, costsGpuArrayName, errorGpuArrayName) {
-		// 	//i know its confusing but costs are the erorr of the indata neurons and error is the error of the outdata neurons
+		// initGPUActivations(inDataGpuArrayName, outDataGpuArrayName, gradsGpuArrayName, errorGpuArrayName) {
+		// 	//i know its confusing but grads are the erorr of the indata neurons and error is the error of the outdata neurons
 		// 	if (!inDataGpuArrayName) {
 		// 		this.gpuInDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!outDataGpuArrayName) {
 		// 		this.gpuOutDataName = Ment.makeid(8); //generates random 8 character string
 		// 	}
-		// 	if (!costsGpuArrayName) {
-		// 		this.gpuCostsArrayName = Ment.makeid(8); //generates random 8 character string
+		// 	if (!gradsGpuArrayName) {
+		// 		this.gpuGradsArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	if (!errorGpuArrayName) {
 		// 		this.gpuErrorArrayName = Ment.makeid(8); //generates random 8 character string
 		// 	}
 		// 	this.gpuInDataName = inDataGpuArrayName;
 		// 	this.gpuOutDataName = outDataGpuArrayName;
-		// 	this.gpuCostsArrayName = costsGpuArrayName;
+		// 	this.gpuGradsArrayName = gradsGpuArrayName;
 		// 	this.gpuErrorArrayName = errorGpuArrayName;
 
 		// 	let temp = new Float32Array(this.inSize());
 		// 	temp.fill(0);
 		// 	Ment.webMonkeys.set(this.gpuInDataName, temp);
-		// 	Ment.webMonkeys.set(this.gpuCostsArrayName, temp);
+		// 	Ment.webMonkeys.set(this.gpuGradsArrayName, temp);
 
 		// 	temp = new Float32Array(this.outSize());
 		// 	temp.fill(0);
@@ -7224,11 +8972,11 @@ ${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) := act;
 			Ment.webMonkeys.work(
 				this.inSize(),
 				`
-float act = (${this.gpuErrorArrayName}(i) + ${this.gpuCostsFromEmitterName}(i)) / 2.0;
+float act = (${this.gpuErrorArrayName}(i) + ${this.gpuGradsFromEmitterName}(i)) / 2.0;
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -7251,14 +8999,15 @@ ${this.gpuCostsArrayName}(i) := act;
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "gpuCostsFromEmitter" ||
+					key == "gpuGradsFromEmitter" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "emitter"
 				) {
@@ -7295,7 +9044,7 @@ ${this.gpuCostsArrayName}(i) := act;
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.emitter;
-			this.gpuCostsForEmitter;
+			this.gpuGradsForEmitter;
 			this.pl; // holds a reference to previous layer
 		}
 
@@ -7337,9 +9086,9 @@ ${this.gpuCostsArrayName}(i) := act;
 					return layer.outSize() + this.emitter.outSize();
 				};
 			}
-			this.gpuCostsForEmitterName = Ment.makeid(8);
-			Ment.webMonkeys.set(this.gpuCostsForEmitterName, this.emitter.outSize());
-			this.emitter.gpuCostsFromEmitterName = this.gpuCostsForEmitterName;
+			this.gpuGradsForEmitterName = Ment.makeid(8);
+			Ment.webMonkeys.set(this.gpuGradsForEmitterName, this.emitter.outSize());
+			this.emitter.gpuGradsFromEmitterName = this.gpuGradsForEmitterName;
 		}
 
 		get outData() {
@@ -7416,7 +9165,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -7426,7 +9175,7 @@ float act = ${this.gpuErrorArrayName}(i + ${this.inSize()});
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			} else if (this.mode == "add") {
 				Ment.webMonkeys.work(
@@ -7436,7 +9185,7 @@ float act = ${this.gpuErrorArrayName}(i) / 2.0;
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -7446,7 +9195,7 @@ float act = ${this.gpuErrorArrayName}(i) / 2.0;
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			} else if (this.mode == "average") {
 				Ment.webMonkeys.work(
@@ -7456,7 +9205,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -7466,7 +9215,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			}
 		}
@@ -7480,15 +9229,16 @@ ${this.gpuCostsForEmitterName}(i) := act;				`
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "gpuCostsForEmitter" ||
+					key == "gpuGradsForEmitter" ||
 					key == "gpuInDataFromEmitterName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "emitter"
 				) {
@@ -7548,7 +9298,7 @@ float act = ${this.gpuErrorArrayName}(i) * (zee / ((1.0 + zee) * (1.0 + zee)));
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -7607,7 +9357,7 @@ float act = 1.0 - (zee * zee);
 act = act * ${this.gpuErrorArrayName}(i);
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -7703,7 +9453,7 @@ act += ${this.gpuErrorArrayName}(ifromi * ${this.outHeight * this.outWidth} + ((
 };
 };
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}
@@ -7733,8 +9483,9 @@ ${this.gpuCostsArrayName}(i) := act;
 					key == "ws" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||
@@ -7763,188 +9514,4 @@ ${this.gpuCostsArrayName}(i) := act;
 	Ment.UpscaleGPU = UpscalingLayerGPU;
 	Ment.UpScalingGPU = UpscalingLayerGPU;
 	Ment.UpscalingLayerGPU = UpscalingLayerGPU;
-}
-
-{
-	/*
-        Gives the gradients "momentum" down the slope. Nothing special to it but
-		it is rumored that it increased training speed a lot! I think it might be 
-		a good idea to use this instead of SGD
-
-		Super excited about it. 
-    */
-	class Momentum {
-		constructor(momentum = 0.9) {
-			this.netObject; //will be set to the net object
-			this.lastGrads = [];
-			this.momentum = momentum; // a constant which represents how strong the gradients "momentum" will be
-		} //END OF CONSTRUCTOR
-
-		initialize() {
-			//we need to get "this.lastGrads" list the right size. It needs to be as long as there are gradients in this network.
-			let pag = this.netObject.getParamsAndGrads();
-			var gradCounter = 0;
-			for (var j = 0; j < pag.length; j += 2) {
-				let grads = pag[j + 1];
-				gradCounter += grads.length;
-			}
-			this.lastGrads = new Float32Array(gradCounter);
-			this.lastGrads.fill(0);
-		}
-		applyGradients(paramsAndGrads) {
-			var gradCounter = 0;
-			for (var j = 0; j < paramsAndGrads.length; j += 2) {
-				let params = paramsAndGrads[j];
-				let grads = paramsAndGrads[j + 1];
-				for (var k = 0; k < params.length; k++) {
-					params[k] +=
-						(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[gradCounter];
-					this.lastGrads[gradCounter] =
-						(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[gradCounter];
-					grads[k] = 0;
-					gradCounter++;
-				}
-			}
-		}
-	} //END OF Momentum CLASS DECLARATION
-
-	Ment.Momentum = Momentum;
-}
-
-{
-	/*
-        Gives the gradients "momentum" down the slope. Nothing special to it but
-		it is rumored that it increased training speed a lot! I think it might be 
-		a good idea to use this instead of SGD
-
-		Super excited about it. 
-    */
-	class MomentumGPU {
-		constructor(momentum = 0.9) {
-			this.netObject; //will be set to the net object
-			this.lastGrads = [];
-			this.momentum = momentum; // a constant which represents how strong the gradients "momentum" will be
-		} //END OF CONSTRUCTOR
-
-		initialize() {
-			//we need to get "this.lastGrads" list the right size. It needs to be as long as there are gradients in this network.
-			let pag = this.netObject.getParamsAndGrads();
-			for (var j = 0; j < pag.length; j += 2) {
-				let grads = pag[j + 1];
-				Ment.webMonkeys.set(this.lastGrads[this.lastGrads.push(Ment.makeid(8)) - 1], Ment.webMonkeys.getLen(grads));
-			}
-		}
-		applyGradients(paramsAndGrads) {
-			for (var j = 0; j < paramsAndGrads.length; j += 2) {
-				let params = paramsAndGrads[j];
-				let grads = paramsAndGrads[j + 1];
-				// for (var k = 0; k < params.length; k++) {
-				// 	params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
-				// 	this.lastGrads[gradCounter] =
-				// 		(grads[k] / this.netObject.iteration) * this.netObject.learningRate + this.momentum * this.lastGrads[j][k];
-				// 	grads[k] = 0;
-				// 	gradCounter++;
-				// }
-				Ment.webMonkeys.work(
-					Ment.webMonkeys.getLen(params),
-					`
-float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(1)}) * ${parseFloat(
-						this.netObject.learningRate
-					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
-
-;
-
-${params}(i) := act;
-
-`
-				);
-
-				Ment.webMonkeys.work(
-					Ment.webMonkeys.getLen(params),
-					`
-float act = (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
-						this.netObject.learningRate
-					).toFixed(8)} + ${parseFloat(this.momentum).toFixed(8)} * ${this.lastGrads[j / 2]}(i);
-
-;
-
-${this.lastGrads[j / 2]}(i) := act;
-
-`
-				);
-
-				Ment.webMonkeys.fill(grads, 0);
-			}
-		}
-	} //END OF Momentum CLASS DECLARATION
-
-	Ment.MomentumGPU = MomentumGPU;
-}
-
-{
-	/*
-        This is the basic white girl of optimizers. Doesn't even do anything to the gradient.
-        batch size is already built in to the network so we dont even have to do that here
-    */
-	class SGD {
-		constructor() {
-			this.netObject; //will be set to the net object
-		} //END OF CONSTRUCTOR
-
-		//this function gets called after this.netObject is set by the network.
-		initialize() {}
-
-		applyGradients(paramsAndGrads) {
-			for (var j = 0; j < paramsAndGrads.length; j += 2) {
-				let params = paramsAndGrads[j];
-				let grads = paramsAndGrads[j + 1];
-				for (var k = 0; k < params.length; k++) {
-					params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate;
-					grads[k] = 0;
-				}
-			}
-		}
-	} //END OF SGD CLASS DECLARATION
-
-	Ment.SGD = SGD;
-}
-
-{
-	/*
-       SGD except it works for GPU AI instead of cpu ai
-    */
-	class SGDGPU {
-		constructor() {
-			this.netObject; //will be set to the net object
-		} //END OF CONSTRUCTOR
-
-		//this function gets called after this.netObject is set by the network.
-		initialize() {}
-
-		applyGradients(paramsAndGrads) {
-			for (var j = 0; j < paramsAndGrads.length; j += 2) {
-				let params = paramsAndGrads[j];
-				let grads = paramsAndGrads[j + 1];
-				// params[k] += (grads[k] / this.netObject.iteration) * this.netObject.learningRate;
-				// grads[k] = 0;
-				let len = Ment.webMonkeys.getLen(params);
-				Ment.webMonkeys.work(
-					len,
-					`
-float act = ${params}(i) + (${grads}(i) / ${parseFloat(this.netObject.batchSize).toFixed(8)}) * ${parseFloat(
-						this.netObject.learningRate
-					).toFixed(8)};
-
-;
-
-${params}(i) := act;
-
-`
-				);
-				Ment.webMonkeys.fill(grads, 0);
-			}
-		}
-	} //END OF SGD CLASS DECLARATION
-
-	Ment.SGDGPU = SGDGPU;
 }

@@ -32,9 +32,8 @@
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.inDepth
 			);
 			this.inData = new Float64Array(inWidth * inHeight * inDepth);
-			this.costs = new Float64Array(inWidth * inHeight * inDepth);
+			this.grads = new Float64Array(inWidth * inHeight * inDepth);
 			this.maxIndexes = new Float64Array(this.outData.length);
-			this.accessed = new Float64Array(this.costs.length).fill(1);
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Max Pool layer error: Pooling size (width / height) cannot be bigger than the inputs corresponding (width/height)";
 			}
@@ -104,24 +103,17 @@
 		}
 
 		backward(err) {
-			this.costs.fill(0);
+			this.grads.fill(0);
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var g = 0; g < this.hMFHPO; g++) {
 				const gWMFWPO = g * this.wMFWPO;
 				for (var b = 0; b < this.wMFWPO; b++) {
 					for (var h = 0; h < this.inDepth; h++) {
 						const odi = b + gWMFWPO + h * this.hMFWMF;
-						this.costs[this.maxIndexes[odi]] += err[odi];
-						this.accessed[this.maxIndexes[odi]]++;
+						this.grads[this.maxIndexes[odi]] += err[odi];
 					}
-				}
-			}
-			for (var i = 0; i < this.accessed.length; i++) {
-				if (this.accessed[i] != 0) {
-					this.costs[i] /= this.accessed[i]; //Average it yeah!!!
-					this.accessed[i] = 0;
 				}
 			}
 		}
@@ -130,8 +122,9 @@
 			let ret = JSON.stringify(this, function (key, value) {
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||

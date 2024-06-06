@@ -7,7 +7,7 @@
 			this.outData = new Float64Array(size); //will be init when "connect" is called.
 			this.b = new Float64Array(size);
 			this.bs = new Float64Array(size);
-			this.costs = new Float64Array(size); //costs for each neuron
+			this.grads = new Float64Array(size); //grads for each neuron
 			this.pl; //reference to previous layer
 			for (var i = 0; i < this.b.length; i++) {
 				this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -23,7 +23,7 @@
 				//if not already initialized
 				this.inData = new Float64Array(layer.outSize());
 				this.outData = new Float64Array(layer.outSize());
-				this.costs = new Float64Array(layer.outSize());
+				this.grads = new Float64Array(layer.outSize());
 				this.b = new Float64Array(layer.outSize());
 				this.bs = new Float64Array(layer.outSize());
 				for (var i = 0; i < this.b.length; i++) {
@@ -49,10 +49,10 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 			for (var j = 0; j < this.outData.length; j++) {
-				this.costs[j] = err[j];
+				this.grads[j] = err[j];
 				this.bs[j] += err[j];
 			}
 		}
@@ -73,8 +73,9 @@
 				if (
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer"
 				) {

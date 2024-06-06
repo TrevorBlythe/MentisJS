@@ -53,6 +53,7 @@ body {
 
 .topbar button:active {
 	color: #777;
+	background-color: #ddd;
 }
 
 .showcaseTitle {

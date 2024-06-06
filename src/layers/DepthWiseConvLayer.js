@@ -1,26 +1,10 @@
 {
 	/*
-if filter is 3x3 with indepth of 3 the first filter stored as such:
-this.filterw = [0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8,
-								0,1,2,3,4,5,6,7,8.......]
-
-Each filter has depth equal to the InDepth.
-
-this.filterw
-[filterNum * this.inDepth * filterWidth * filterHeight + x + (y * filterWidth) + (depth * filterWidth * filterHeight)]
-
-if you wanna input an image do it like this.
-[r,r,r,r,g,g,g,g,b,b,b,b,b]
-NOT like this:
-[r,g,b,r,g,b,r,g,b,r,g,b]
-Im sorry but I had to choose one 
+Only difference is the filter depths are 1 and they only go over one depth of the input
 */
 
-	class ConvLayer {
-		static averageOutGrads = false; //probs
-		static averageOutGrads = false; //ehhh
-		constructor(inDim, filterDim, filters = 3, stride = 1, bias = true) {
+	class DepthWiseConvLayer {
+		constructor(inDim, filterDim, filters = 3, stride = 1, bias = false) {
 			if (inDim.length != 3) {
 				throw (
 					this.constructor.name +
@@ -28,6 +12,11 @@ Im sorry but I had to choose one
 					"First parameter in layer must be an 3 length array, width height and depth"
 				);
 			}
+
+			if (filters % inDim[2] != 0) {
+				throw "DepthwiseConvLayer error: The amount of filters must be a multiple of the input depth";
+			}
+
 			let inWidth = inDim[0];
 			let inHeight = inDim[1];
 			let inDepth = inDim[2];
@@ -48,8 +37,8 @@ Im sorry but I had to choose one
 			this.filterWidth = filterWidth;
 			this.filterHeight = filterHeight;
 			this.stride = stride;
-			this.filterw = new Float64Array(filters * inDepth * filterWidth * filterHeight);
-			this.filterws = new Float64Array(filters * inDepth * filterWidth * filterHeight);
+			this.filterw = new Float64Array(filters * filterWidth * filterHeight);
+			this.filterws = new Float64Array(filters * filterWidth * filterHeight);
 			this.outData = new Float64Array(
 				Math.ceil((inWidth - filterWidth + 1) / stride) * Math.ceil((inHeight - filterHeight + 1) / stride) * this.filters
 			);
@@ -62,41 +51,11 @@ Im sorry but I had to choose one
 			if (this.filterWidth > inWidth || this.filterHeight > inHeight) {
 				throw "Conv layer error: filters cannot be bigger than the input";
 			}
-			// init random weights
+
 			for (var i = 0; i < this.filterw.length; i++) {
-				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+				this.filterw[i] = 3 * (Math.random() - 0.5);
 			}
 
-			// //this next for loop gives the starting weights a random "pattern" using cellular automata.
-			// //since most people are not gonna be training on random noise, having patters probably helps
-			// //train it faster
-			// for (var a = 0; a < 3; a++) {
-			// 	let newFilterw = this.filterw.slice(0);
-			// 	for (var f = 0; f < this.filters; f++) {
-			// 		for (var d = 0; d < this.inDepth; d++) {
-			// 			for (var x = 0; x < this.filterWidth; x++) {
-			// 				for (var y = 0; y < this.filterHeight; y++) {
-			// 					let count = 0;
-			// 					let ind = [f * this.inDepth * filterWidth * filterHeight + x + y * filterWidth + d * filterWidth * filterHeight];
-			// 					let indR =
-			// 						f * this.inDepth * filterWidth * filterHeight + (x + 1) + y * filterWidth + d * filterWidth * filterHeight;
-			// 					let indL =
-			// 						f * this.inDepth * filterWidth * filterHeight + (x - 1) + y * filterWidth + d * filterWidth * filterHeight;
-			// 					let indD =
-			// 						f * this.inDepth * filterWidth * filterHeight + x + (y + 1) * filterWidth + d * filterWidth * filterHeight;
-			// 					let indU =
-			// 						f * this.inDepth * filterWidth * filterHeight + x + (y - 1) * filterWidth + d * filterWidth * filterHeight;
-			// 					if (x < filterWidth - 1) count += this.filterw[indR];
-			// 					if (x > 1) count += this.filterw[indL];
-			// 					if (y < filterHeight - 1) count += this.filterw[indD];
-			// 					if (y > 1) count += this.filterw[indU];
-			// 					newFilterw[ind] += count / 5;
-			// 				}
-			// 			}
-			// 		}
-			// 	}
-			// 	this.filterw = newFilterw;
-			// }
 			if (this.useBias) {
 				for (var i = 0; i < this.b.length; i++) {
 					this.b[i] = 0.1 * Math.random() * (Math.random() > 0.5 ? -1 : 1);
@@ -114,12 +73,13 @@ Im sorry but I had to choose one
 			this.wIH = this.inWidth * this.inHeight;
 			this.wIHID = this.inWidth * this.inHeight * this.inDepth;
 			this.fWIH = this.filterWidth * this.filterHeight;
-			this.fWIHID = this.inDepth * this.filterHeight * this.filterWidth;
+			//note to self i changed this so it might be big breaky breaky
+			this.fWIHID = this.filterHeight * this.filterWidth;
 		}
 
 		reInitializeFilter(index) {
 			for (var i = this.fWIHID * index; i < this.fWIHID * index + this.fWIHID; i++) {
-				this.filterw[i] = (3 * (Math.random() - 0.5)) / this.inDepth;
+				this.filterw[i] = 3 * (Math.random() - 0.5);
 			}
 		}
 
@@ -166,7 +126,7 @@ Im sorry but I had to choose one
 			outData.fill(0);
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
-				const iFWIHID = i * this.fWIHID;
+				const iFWIHID = i * this.fWIH;
 				for (var g = 0; g < this.hMFHPO; g++) {
 					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
@@ -174,17 +134,19 @@ Im sorry but I had to choose one
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * stride;
 						outData[odi] += biases[odi];
-						for (var h = 0; h < inDepth; h++) {
-							const hWIH = h * wIH + ba;
-							const hFWIH = h * fWIH + iFWIHID;
-							for (var j = 0; j < filterHeight; j++) {
-								const jGAIWBA = (j + ga) * inWidth + hWIH;
-								const jFWHFWIH = j * filterWidth + hFWIH;
-								for (var k = 0; k < filterWidth; k++) {
-									outData[odi] += inData[k + jGAIWBA] * filterw[k + jFWHFWIH];
-								}
+						// for (var h = 0; h < inDepth; h++) {
+						//since this is depthwise the depth we operate on will depend on the index of the filter
+						const h = i % inDepth;
+						const hWIH = h * wIH + ba;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								outData[odi] += inData[k + jGAIWBA] * filterw[k + jFWHFWIH];
 							}
 						}
+						// }
 					}
 				}
 			}
@@ -210,25 +172,26 @@ Im sorry but I had to choose one
 			//-----------------------------Beginning of monstrosity-----------------
 			for (var i = 0; i < this.filters; i++) {
 				const iHMFWMF = i * this.hMFWMF;
-				const iFWIHID = i * this.fWIHID;
+				const iFWIHID = i * this.fWIH;
 				for (var g = 0; g < this.hMFHPO; g++) {
 					const ga = g * stride;
 					const gWMFWPO = g * this.wMFWPO;
 					for (var b = 0; b < this.wMFWPO; b++) {
 						const odi = b + gWMFWPO + iHMFWMF;
 						const ba = b * stride;
-						for (var h = 0; h < inDepth; h++) {
-							const hWIH = h * wIH;
-							const hFWIH = h * fWIH + iFWIHID;
-							for (var j = 0; j < filterHeight; j++) {
-								const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
-								const jFWHFWIH = j * filterWidth + hFWIH;
-								for (var k = 0; k < filterWidth; k++) {
-									grads[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
-									filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
-								}
+						// for (var h = 0; h < inDepth; h++) {
+						const h = i % inDepth;
+						const hWIH = h * wIH;
+						const hFWIH = iFWIHID;
+						for (var j = 0; j < filterHeight; j++) {
+							const jGAIWBA = (j + ga) * inWidth + hWIH + ba;
+							const jFWHFWIH = j * filterWidth + hFWIH;
+							for (var k = 0; k < filterWidth; k++) {
+								grads[k + jGAIWBA] += filterw[k + jFWHFWIH] * err[odi];
+								filterws[k + jFWHFWIH] += inData[k + jGAIWBA] * err[odi];
 							}
 						}
+						// }
 					}
 				}
 			}
@@ -252,6 +215,7 @@ Im sorry but I had to choose one
 					key == "filterws" ||
 					key == "filterbs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "netObject" ||
 					key == "outData" ||
 					key == "grads" ||
@@ -282,7 +246,7 @@ Im sorry but I had to choose one
 
 		static load(json) {
 			let saveObject = JSON.parse(json);
-			let layer = new ConvLayer(
+			let layer = new DepthWiseConvLayer(
 				[saveObject.inWidth, saveObject.inHeight, saveObject.inDepth],
 				[saveObject.filterWidth, saveObject.filterHeight],
 				saveObject.filters,
@@ -301,6 +265,7 @@ Im sorry but I had to choose one
 		}
 	}
 
-	Ment.ConvLayer = ConvLayer;
-	Ment.Conv = ConvLayer;
+	Ment.DepthWiseConvLayer = DepthWiseConvLayer;
+	Ment.DepthWiseConv = DepthWiseConvLayer;
+	Ment.DWConv = DepthWiseConvLayer;
 }

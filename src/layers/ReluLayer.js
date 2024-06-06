@@ -21,14 +21,14 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
 
 			for (var j = 0; j < this.outSize(); j++) {
 				if (this.outData[j] > 0) {
-					this.costs[j] = err[j];
+					this.grads[j] = err[j];
 				} else {
-					this.costs[j] = 0;
+					this.grads[j] = 0;
 				}
 			}
 		}

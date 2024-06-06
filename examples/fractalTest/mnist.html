@@ -6,7 +6,7 @@
 	<meta http-equiv="X-UA-Compatible" content="IE=edge" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 	<link rel="stylesheet" href="../../index.css" />
-	<script src="../../TestMent.js"></script>
+	<script src="../../Mentis.js"></script>
 
 	<title>MentisJS</title>
 	<style>
@@ -28,7 +28,6 @@
 			margin-left: 15%;
 			width: 70%;
 			background-color: rgb(220, 225, 222);
-			overflow-x: scroll;
 		}
 
 		.canvasWrapper {
@@ -77,48 +76,6 @@
 			height: 5vh;
 			margin-right: 3%;
 		}
-		.layer{
-			margin-top: 1vh;
-			margin-bottom: 1vh;
-			background-color: azure;
-		}
-		.gjs-row{
-			display:flex;
-			justify-content:flex-start;
-			align-items:stretch;
-			flex-wrap:nowrap;
-			padding:10px;
-			}
-			.gjs-cell{
-			min-height:75px;
-			flex-grow:1;
-			flex-basis:100%;
-			}
-			.leftCol{
-			flex-basis:30%;
-			}
-			.rightCol{
-			flex-basis:70%;
-			}
-			.tab{
-			padding:7px 14px;
-			display:inline-block;
-			border-radius:3px;
-			margin-right:10px;
-			}
-				.tab2{
-			/* padding:7px 14px; */
-			display:inline-block;
-			border-radius:3px;
-			/* margin-right:10px; */
-			}
-
-			.tab-container{
-			display:inline-block;
-			}
-			.showcaseNet{
-				width:100%;
-			}
 	</style>
 </head>
 
@@ -129,27 +86,13 @@
 	</div>
 	<!-- End of topbar -->
 	<div class="showcaseTitle">
-		<h1>Network inspector</h1>
+		<h1>Mnist digits</h1>
+		<!-- <p>ResEmitterLayers with the same ID as ResReceiverLayers will transmit data across layers. The best way to show something though is by example.</p> -->
 	</div>
 	<div class="wrapper">
-		<p>Paste JSON Data of your network in this text box to analyze it</p>
-		<input id = "inputJSON">
-		<button onclick="net = Ment.Net.load(document.getElementById('inputJSON').value);analyze();">Load From JSON</button>
-		<button onclick="net = Ment.Net.load(model);analyze();">Load Example Network</button>
-		<button id="import">Import json file</button>
-		<input type="file" id="selectFiles" value="Import" /><br />
-
-		<br>
-		<br>
-		<br>
-			<div class="showcasenet">
-				<canvas id="canvasNet" width="1242px" height = "500px"></canvas>
-			</div>
-		<div id="networkTerminal">
-			no network loaded...
-		</div>
+			<canvas id="canvas" width="140px" height="140px"></canvas>
 	</div>
-	<script src="model.js"></script>
-	<script src="inspector.js"></script>
+	<script src="fractalGen.js"></script>
+	<script src="convScript.js"></script>
 
 </html>

@@ -6,7 +6,7 @@
 			this.nextLayer; //the connected layer
 			this.inData = new Float64Array(0); //the inData
 			this.outData = new Float64Array(0); //will be init when "connect" is called.
-			this.costs = new Float64Array(0); //costs for each neuron
+			this.grads = new Float64Array(0); //grads for each neuron
 			this.receiver; // a reference to the receiver layer so we can skip layers
 			//this will be set by the receiver  when the net is initialized
 			this.pl = undefined;
@@ -18,7 +18,7 @@
 
 		set previousLayer(layer) {
 			this.inData = new Float64Array(layer.outSize());
-			this.costs = new Float64Array(layer.outSize());
+			this.grads = new Float64Array(layer.outSize());
 			this.pl = layer;
 
 			this.outData = new Float64Array(layer.outSize());
@@ -42,14 +42,14 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 
 			for (var i = 0; i < this.outData.length; i++) {
-				this.costs[i] += err[i];
-				this.costs[i] += this.receiver.costsForEmitter[i];
-				this.costs[i] /= 2;
+				this.grads[i] += err[i];
+				this.grads[i] += this.receiver.gradsForEmitter[i];
+				this.grads[i] /= 2;
 			}
 		}
 
@@ -70,8 +70,9 @@
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "emitter"

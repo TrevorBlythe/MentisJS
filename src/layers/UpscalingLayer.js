@@ -22,7 +22,7 @@
 			this.previousLayer; //the previousLayer
 			this.inData = new Float64Array(inWidth * inHeight * inDepth); //the inData
 			this.outData = new Float64Array(this.outWidth * this.outHeight * inDepth);
-			this.costs = new Float64Array(this.inData.length); //costs for each activation in "inData"
+			this.grads = new Float64Array(this.inData.length); //grads for each activation in "inData"
 		}
 		inSizeDimensions() {
 			return [this.inWidth, this.inHeight, this.inDepth];
@@ -58,16 +58,16 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			this.costs.fill(0);
+			this.grads.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				//this can be optimized
 				for (var h = 0; h < this.inHeight * this.scale; h++) {
 					for (var j = 0; j < this.inWidth * this.scale; j++) {
 						let t = err[i * this.outHeight * this.outWidth + h * this.outWidth + j];
-						this.costs[
+						this.grads[
 							Math.floor(i) * this.inHeight * this.inWidth +
 								Math.floor(h / this.scale) * this.inWidth +
 								Math.floor(j / this.scale)
@@ -75,8 +75,8 @@
 					}
 				}
 			}
-			// for(var i = 0;i<this.costs.length;i++){
-			// 	this.costs[i] /= this.scale;
+			// for(var i = 0;i<this.grads.length;i++){
+			// 	this.grads[i] /= this.scale;
 			// }
 		}
 
@@ -95,8 +95,9 @@
 					key == "ws" ||
 					key == "bs" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "gpuEnabled" ||
 					key == "trainIterations" ||
 					key == "nextLayer" ||

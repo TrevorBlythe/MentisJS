@@ -7,7 +7,7 @@
 			this.id = id || 0;
 			this.nextLayer; //the connected layer
 			this.emitter;
-			this.gpuCostsForEmitter;
+			this.gpuGradsForEmitter;
 			this.pl; // holds a reference to previous layer
 		}
 
@@ -49,9 +49,9 @@
 					return layer.outSize() + this.emitter.outSize();
 				};
 			}
-			this.gpuCostsForEmitterName = Ment.makeid(8);
-			Ment.webMonkeys.set(this.gpuCostsForEmitterName, this.emitter.outSize());
-			this.emitter.gpuCostsFromEmitterName = this.gpuCostsForEmitterName;
+			this.gpuGradsForEmitterName = Ment.makeid(8);
+			Ment.webMonkeys.set(this.gpuGradsForEmitterName, this.emitter.outSize());
+			this.emitter.gpuGradsFromEmitterName = this.gpuGradsForEmitterName;
 		}
 
 		get outData() {
@@ -128,7 +128,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -138,7 +138,7 @@ float act = ${this.gpuErrorArrayName}(i + ${this.inSize()});
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			} else if (this.mode == "add") {
 				Ment.webMonkeys.work(
@@ -148,7 +148,7 @@ float act = ${this.gpuErrorArrayName}(i) / 2.0;
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -158,7 +158,7 @@ float act = ${this.gpuErrorArrayName}(i) / 2.0;
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			} else if (this.mode == "average") {
 				Ment.webMonkeys.work(
@@ -168,7 +168,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 				);
 				Ment.webMonkeys.work(
@@ -178,7 +178,7 @@ float act = ${this.gpuErrorArrayName}(i);
 
 ;
 
-${this.gpuCostsForEmitterName}(i) := act;				`
+${this.gpuGradsForEmitterName}(i) := act;				`
 				);
 			}
 		}
@@ -192,15 +192,16 @@ ${this.gpuCostsForEmitterName}(i) := act;				`
 					key == "receiver" ||
 					key == "pl" ||
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
-					key == "gpuCostsForEmitter" ||
+					key == "gpuGradsForEmitter" ||
 					key == "gpuInDataFromEmitterName" ||
 					key == "gpuInDataName" ||
 					key == "gpuOutDataName" ||
-					key == "gpuCostsArrayName" ||
+					key == "gpuGradsArrayName" ||
 					key == "gpuErrorArrayName" ||
 					key == "emitter"
 				) {

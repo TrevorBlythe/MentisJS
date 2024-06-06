@@ -10,9 +10,15 @@ let drawFromArr = function (arr, ctxy) {
 	for (var i = 0; i < height; i++) {
 		for (var j = 0; j < width; j++) {
 			//array pixel values are stored as r,r,r,g,g,g,b,b,b
-			r = arr[i * width + j] * 255;
-			ctxy.fillStyle = "rgb(" + r + "," + r + "," + r + ")";
-
+			if (arr.length == 28 * 28) {
+				r = arr[i * width + j] * 255;
+				ctxy.fillStyle = "rgb(" + r + "," + r + "," + r + ")";
+			} else {
+				let r = arr[i * width + j] * 255;
+				let g = arr[i * width + j + width * height] * 255;
+				let b = arr[i * width + j + width * height * 2] * 255;
+				ctxy.fillStyle = "rgb(" + r + "," + g + "," + b + ")";
+			}
 			ctxy.fillRect(j * 5, i * 5, 5, 5);
 		}
 	}
@@ -30,23 +36,25 @@ let greenBox = function (p) {
 };
 var net = new Ment.Net(
 	[
+		new Ment.ConvParam([28, 28, 3], [1, 1], 1, 1, false, 3, 1),
 		new Ment.DepthWiseConv([28, 28, 1], [10, 10], 6, 3),
-		new Ment.DepthWiseConv([7, 7, 6], [3, 3], 12, 1),
-		new Ment.Conv([5, 5, 12], [1, 1], 12, 1),
-		new Ment.FC(5 * 5 * 12, 10),
-		new Ment.Tanh(),
-		new Ment.FC(10, 5 * 5 * 12),
+		new Ment.LRelu(0.01),
+		new Ment.DepthWiseConv([7, 7, 6], [3, 3], 6, 1),
+		new Ment.Conv([5, 5, 6], [1, 1], 1, 1),
+		new Ment.Sig(0.01),
 
-		new Ment.DepthWiseDeconv([7, 7, 12], [3, 3], 12, 1),
-		new Ment.DeConv([7, 7, 12], [1, 1], 12, 1),
-		new Ment.DepthWiseDeconv([28, 28, 1], [10, 10], 12, 3),
+		new Ment.DepthWiseDeconv([7, 7, 6], [3, 3], 1, 1),
+		new Ment.DeConv([7, 7, 5], [1, 1], 6, 1),
+		new Ment.LRelu(0.01),
+		new Ment.DepthWiseDeconv([28, 28, 1], [10, 10], 5, 3),
+		new Ment.DeConvParam([28, 28, 3], [1, 1], 1, 1, false, 3, 1),
 		new Ment.LRelu(0.01),
 	],
 	new Ment.AdamW(100)
 	// new Ment.SGD()
 );
 
-net.batchSize = 1;
+net.batchSize = 3;
 net.learningRate = 0.001;
 
 document.getElementById("lr").innerHTML = `learning rate: ${net.learningRate}`;
@@ -59,8 +67,37 @@ var go = function () {
 		start = new Date();
 		//get digit returns a black and white image of a digit
 		let input = getDigit(Math.floor(Math.random() * 9));
+		//make the digit three dimensional and give it a random color
+		//input is just an array
+		let randomColorR = Math.random();
+		let randomColorG = Math.random();
+		let randomColorB = Math.random();
+		let latentInput = new Float64Array(3);
+		latentInput[0] = randomColorR;
+		latentInput[1] = randomColorG;
+		latentInput[2] = randomColorB;
+		for (let i = 0; i < net.layers.length; i++) {
+			if (net.layers[i].constructor.name == "DeconvParamLayer" || net.layers[i].constructor.name == "ConvParamLayer") {
+				net.layers[i].forwardFilter(latentInput);
+				net.layers[i].setFilterFeild("learningRate", net.learningRate);
+				net.layers[i].setFilterFeild("batchSize", net.batchSize);
+			}
+		}
+		// net.layers[6].forwardFilter(latentInput);
+		// randomColorR = 1;
+		// randomColorG = 1;
+		// randomColorB = 1;
+		//reorder input from r,g,b,r,g,b to r,r,r,g,g,g,b,b,b
+		for (var i = 0; i < input.length; i++) {
+			newInput[i] = input[i] * randomColorR;
+			newInput[i + input.length] = input[i] * randomColorG;
+			newInput[i + input.length * 2] = input[i] * randomColorB;
+		}
+		// input = newInput;
 
-		loss = net.train(input, input);
+		// console.log(input);
+		// let input = getDigit(Math.floor(Math.random() * 9));
+		loss = net.train(newInput, newInput);
 
 		let output = net.outData;
 		examplesSeen++;
@@ -88,12 +125,10 @@ var render = function () {
 		x: 5,
 		y: 5,
 		scale: 50,
-		spread: 30,
+		spread: 50,
 		background: false,
 		showAsImage: true,
 	});
 };
 go();
 render();
-
-console.log("To all the haters: Your negativity only fuels my determination to succeed..");

@@ -40,7 +40,7 @@ float act = 1.0 - (zee * zee);
 act = act * ${this.gpuErrorArrayName}(i);
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}

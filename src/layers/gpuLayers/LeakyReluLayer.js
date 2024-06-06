@@ -39,7 +39,7 @@ if(${this.gpuOutDataName}(i + ${this.gpuOutDataStartIndex}) < 0.0){
 
 ;
 
-${this.gpuCostsArrayName}(i) := act;
+${this.gpuGradsArrayName}(i) := act;
 				`
 			);
 		}

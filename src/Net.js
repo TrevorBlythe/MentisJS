@@ -32,10 +32,17 @@ var Ment = Ment || {};
 			}
 		}
 
-		get outData() {
-			return [...this.layers[this.layers.length - 1].outData];
+		get inSize() {
+			return this.layers[0].inSize();
 		}
 
+		get outData() {
+			return this.layers[this.layers.length - 1].outData;
+		}
+
+		get outSize() {
+			return this.layers[this.layers.length - 1].outSize();
+		}
 		set outData(arr) {
 			if (arr.length == this.layers[this.layers.length - 1].outSize()) {
 				this.layers[this.layers.length - 1].outData = arr;
@@ -55,6 +62,10 @@ var Ment = Ment || {};
 
 			//this function is always safe to call. some data may get reset though.
 
+			for (let i = 0; i < this.layers.length; i++) {
+				this.layers[i].netObject = this;
+			}
+
 			for (var i = 1; i < this.layers.length; i++) {
 				this.layers[i].previousLayer = this.layers[i - 1];
 			}
@@ -65,13 +76,21 @@ var Ment = Ment || {};
 
 			for (var i = 0; i < this.layers.length - 1; i++) {
 				if (this.layers[i].outSize() != this.layers[i + 1].inSize()) {
+					// A very complex error message that simply states that the layers are not connected properly and gives there dimensions. And it the layer doesnt have any
+					//dimensions, it will check the layer before it if it has the same size.
 					throw `Failure connecting ${
 						this.layers[i].constructor.name + (this.layers[i].id ? `(${this.layers[i].id})` : null)
 					} layer with ${this.layers[i + 1].constructor.name},${this.layers[i].constructor.name} output size: ${this.layers[
 						i
-					].outSize()}${this.layers[i].outSizeDimensions ? " (" + this.layers[i].outSizeDimensions() + ")" : ""}, ${
-						this.layers[i + 1].constructor.name
-					} input size: ${this.layers[i + 1].inSize()}${
+					].outSize()}${
+						this.layers[i].outSizeDimensions
+							? " (" + this.layers[i].outSizeDimensions() + ")"
+							: this.layers[i - 1]
+							? this.layers[i - 1].outSizeDimensions && this.layers[i - 1].outSize() == this.layers[i].inSize()
+								? "(" + this.layers[i - 1].outSizeDimensions() + ")"
+								: ""
+							: ""
+					}, ${this.layers[i + 1].constructor.name} input size: ${this.layers[i + 1].inSize()}${
 						this.layers[i + 1].inSizeDimensions ? " (" + this.layers[i + 1].inSizeDimensions() + ")" : ""
 					}`;
 				}
@@ -201,8 +220,8 @@ var Ment = Ment || {};
 			lastlayer.backward(err);
 			for (var i = this.layers.length - 2; i >= 0; i--) {
 				//it automatically grabs the calcualted error from the layer ahead.
-				//Would work the same as if you did backward(nextlayer.costs)
-				//Costs represent the error of the indata neurons
+				//Would work the same as if you did backward(nextlayer.grads)
+				//Grads represent the error of the indata neurons
 				this.layers[i].backward();
 			}
 			this.iteration++;
@@ -242,6 +261,36 @@ var Ment = Ment || {};
 						}
 					}
 				}
+			}
+		}
+
+		//adjusting this multiplier might help
+		smoothGradients(gradients, multiplier = 0.7) {
+			// 			  """
+			//   Smoothly adjusts gradients in-place based on their distance from the threshold,
+			//   with a target range of 0 (at threshold) to 2 (far from threshold).
+			//   Args:
+			//     gradients: A list of numbers representing the gradients (modified in-place).
+			//     multiplier: A factor to multiply the mean absolute value by (default: 5).
+			//   """
+			// Calculate mean absolute value
+			// let meanAbs = gradients.reduce((sum, value) => sum + Math.abs(value), 0) / gradients.length;
+			//cannot use reduce function
+			let sum = 0;
+			for (let i = 0; i < gradients.length; i++) {
+				sum += Math.abs(gradients[i]);
+			}
+			const meanAbs = sum / gradients.length;
+
+			// console.log(meanAbs);
+			const threshold = meanAbs * multiplier;
+			// Smooth adjustment function (avoids creating a new array)
+			for (let i = 0; i < gradients.length; i++) {
+				const gradient = gradients[i];
+				const distanceFromThreshold = Math.abs(gradient) - meanAbs;
+				const adjustmentFactor = multiplier / (1 + Math.exp(-distanceFromThreshold)); //sigmoid function
+				// console.log(adjustmentFactor);
+				gradients[i] = adjustmentFactor * gradient;
 			}
 		}
 

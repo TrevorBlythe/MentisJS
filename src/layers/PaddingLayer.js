@@ -23,8 +23,8 @@
 			this.padwith = padwith;
 			this.outData.fill(padwith);
 			this.inData.fill(0);
-			this.costs = new Float64Array(this.inData.length);
-			this.costs.fill(0);
+			this.grads = new Float64Array(this.inData.length);
+			this.grads.fill(0);
 		}
 
 		// const handler = {
@@ -69,15 +69,15 @@
 
 		backward(err) {
 			if (!err) {
-				err = this.nextLayer.costs;
+				err = this.nextLayer.grads;
 			}
-			// this.costs.fill(0);
+			// this.grads.fill(0);
 
 			for (var i = 0; i < this.inDepth; i++) {
 				for (var j = 0; j < this.inHeight; j++) {
 					for (var h = 0; h < this.inWidth; h++) {
 						let prop = i * this.inHeight * this.inWidth + j * this.inWidth + h;
-						this.costs[prop] =
+						this.grads[prop] =
 							err[
 								(j + 1) * this.pad * 2 +
 									-this.pad +
@@ -115,8 +115,9 @@
 				//here we define what we need to save
 				if (
 					key == "inData" ||
+					key == "netObject" ||
 					key == "outData" ||
-					key == "costs" ||
+					key == "grads" ||
 					key == "nextLayer" ||
 					key == "previousLayer" ||
 					key == "pl"

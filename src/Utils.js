@@ -71,9 +71,7 @@ var Ment = Ment || {};
 	var isBrowser = () => !(typeof window === "undefined");
 	//wrap everything in a namespace to not pollute global
 
-	let clamp = function (num, min, max) {
-		min = min | 0;
-		max = max | 1;
+	let clamp = function (num, min = 0, max = 1) {
 		return Math.max(Math.min(num, max), min);
 	};
 
@@ -82,7 +80,7 @@ var Ment = Ment || {};
 	};
 
 	let bounce = function (num, minmax) {
-		minmax = minmax | 3;
+		minmax = minmax || 3;
 		if (Math.abs(num) > minmax) {
 			var t = (minmax * num) / Math.abs(num);
 			num = t - (num - t);
@@ -137,8 +135,8 @@ var Ment = Ment || {};
 		const ctx = options.ctx;
 		const x = options.x;
 		const y = options.y;
-		const scale = options.scale | 20;
-		const spread = options.spread | 3;
+		const scale = options.scale || 20;
+		const spread = options.spread || 3;
 		let background = options.background;
 		if (background == undefined) {
 			background = "white";
@@ -239,8 +237,8 @@ var Ment = Ment || {};
 			ctx.restore();
 			if (layer.outSizeDimensions && options.showAsImage) {
 				wid = layer.outSizeDimensions()[0];
-				hei = layer.outSizeDimensions()[1] | 1;
-				dep = layer.outSizeDimensions()[2] | 1;
+				hei = layer.outSizeDimensions()[1] || 1;
+				dep = layer.outSizeDimensions()[2] || 1;
 				for (var g = 0; g < dep; g++) {
 					for (var h = 0; h < hei; h++) {
 						for (var j = 0; j < wid; j++) {
@@ -266,7 +264,7 @@ var Ment = Ment || {};
 		let x = options.x;
 		let y = options.y;
 		let scale = options.scale;
-		let spread = options.spread | 3; //pixel space between layers default is 3 pixels
+		let spread = options.spread || 3; //pixel space between layers default is 3 pixels
 		let background = options.background;
 
 		let maxSize = 1;
