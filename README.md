@@ -1,6 +1,6 @@
 # Mentis JS Machine Learning/Evolution <img src="https://github.com/TrevorBlythe/MentisJS/blob/main/images/logo.png?raw=true" width="100px">
 
-Mentis JS is a JavaScript library for machine learning and deep learning. It provides functionalities for training neural networks using backpropagation and neural evolution.
+Mentis JS is a JavaScript library for machine learning and deep learning. It provides functionalities for training neural networks using backpropagation and neural evolution. Alternative to ConvNetJs
 
 ## Online Demos
 
