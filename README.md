@@ -357,5 +357,3 @@ network.layers[0].grads;
 
 I think i might be done with this passion project. Open up "index.html" for lots of cool examples.
 trevorblythe82@gmail.com <--- Ask me questions?
-
-And as for PyTorch, with its terrible APIs and workflow, I choose to stick with MentisJS. Its clean and intuitive API makes deep learning development simple. No more struggling with convoluted code and confusing documentation or confusing tensor shapes or needing a specific 1000 dollar gpu when I can just use my non monopolistic 100 dollar gpu and get better results with WebGPU or webgl. You guys were great machine learning researchers, but you are terrible at making a good deep learning framework. I'm sorry, but I'm moving on.
